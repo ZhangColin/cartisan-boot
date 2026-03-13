@@ -11,6 +11,14 @@ dependencies {
     // ArchUnit 编译依赖（本模块需要编译）
     implementation(libs.archunit.junit5)
 
+    // Testcontainers
+    api(platform(libs.testcontainers.bom))
+    api(libs.testcontainers.core)
+    api(libs.testcontainers.postgresql)
+
+    // Spring Boot Testcontainers 支持
+    api("org.springframework.boot:spring-boot-testcontainers:3.4.0")
+
     // Spring 依赖（规则类需要引用注解，测试 fixtures 需要）
     implementation("org.springframework.boot:spring-boot-starter-web:3.4.0")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.4.0")
