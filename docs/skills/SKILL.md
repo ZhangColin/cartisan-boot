@@ -232,6 +232,34 @@ void givenNullAggregateId_whenCreateEvent_thenThrowsNullPointerException() {
 
 ---
 
+### 规则 TEST-003：Spring Boot Test 依赖分层
+
+**推荐做法**：
+```kotlin
+// api 配置暴露给业务项目
+api("org.springframework.boot:spring-boot-test:3.4.0")           // @TestConfiguration 等
+api("org.springframework.boot:spring-boot-starter-test:3.4.0")    // MockMvc 等
+api("org.springframework.boot:spring-boot-testcontainers:3.4.0") // @ServiceConnection
+
+// implementation 仅本模块需要
+implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
+```
+
+**原因**：
+- `spring-boot-test`：提供 `@TestConfiguration`、`@DynamicPropertySource` 等测试注解
+- `spring-boot-starter-test`：提供 MockMvc、`@AutoConfigureMockMvc` 等
+- `spring-boot-testcontainers`：提供 `@ServiceConnection`
+- `spring-boot-starter-data-redis`：测试需要 `StringRedisTemplate`（业务项目可选）
+
+**常见错误**：
+```kotlin
+// ❌ 缺少 spring-boot-test，@TestConfiguration 无法解析
+// ❌ 缺少 spring-boot-starter-test，MockMvc 无法注入
+// ❌ 缺少 spring-boot-starter-data-redis，StringRedisTemplate 无法注入
+```
+
+---
+
 ## 踩坑记录
 
 ### PIT-001 (2026-03-13)：Java 类型擦除导致泛型方法编译失败
@@ -509,38 +537,6 @@ assertThatThrownBy(constructor::newInstance)
 **记忆口诀**：反射构造异常被包装，用 `getCause()` 取真身。
 
 ---
-
-## 测试框架
-
-### 规则 TEST-003：Spring Boot Test 依赖分层
-
-**推荐做法**：
-```kotlin
-// api 配置暴露给业务项目
-api("org.springframework.boot:spring-boot-test:3.4.0")           // @TestConfiguration 等
-api("org.springframework.boot:spring-boot-starter-test:3.4.0")    // MockMvc 等
-api("org.springframework.boot:spring-boot-testcontainers:3.4.0") // @ServiceConnection
-
-// implementation 仅本模块需要
-implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
-```
-
-**原因**：
-- `spring-boot-test`：提供 `@TestConfiguration`、`@DynamicPropertySource` 等测试注解
-- `spring-boot-starter-test`：提供 MockMvc、`@AutoConfigureMockMvc` 等
-- `spring-boot-testcontainers`：提供 `@ServiceConnection`
-- `spring-boot-starter-data-redis`：测试需要 `StringRedisTemplate`（业务项目可选）
-
-**常见错误**：
-```kotlin
-// ❌ 缺少 spring-boot-test，@TestConfiguration 无法解析
-// ❌ 缺少 spring-boot-starter-test，MockMvc 无法注入
-// ❌ 缺少 spring-boot-starter-data-redis，StringRedisTemplate 无法注入
-```
-
----
-
-## 踩坑记录（续）
 
 ### PIT-009 (2026-03-13)：Docker Desktop Socket 配置问题
 
