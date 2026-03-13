@@ -1,4 +1,4 @@
-/# Epic 01 Backlog: 项目骨架 + Core + Test
+# Epic 01 Backlog: 项目骨架 + Core + Test
 
 > Epic 负责人：待定
 > 版本：v0.1 | 日期：2026-03-13
