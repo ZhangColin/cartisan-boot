@@ -93,3 +93,79 @@
   3. 软删除策略（逻辑删除 vs 物理删除标记位）应由业务项目根据需求选择
 - **后续规划**：在 cartisan-data-jpa 模块中提供 JPA 相关的基础设施（如 @MappedSuperclass 的审计基类）
 - **替代方案**：在 domain 层定义 Auditable 接口（会导致所有实体依赖持久化概念，违反 DDD 分层原则）
+
+## ADR-010：异常体系使用 MessageFormat 而非 SLF4J/占位符替换
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：异常消息参数化使用 `java.text.MessageFormat`，占位符语法为 `{0}`, `{1}` 等
+- **理由**：
+  1. MessageFormat 是 JDK 标准库，符合零外部依赖原则
+  2. 支持数字、日期等复杂格式化（如 `{0,number}`、`{0,date}`）
+  3. 参数不足时保留占位符，而非抛出异常（更宽容的行为）
+- **代码示例**：
+  ```java
+  // 定义
+  INVALID_PARAMETER(400, "INVALID_PARAMETER", "Invalid parameter: {0}")
+
+  // 使用
+  throw new DomainException(BaseCodeMessage.INVALID_PARAMETER, "email");
+  // 结果：getMessage() 返回 "Invalid parameter: email"
+  ```
+- **边界行为**：
+  - 无参数：返回原始模板 `"Invalid parameter: {0}"`
+  - 参数不足：保留未替换的占位符 `"Error type at {1}"`
+  - 多余参数：忽略
+- **替代方案**：
+  - SLF4J 占位符 `{}`（引入外部依赖，且仅支持日志场景）
+  - String.format（占位符为 `%s`，与日志框架不一致）
+  - 字符串拼接（无法预定义模板）
+
+## ADR-011：异常基类构造器 NPE 检查必须在 formatMessage 调用之前
+
+- **日期**：2026-03-13
+- **状态**：已实施（代码审查修复）
+- **决策**：`CartisanException` 构造器中 `Objects.requireNonNull(codeMessage)` 必须在 `formatMessage()` 调用之前执行
+- **理由**：
+  1. 如果 codeMessage 为 null，在 formatMessage 中调用 `codeMessage.message()` 会抛出 NPE
+  2. 该 NPE 堆栈不清晰，不会显示 "codeMessage cannot be null" 的错误消息
+  3. 将 requireNonNull 放在前面，可以提供更清晰的错误信息
+- **代码对比**：
+  ```java
+  // ❌ 错误：formatMessage 先执行，NPE 堆栈不清晰
+  protected CartisanException(CodeMessage codeMessage, Object... args) {
+      super(formatMessage(codeMessage, args));  // NPE here
+      this.codeMessage = Objects.requireNonNull(codeMessage, "codeMessage cannot be null");
+  }
+
+  // ✅ 正确：先检查 null，提供清晰错误信息
+  protected CartisanException(CodeMessage codeMessage, Object... args) {
+      super(formatMessage(
+              Objects.requireNonNull(codeMessage, "codeMessage cannot be null"),
+              args
+      ));
+  }
+  ```
+- **替代方案**：在构造器最后检查（无法覆盖 super() 调用）
+
+## ADR-012：异常分层仅包含 Domain 和 Application 两层
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：异常体系仅提供 `DomainException` 和 `ApplicationException`，不包含 `InfrastructureException`
+- **理由**：
+  1. 基础设施异常应在**端口适配器**中被转换为领域或应用异常
+  2. 避免基础设施泄漏到领域层（违反 DDD 分层原则）
+  3. 两层已覆盖 DDD 六边形架构的所有场景
+- **转换示例**：
+  ```java
+  // 在 Repository 实现（端口适配器）中
+  try {
+      jpaRepository.save(entity);
+  } catch (DataIntegrityViolationException e) {
+      throw new DomainException(BaseCodeMessage.DUPLICATE, e, "email");
+  }
+  ```
+- **替代方案**：
+  - 添加 `InfrastructureException`：会导致领域层可能依赖基础设施异常类型
+  - 统一使用 `RuntimeException`：丢失错误语义和分层信息

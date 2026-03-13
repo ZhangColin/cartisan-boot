@@ -263,3 +263,57 @@ void givenNullAggregateId_whenCreateEvent_thenThrowsNullPointerException() {
 **原因**：Gradle 9.0 移除了 `ReportingExtension.getBaseDir()`，PIT 1.15.0 仍在使用该 API。
 
 **解决**：升级到 **1.19.0-rc.3**（或 1.19.0-rc.1+），该版本已改用 `baseDirectory`，兼容 Gradle 9。见 TOOL-002。
+
+---
+
+### PIT-004 (2026-03-13)：异常构造器中 formatMessage 调用顺序问题
+
+**场景**：`CartisanException` 构造器中先调用 `super(formatMessage(codeMessage, args))`，再检查 `codeMessage` 是否为 null。
+
+**问题**：
+1. 如果 `codeMessage` 为 null，`formatMessage()` 内部调用 `codeMessage.message()` 会抛出 NPE
+2. 该 NPE 堆栈不清晰，不会显示自定义的 "codeMessage cannot be null" 消息
+3. `Objects.requireNonNull()` 检查永远不会执行到
+
+**正确做法**：
+```java
+// ✅ 先检查 null，再使用
+protected CartisanException(CodeMessage codeMessage, Object... args) {
+    super(formatMessage(
+            Objects.requireNonNull(codeMessage, "codeMessage cannot be null"),
+            args
+    ));
+}
+
+// ❌ 后检查 null，永远不会执行到
+protected CartisanException(CodeMessage codeMessage, Object... args) {
+    super(formatMessage(codeMessage, args));  // NPE here if codeMessage is null
+    this.codeMessage = Objects.requireNonNull(codeMessage, "codeMessage cannot be null");
+}
+```
+
+**记忆口诀**：构造器中 super() 调用需要参数时，参数校验必须嵌套在 super() 调用内部。
+
+---
+
+### PIT-005 (2026-03-13)：MessageFormat 参数不足时不会抛异常
+
+**场景**：测试中假设 `MessageFormat.format("Error {0} at {1}", "onlyOne")` 会抛出 `IllegalArgumentException`。
+
+**实际行为**：MessageFormat 不会抛异常，而是保留未替换的占位符，返回 `"Error onlyOne at {1}"`。
+
+**影响**：异常消息可能包含未替换的占位符，需要调用方确保参数数量正确。
+
+**正确做法**：
+```java
+// ✅ 测试验证实际行为
+@Test
+void shouldPreservePlaceholder_whenInsufficientArgs() {
+    // When - 只提供一个参数
+    exception = new TestCartisanException(codeMessage, "type");
+    // Then - 占位符被保留
+    assertThat(exception.getMessage()).isEqualTo("Error type at {1}");
+}
+```
+
+**相关规则**：见 ADR-010 边界行为说明。
