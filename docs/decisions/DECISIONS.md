@@ -328,3 +328,122 @@
 - **后续行动**：
   - 更新 02_interface.md，移除不存在的 `ArchRules.in()` 模式描述
   - 如果未来 ArchUnit 添加组合 API，评估是否迁移
+
+## ADR-020：Testcontainers 使用 @ServiceConnection 而非 @DynamicPropertySource
+
+- **日期**：2026-03-13
+- **状态**：已实施（F01-08）
+- **决策**：Testcontainers 容器配置使用 Spring Boot 3.4 的 `@ServiceConnection` 自动注入连接属性，而非手动编写 `@DynamicPropertySource`
+- **理由**：
+  1. `@ServiceConnection` 是 Spring Boot 3.1+ 专门为 Testcontainers 设计的官方方式
+  2. 自动识别容器类型并注入对应属性（DataSource、Redis 连接等），无需手动配置
+  3. 类型安全，容器变更时自动适配
+  4. 代码更简洁，零样板代码
+- **代码对比**：
+  ```java
+  // ❌ 旧方式：手动配置属性
+  @Testcontainers
+  class MyTest {
+      @Container
+      static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16");
+
+      @DynamicPropertySource
+      static void configureProperties(DynamicPropertyRegistry registry) {
+          registry.add("spring.datasource.url", postgres::getJdbcUrl);
+          registry.add("spring.datasource.username", postgres::getUsername);
+          registry.add("spring.datasource.password", postgres::getPassword);
+      }
+  }
+
+  // ✅ 新方式：自动注入
+  @TestConfiguration(proxyBeanMethods = false)
+  public class PostgresTestContainer {
+      @Bean
+      @ServiceConnection
+      static PostgreSQLContainer<?> postgres() {
+          return new PostgreSQLContainer<>("postgres:16-alpine")
+              .withDatabaseName("testdb")
+              .withUsername("test")
+              .withPassword("test");
+      }
+  }
+  ```
+- **替代方案**：
+  - 手动 `@DynamicPropertySource`：繁琐，容易遗漏属性，每个容器类型都要写一遍
+
+## ADR-021：集成测试数据清理使用 TRUNCATE ... CASCADE
+
+- **日期**：2026-03-13
+- **状态**：已实施（F01-08）
+- **决策**：`IntegrationTestBase` 使用 `TRUNCATE ... CASCADE` 清理数据库，配合 Redis `FLUSHDB`
+- **理由**：
+  1. `TRUNCATE ... CASCADE` 一次性清空所有表，PostgreSQL 自动处理外键约束
+  2. 不需要排序表、不需要禁用约束
+  3. 比 `DELETE` 快得多（不记录 WAL，直接释放页面）
+  4. 比逐表 `DELETE` 更安全（`DELETE` 可能触发触发器）
+- **SQL 实现**：
+  ```sql
+  DO $$
+  DECLARE
+      tables TEXT;
+  BEGIN
+      SELECT string_agg(tablename, ', ') INTO tables
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename != 'flyway_schema_history';  -- 排除 Flyway 表
+      IF tables IS NOT NULL THEN
+          EXECUTE 'TRUNCATE TABLE ' || tables || ' CASCADE';
+      END IF;
+  END $$
+  ```
+- **替代方案**：
+  - 逐表 `DELETE FROM table`：慢，且需要按外键依赖顺序排序
+  - 禁用外键约束后清理：不安全，可能破坏数据完整性
+  - `@DirtiesContext`：性能差，每次测试后重建整个 Spring 上下文
+
+## ADR-022：测试基类不封装 MockMvc API
+
+- **日期**：2026-03-13
+- **状态**：已实施（F01-08）
+- **决策**：`ApiTestBase` 只暴露 `protected MockMvc mvc` 字段，不封装 `get/post/put/delete` 便捷方法
+- **理由**：
+  1. MockMvc 的 fluent API 已经足够清晰
+  2. 便捷方法覆盖不了真实场景（查询参数、Authorization header、multipart、PATCH 等）
+  3. 每新增一个场景就要加一个重载（如 `postWithAuth`），基类会不断膨胀
+  4. 保持薄基类原则：`ApiTestBase` 的价值是组合（IntegrationTestBase + MockMvc），不是二次封装
+- **代码示例**：
+  ```java
+  @AutoConfigureMockMvc
+  public abstract class ApiTestBase extends IntegrationTestBase {
+      @Autowired
+      protected MockMvc mvc;  // 只暴露 MockMvc，不封装
+  }
+
+  // 业务项目直接使用
+  mvc.perform(post("/api/v1/orders")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(orderJson)
+          .header("Authorization", "Bearer " + token))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.data.id").value("O001"));
+  ```
+- **替代方案**：
+  - 封装 `get/post/put/delete` 方法：无法覆盖所有场景，方法名与静态导入冲突（无限递归 bug）
+
+## ADR-023：不验证第三方库的承诺
+
+- **日期**：2026-03-13
+- **状态**：已实施（F01-08）
+- **决策**：不为 Testcontainers 的 Virtual Threads 兼容性编写验证测试
+- **理由**：
+  1. Testcontainers 1.20+ 声明支持 Virtual Threads，这是它们的兼容性保证
+  2. 写测试"验证"第三方库的承诺本质上是测试第三方库的代码，不是我们的代码
+  3. 如果真的有 bug，我们的验证测试也帮不了什么——应该报 issue 给 Testcontainers 项目
+  4. 这和"不测 JDK 的注解机制"是同一个原则
+- **口诀**："不要测试别人的承诺"
+- **适用范围**：
+  - ✅ 第三方库明确声明支持的功能
+  - ✅ 标准库（JDK）的行为
+  - ❌ 我们自己的代码逻辑
+- **替代方案**：
+  - 写验证测试确保 Virtual Threads 下容器正常工作（浪费资源，且不会发现真正的 bug）

@@ -507,3 +507,72 @@ assertThatThrownBy(constructor::newInstance)
 ```
 
 **记忆口诀**：反射构造异常被包装，用 `getCause()` 取真身。
+
+---
+
+## 测试框架
+
+### 规则 TEST-003：Spring Boot Test 依赖分层
+
+**推荐做法**：
+```kotlin
+// api 配置暴露给业务项目
+api("org.springframework.boot:spring-boot-test:3.4.0")           // @TestConfiguration 等
+api("org.springframework.boot:spring-boot-starter-test:3.4.0")    // MockMvc 等
+api("org.springframework.boot:spring-boot-testcontainers:3.4.0") // @ServiceConnection
+
+// implementation 仅本模块需要
+implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
+```
+
+**原因**：
+- `spring-boot-test`：提供 `@TestConfiguration`、`@DynamicPropertySource` 等测试注解
+- `spring-boot-starter-test`：提供 MockMvc、`@AutoConfigureMockMvc` 等
+- `spring-boot-testcontainers`：提供 `@ServiceConnection`
+- `spring-boot-starter-data-redis`：测试需要 `StringRedisTemplate`（业务项目可选）
+
+**常见错误**：
+```kotlin
+// ❌ 缺少 spring-boot-test，@TestConfiguration 无法解析
+// ❌ 缺少 spring-boot-starter-test，MockMvc 无法注入
+// ❌ 缺少 spring-boot-starter-data-redis，StringRedisTemplate 无法注入
+```
+
+---
+
+## 踩坑记录（续）
+
+### PIT-009 (2026-03-13)：Docker Desktop Socket 配置问题
+
+**场景**：Testcontainers 在 macOS Docker Desktop 环境下报错 "Could not find a valid Docker environment"。
+
+**原因**：Testcontainers 默认查找 `/var/run/docker.sock`，但 Docker Desktop 使用不同 socket 路径。
+
+**解决方案**：
+1. 确保 Docker Desktop 正在运行
+2. 检查 `docker ps` 命令是否正常
+3. 如仍失败，检查 Ryuk 容器是否被阻止（Docker Desktop 4.25+ 需要配置）
+4. 或设置环境变量：`export DOCKER_HOST=unix:///var/run/docker.sock`
+
+**注意**：这是 Docker Desktop 配置问题，不是代码问题。代码在生产环境 Linux Docker 下可正常工作。
+
+---
+
+### PIT-010 (2026-03-13)：测试模块需要 spring-boot-starter-data-redis
+
+**场景**：`IntegrationTestBase` 编译失败，提示 `StringRedisTemplate` 找不到符号。
+
+**原因**：`StringRedisTemplate` 在 `spring-boot-starter-data-redis` 中，需要显式依赖。
+
+**正确做法**：
+```kotlin
+// cartisan-test/build.gradle.kts
+dependencies {
+    // ... 其他依赖
+
+    // Redis 支持（测试需要 StringRedisTemplate）
+    implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
+}
+```
+
+**记忆口诀**：要用的类型就要引入对应的 starter。
