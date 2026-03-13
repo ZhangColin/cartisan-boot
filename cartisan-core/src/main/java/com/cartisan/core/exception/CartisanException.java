@@ -11,7 +11,7 @@ import java.util.Objects;
  *   <li>携带 {@link CodeMessage} 结构化错误信息</li>
  *   <li>支持参数化消息（使用 {@link MessageFormat} 占位符）</li>
  *   <li>支持异常链（保留原始异常）</li>
- *   <li>继承 {@link RuntimeException}，为受检异常</li>
+ *   <li>继承 {@link RuntimeException}，为非受检异常</li>
  * </ul>
  *
  * <h3>使用示例</h3>
