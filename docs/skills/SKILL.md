@@ -729,3 +729,58 @@ public static RequestPostProcessor withToken(String token) {
 **原因**：`RequestPostProcessor` 函数式接口要求返回 `MockHttpServletRequest`。
 
 **记忆口诀**：RequestPostProcessor lambda 最后要 return request。
+
+---
+
+### PIT-015 (2026-03-14)：Math.abs(nextLong()) 导致 Long.MIN_VALUE 溢出
+
+**场景**：使用 `Math.abs(random.nextLong())` 生成非负长整数时，偶发返回负数。
+
+**原因**：`Long.MIN_VALUE` 的绝对值超出 `Long.MAX_VALUE` 范围，`Math.abs(Long.MIN_VALUE)` 返回 `Long.MIN_VALUE`（负数）。
+
+**错误代码**：
+```java
+// ❌ 当 nextLong() 返回 Long.MIN_VALUE 时溢出
+public static long randomLong() {
+    return Math.abs(FixtureSeeds.currentRandom().nextLong());
+}
+```
+
+**正确做法**：
+```java
+// ✅ 直接使用有界方法，避免溢出
+public static long randomLong() {
+    return FixtureSeeds.currentRandom().nextLong(Long.MAX_VALUE);
+}
+```
+
+**记忆口诀**：取绝对值要当心 MIN_VALUE 溢出，用 nextLong(bound) 更安全。
+
+---
+
+### PIT-016 (2026-03-14)：nextDouble() * max 边界值可能返回 0
+
+**场景**：`randomAmount()` 要求返回 `(0, max]` 范围，但使用 `nextDouble() * max` 时可能返回 `0.0`。
+
+**原因**：`Random.nextDouble()` 返回 `[0.0, 1.0)`，最小值可以是 `0.0`，导致 `0.0 * max = 0.0`。
+
+**错误代码**：
+```java
+// ❌ 可能返回 0.0，违反 "(0, max]" 约束
+public static BigDecimal randomAmount() {
+    double value = FixtureSeeds.currentRandom().nextDouble() * max;
+    return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+}
+```
+
+**正确做法**：
+```java
+// ✅ 使用 min + random() * (max - min) 确保下界
+public static BigDecimal randomAmount() {
+    double max = DEFAULT_AMOUNT_MAX.doubleValue();
+    double value = 0.01 + FixtureSeeds.currentRandom().nextDouble() * (max - 0.01);
+    return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
+}
+```
+
+**记忆口诀**：随机数要排除 0，用 min + random() * (max - min)。
