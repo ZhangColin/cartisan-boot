@@ -32,6 +32,7 @@ import java.util.Objects;
  *
  * @see CodeMessage
  * @see MessageFormat
+ * @since 0.1.0
  */
 public abstract class CartisanException extends RuntimeException {
 
@@ -45,9 +46,12 @@ public abstract class CartisanException extends RuntimeException {
      * @param args 消息参数，用于格式化 {@link CodeMessage#message()}
      */
     protected CartisanException(CodeMessage codeMessage, Object... args) {
-        super(formatMessage(codeMessage, args));
-        this.codeMessage = Objects.requireNonNull(codeMessage, "codeMessage cannot be null");
-        this.formattedMessage = formatMessage(codeMessage, args);
+        super(formatMessage(
+                Objects.requireNonNull(codeMessage, "codeMessage cannot be null"),
+                args
+        ));
+        this.codeMessage = codeMessage;
+        this.formattedMessage = super.getMessage();
     }
 
     /**
@@ -58,9 +62,12 @@ public abstract class CartisanException extends RuntimeException {
      * @param args 消息参数，用于格式化 {@link CodeMessage#message()}
      */
     protected CartisanException(CodeMessage codeMessage, Throwable cause, Object... args) {
-        super(formatMessage(codeMessage, args), cause);
-        this.codeMessage = Objects.requireNonNull(codeMessage, "codeMessage cannot be null");
-        this.formattedMessage = formatMessage(codeMessage, args);
+        super(formatMessage(
+                Objects.requireNonNull(codeMessage, "codeMessage cannot be null"),
+                args
+        ), cause);
+        this.codeMessage = codeMessage;
+        this.formattedMessage = super.getMessage();
     }
 
     /**

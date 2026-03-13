@@ -9,7 +9,34 @@ package com.cartisan.core.exception;
  * <p>通过将 HTTP 状态码包含在错误码中，使错误语义自包含，
  * 便于全局异常处理器直接使用。</p>
  *
+ * <h3>使用示例</h3>
+ * <pre>{@code
+ * // 定义自定义错误码
+ * enum UserCodeMessage implements CodeMessage {
+ *     USER_NOT_FOUND(404, "USER_NOT_FOUND", "User {0} not found"),
+ *     USER_DUPLICATE(409, "USER_DUPLICATE", "User {0} already exists");
+ *
+ *     private final int httpStatus;
+ *     private final String code;
+ *     private final String message;
+ *
+ *     UserCodeMessage(int httpStatus, String code, String message) {
+ *         this.httpStatus = httpStatus;
+ *         this.code = code;
+ *         this.message = message;
+ *     }
+ *
+ *     @Override public String code() { return this.code; }
+ *     @Override public String message() { return this.message; }
+ *     @Override public int httpStatus() { return this.httpStatus; }
+ * }
+ *
+ * // 使用
+ * throw new DomainException(UserCodeMessage.USER_NOT_FOUND, "john@example.com");
+ * }</pre>
+ *
  * @see java.text.MessageFormat
+ * @since 0.1.0
  */
 public interface CodeMessage {
 

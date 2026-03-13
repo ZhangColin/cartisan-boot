@@ -27,6 +27,8 @@ package com.cartisan.core.exception;
  *   <li>{@link #RESOURCE_NOT_FOUND} - 资源不存在（支持占位符 {@code {0}}）</li>
  *   <li>{@link #DUPLICATE} - 重复冲突（支持占位符 {@code {0}}）</li>
  * </ul>
+ *
+ * @since 0.1.0
  */
 public enum BaseCodeMessage implements CodeMessage {
 

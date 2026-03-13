@@ -147,4 +147,43 @@ class CartisanExceptionTest {
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("codeMessage");
     }
+
+    @Test
+    void shouldPreservePlaceholder_whenInsufficientArgs() {
+        // Given - message 需要两个参数 {0} 和 {1}
+        CodeMessage codeMessage = new CodeMessage() {
+            @Override
+            public String code() {
+                return "TEST_INSUFFICIENT";
+            }
+
+            @Override
+            public String message() {
+                return "Error {0} at {1}";
+            }
+
+            @Override
+            public int httpStatus() {
+                return 400;
+            }
+        };
+
+        // When - 只提供一个参数
+        TestCartisanException exception = new TestCartisanException(codeMessage, "type");
+
+        // Then - MessageFormat 会保留未替换的占位符
+        assertThat(exception.getMessage()).isEqualTo("Error type at {1}");
+    }
+
+    @Test
+    void shouldIgnoreExtraArgs() {
+        // Given - message 只需要一个参数
+        CodeMessage codeMessage = BaseCodeMessage.INVALID_PARAMETER;
+
+        // When - 提供两个参数
+        TestCartisanException exception = new TestCartisanException(codeMessage, "email", "extra");
+
+        // Then - 多余参数被忽略
+        assertThat(exception.getMessage()).isEqualTo("Invalid parameter: email");
+    }
 }

@@ -37,6 +37,7 @@ package com.cartisan.core.exception;
  *
  * @see CartisanException
  * @see DomainException
+ * @since 0.1.0
  */
 public class ApplicationException extends CartisanException {
 
