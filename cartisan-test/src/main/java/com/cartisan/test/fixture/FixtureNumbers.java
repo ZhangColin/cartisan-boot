@@ -50,11 +50,11 @@ public final class FixtureNumbers {
     /**
      * 生成随机正长整数。
      *
-     * @return 正长整数
+     * @return [0, Long.MAX_VALUE] 范围内的长整数
      */
     public static long randomLong() {
-        long value = FixtureSeeds.currentRandom().nextLong();
-        return Math.abs(value);
+        // 使用 nextLong(bound) 避免 Long.MIN_VALUE 溢出问题
+        return FixtureSeeds.currentRandom().nextLong(Long.MAX_VALUE);
     }
 
     /**
@@ -94,7 +94,9 @@ public final class FixtureNumbers {
      * @return 2 位小数的 BigDecimal，范围 (0, 1000000]
      */
     public static BigDecimal randomAmount() {
-        double value = FixtureSeeds.currentRandom().nextDouble() * DEFAULT_AMOUNT_MAX.doubleValue();
+        // 确保 > 0：使用 0.01 作为最小值
+        double max = DEFAULT_AMOUNT_MAX.doubleValue();
+        double value = 0.01 + FixtureSeeds.currentRandom().nextDouble() * (max - 0.01);
         return BigDecimal.valueOf(value).setScale(DEFAULT_AMOUNT_SCALE, RoundingMode.HALF_UP);
     }
 
