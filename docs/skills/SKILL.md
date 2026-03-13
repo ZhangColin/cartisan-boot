@@ -600,3 +600,132 @@ dependencies {
 ```
 
 **记忆口诀**：要用的类型就要引入对应的 starter。
+
+---
+
+### PIT-011 (2026-03-14)：Spring Test api 配置不保证本模块可用
+
+**场景**：`cartisan-test` 模块的 main 代码使用 Spring Test 的类（如 `RequestPostProcessor`）时编译失败。
+
+**错误**：
+```
+错误: 找不到符号
+  位置: 类 org.springframework.test.web.servlet.RequestPostProcessor
+```
+
+**原因**：
+1. Gradle 的 `api` 配置会将依赖暴露给使用者
+2. 但 `api` 不会让依赖对本模块的 main 代码编译可用
+3. Spring Test 相关类需要在 main 代码中使用（`ApiTestAssertions`）
+
+**正确做法**：
+```kotlin
+// cartisan-test/build.gradle.kts
+dependencies {
+    // api 配置暴露给业务项目
+    api("org.springframework:spring-test:6.2.0")
+
+    // implementation 确保本模块 main 代码可用
+    implementation("org.springframework:spring-test:6.2.0")
+}
+```
+
+**记忆口诀**：api 暴露给他人，implementation 自己用。main 代码依赖要加 implementation。
+
+---
+
+### PIT-012 (2026-03-14)：RequestPostProcessor 的正确导入路径
+
+**场景**：导入 `RequestPostProcessor` 时编译失败，提示"找不到符号"。
+
+**常见错误**：
+```java
+// ❌ 错误假设：直接在 org.springframework.test.web.servlet 下
+import org.springframework.test.web.servlet.RequestPostProcessor;
+```
+
+**正确导入**：
+```java
+// ✅ 正确路径：位于 request 子包
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+```
+
+**验证方法**：检查 JAR 包内容
+```bash
+# 1. 找到 spring-test JAR
+find ~/.gradle/caches -name "spring-test-*.jar" | head -1
+
+# 2. 查看类路径
+jar tf <jar-path> | grep RequestPostProcessor
+# 输出：org/springframework/test/web/servlet/request/RequestPostProcessor.class
+```
+
+**记忆口诀**：RequestPostProcessor 在 request 子包，多一层目录。
+
+---
+
+### PIT-013 (2026-03-14)：@WebMvcTest 需要 SpringBootConfiguration
+
+**场景**：使用 `@WebMvcTest` 测试 `ApiTestAssertions` 时，Spring 上下文加载失败。
+
+**错误**：
+```
+Unable to find a @SpringBootConfiguration
+```
+
+**原因**：`@WebMvcTest` 需要一个配置类来启动 Spring 应用上下文。
+
+**正确做法**：
+```java
+// ✅ TestConfiguration 添加 @SpringBootConfiguration
+@SpringBootConfiguration
+@ImportAutoConfiguration({
+    JacksonAutoConfiguration.class,
+    DataSourceAutoConfiguration.class,
+    RedisAutoConfiguration.class
+})
+@ComponentScan(basePackages = "com.cartisan.test.base")
+public class TestConfiguration {
+}
+
+// ✅ 测试类排除不需要的自动配置
+@WebMvcTest(controllers = TestController.class,
+    excludeAutoConfiguration = {
+        DataSourceAutoConfiguration.class,
+        RedisAutoConfiguration.class
+    })
+public class ApiTestAssertionsTest {
+    // ...
+}
+```
+
+**记忆口诀**：`@WebMvcTest` 需要 `@SpringBootConfiguration`，排除不需要的依赖加快启动。
+
+---
+
+### PIT-014 (2026-03-14)：ResultMatcher lambda 需要返回 request
+
+**场景**：`RequestPostProcessor` lambda 中 `request.addHeader()` 后没有返回语句，编译失败。
+
+**错误**：
+```java
+// ❌ 编译错误：void 无法转换为 MockHttpServletRequest
+public static RequestPostProcessor withToken(String token) {
+    return request -> request.addHeader("Authorization", "Bearer " + token);
+}
+```
+
+**正确做法**：
+```java
+// ✅ 返回 request
+public static RequestPostProcessor withToken(String token) {
+    return request -> {
+        request.addHeader("Authorization", "Bearer " + token);
+        return request;  // 必须返回
+    };
+}
+```
+
+**原因**：`RequestPostProcessor` 函数式接口要求返回 `MockHttpServletRequest`。
+
+**记忆口诀**：RequestPostProcessor lambda 最后要 return request。

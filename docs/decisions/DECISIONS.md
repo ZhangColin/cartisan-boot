@@ -447,3 +447,79 @@
   - ❌ 我们自己的代码逻辑
 - **替代方案**：
   - 写验证测试确保 Virtual Threads 下容器正常工作（浪费资源，且不会发现真正的 bug）
+
+## ADR-024：API 测试断言方法返回 ResultMatcher 而非 ResultActions
+
+- **日期**：2026-03-14
+- **状态**：已实施（F01-09）
+- **决策**：`ApiTestAssertions` 的断言方法返回 `ResultMatcher`，用于 MockMvc 的 `.andExpect()`，而非接受 `ResultActions` 参数
+- **理由**：
+  1. `ResultMatcher` 更符合 MockMvc 的习惯用法（`.andExpect(status().isOk())`）
+  2. 使用 `.andExpect(ApiTestAssertions.assertOk())` 比 `.andDo(ApiTestAssertions::assertOk)` 更清晰
+  3. 与 MockMvc 的 `MockMvcResultMatchers` 风格一致，降低学习成本
+  4. 实现比原始规格更简洁（无需接受和返回 `ResultActions`）
+- **代码对比**：
+  ```java
+  // ❌ 原规格设计：接受 ResultActions 参数
+  public static ResultActions assertOk(ResultActions result) throws Exception {
+      return result.andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200));
+  }
+  // 使用：.andDo(ApiTestAssertions::assertOk)
+
+  // ✅ 实际实现：返回 ResultMatcher
+  public static ResultMatcher assertOk() {
+      return result -> {
+          status().isOk().match(result);
+          jsonPath("$.code").value(200).match(result);
+      };
+  }
+  // 使用：.andExpect(ApiTestAssertions.assertOk())
+  ```
+- **影响**：规格文档（02_interface.md）已更新以反映实际设计
+- **替代方案**：
+  - 坚持原始规格：会导致使用方式不一致（部分方法用 `.andDo()`，部分用 `.andExpect()`）
+
+## ADR-025：RequestPostProcessor 正确导入路径
+
+- **日期**：2026-03-14
+- **状态**：已实施（F01-08）
+- **决策**：`RequestPostProcessor` 的正确导入路径是 `org.springframework.test.web.servlet.request.RequestPostProcessor`
+- **理由**：
+  1. Spring Test 的 JAR 包结构中，`RequestPostProcessor` 位于 `request` 子包
+  2. 常见错误假设是在 `org.springframework.test.web.servlet.RequestPostProcessor`
+  3. 错误导入会导致编译失败："找不到符号"
+- **正确导入**：
+  ```java
+  import org.springframework.test.web.servlet.ResultActions;
+  import org.springframework.test.web.servlet.request.RequestPostProcessor;  // 注意 request 子包
+  ```
+- **踩坑记录**：
+  - 查找 JAR 包内容：`find ~/.gradle/caches -name "spring-test-*.jar" | xargs jar tf | grep RequestPostProcessor`
+  - 确认路径：`org/springframework/test/web/servlet/request/RequestPostProcessor.class`
+- **替代方案**：
+  - 使用 IDE 自动导入（可能导入错误的路径，导致编译失败）
+
+## ADR-026：cartisan-test 依赖 Spring Test 需显式声明
+
+- **日期**：2026-03-14
+- **状态**：已实施（F01-09）
+- **决策**：`cartisan-test` 模块的 build.gradle.kts 需要同时声明 `api` 和 `implementation` 依赖
+- **理由**：
+  1. `api` 配置将依赖暴露给使用者，但不会对本模块的 main 代码编译可用
+  2. `implementation` 配置确保本模块 main 代码可以编译使用这些类
+  3. 这是 Gradle 依赖配置的特性，`api` ≠ 本模块可用的传递依赖
+- **代码示例**：
+  ```kotlin
+  // Spring Test（MockMvc、ResultActions、RequestPostProcessor）
+  api("org.springframework:spring-test:6.2.0")
+  implementation("org.springframework:spring-test:6.2.0")  // 必须同时声明
+
+  // Jackson（JSON 序列化，ApiTestAssertions 需要）
+  implementation("com.fasterxml.jackson.core:jackson-databind")
+  ```
+- **影响**：
+  - 如果只声明 `api`，编译时会出现"找不到符号"错误
+  - 如果只声明 `implementation`，业务项目无法使用这些类
+- **替代方案**：
+  - 使用 `compileOnly` + `api`：Gradle 不支持这种组合，且语义不清晰

@@ -24,8 +24,14 @@ dependencies {
     // Spring Boot Test 支持（@TestConfiguration 等注解）
     api("org.springframework.boot:spring-boot-test:3.4.0")
 
+    // Spring Test（MockMvc、ResultActions、RequestPostProcessor）
+    api("org.springframework:spring-test:6.2.0")
+    implementation("org.springframework:spring-test:6.2.0")
+
     // Spring Boot Test（MockMvc、@AutoConfigureMockMvc 等）
+    // api 配置不会对本模块 main 代码编译可用，需要 implementation
     api("org.springframework.boot:spring-boot-starter-test:3.4.0")
+    implementation("org.springframework.boot:spring-boot-starter-test:3.4.0")
 
     // Spring Boot Testcontainers 支持（@ServiceConnection）
     api("org.springframework.boot:spring-boot-testcontainers:3.4.0")
@@ -34,4 +40,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web:3.4.0")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.4.0")
     implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
+
+    // Jackson（JSON 序列化，ApiTestAssertions 需要）
+    implementation("com.fasterxml.jackson.core:jackson-databind")
 }
