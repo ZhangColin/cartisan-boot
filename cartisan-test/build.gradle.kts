@@ -16,7 +16,10 @@ dependencies {
     api(libs.testcontainers.core)
     api(libs.testcontainers.postgresql)
 
-    // Spring Boot Testcontainers 支持
+    // Spring Boot Test 支持（@TestConfiguration 等注解）
+    api("org.springframework.boot:spring-boot-test:3.4.0")
+
+    // Spring Boot Testcontainers 支持（@ServiceConnection）
     api("org.springframework.boot:spring-boot-testcontainers:3.4.0")
 
     // Spring 依赖（规则类需要引用注解，测试 fixtures 需要）
