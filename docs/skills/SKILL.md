@@ -317,3 +317,105 @@ void shouldPreservePlaceholder_whenInsufficientArgs() {
 ```
 
 **相关规则**：见 ADR-010 边界行为说明。
+
+---
+
+### PIT-006 (2026-03-13)：@Retention(RUNTIME) 是注解可被反射读取的前提
+
+**场景**：ArchUnit 规则无法读取注解元数据。
+
+**原因**：注解默认保留策略为 `CLASS`，字节码中有但运行时不可见；或误设为 `SOURCE`，仅源码中有。
+
+**正确做法**：
+```java
+// ✅ 架构注解必须使用 RUNTIME 保留策略
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)  // 必须有
+public @interface Aggregate {
+}
+```
+
+**验证**：通过单元测试验证所有注解的 `@Retention(RUNTIME)` 配置（见 StereotypeAnnotationsTest）。
+
+---
+
+### PIT-007 (2026-03-13)：枚举完整性测试应使用精确匹配
+
+**场景**：新增枚举值后忘记添加对应的 ArchUnit 规则，导致架构约束有漏洞。
+
+**正确做法**：
+```java
+// ✅ 精确匹配，防止新增值
+@Test
+void portType_shouldHaveExactlyThreeValues() {
+    assertThat(PortType.values())
+        .hasSize(3)  // 数量约束
+        .containsExactlyInAnyOrder(  // 值约束
+            PortType.REPOSITORY,
+            PortType.CLIENT,
+            PortType.PUBLISHER
+        );
+}
+```
+
+**记忆口诀**：枚举是"契约的一部分"，测试必须精确匹配，不能用 `contains` 或 `hasSize` 单独验证。
+
+---
+
+## 架构注解
+
+### 规则 ANNO-001：多个注解共享的枚举应独立定义
+
+**推荐做法**：
+```java
+// ✅ PortType 独立枚举，被 @Port 和 @Adapter 共享
+public enum PortType {
+    REPOSITORY, CLIENT, PUBLISHER
+}
+
+@Port(PortType.REPOSITORY)
+interface OrderRepository {}
+
+@Adapter(PortType.REPOSITORY)
+class JpaOrderRepository implements OrderRepository {}
+```
+
+**避免**：
+```java
+// ❌ 内嵌枚举，Adapter 引用 Port 的内部类型语义别扭
+public @interface Port {
+    enum Type { REPOSITORY, CLIENT, PUBLISHER }
+    Type value();
+}
+
+@Port(Type.REPOSITORY)  // 正常
+interface OrderRepository {}
+
+@Adapter(Type.REPOSITORY)  // 语义错误：Adapter 为什么要用 Port 的类型？
+class JpaOrderRepository implements OrderRepository {}
+```
+
+---
+
+### 规则 ANNO-002：@Target(TYPE) 无法区分类和接口，语义由 ArchUnit 强制
+
+**问题**：Java 的 `ElementType.TYPE` 同时覆盖 class、interface、enum、record。
+
+**解决方案**：
+1. 注解层：使用 `@Target(TYPE)` 做粗粒度限制
+2. JavaDoc：说明"仅用于接口"或"仅用于类"
+3. ArchUnit：强制执行精确语义约束
+
+**示例**：
+```java
+/**
+ * 端口注解。
+ *
+ * <p>标注在端口接口上。仅用于接口，由 ArchUnit 规则强制检查。</p>
+ */
+@Target(TYPE)  // 粗粒度：TYPE
+@Retention(RUNTIME)
+public @interface Port {
+    PortType value();
+}
+```

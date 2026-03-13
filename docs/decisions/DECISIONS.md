@@ -169,3 +169,46 @@
 - **替代方案**：
   - 添加 `InfrastructureException`：会导致领域层可能依赖基础设施异常类型
   - 统一使用 `RuntimeException`：丢失错误语义和分层信息
+
+## ADR-013：PortType 设计为独立枚举而非注解内嵌
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`PortType` 作为独立的顶层枚举类，被 `@Port` 和 `@Adapter` 两个注解共享
+- **理由**：
+  1. `@Port` 和 `@Adapter` 都需要引用端口类型，内嵌在任一注解中都会导致语义别扭
+  2. `@Adapter(Port.Type.REPOSITORY)` 语义错误——Adapter 不属于 Port
+  3. 独立枚举 API 更简洁：`@Port(PortType.REPOSITORY)` vs `@Port(Port.Type.REPOSITORY)`
+  4. 未来扩展无压力（如新增 @Gateway 注解引用 PortType）
+- **替代方案**：内嵌在 `@Port` 注解中（会导致 Adapter 引用 Port 的内部类型）
+
+## ADR-014：@BoundedContext 不支持 @Repeatable
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：一个包只能属于一个限界上下文，不支持 `@Repeatable`
+- **理由**：
+  1. DDD 的限界上下文边界应该是清晰的
+  2. 框架应该让架构错误不可表达
+  3. 需要多重标注的场景应通过 shared kernel 表达
+- **实现**：子包继承由 F01-07 的 ArchUnit 规则向上查找实现
+- **替代方案**：支持 `@Repeatable`（会模糊边界，违背 DDD 原则）
+
+## ADR-015：SubDomain 枚举不包含 OTHER 值
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`SubDomain` 只有三个标准值（CORE, SUPPORTING, GENERIC），无 OTHER 值
+- **理由**：
+  1. Core/Supporting/Generic 是一个完备分类（决策树穷举）
+  2. 框架应强制思考，不提供逃避路径
+  3. 判断子域归属是 DDD 战略设计的重要决策，不应有"不确定"选项
+- **决策树**：
+  ```
+  这个领域能力是否构成业务核心竞争力？
+    ├─ 是 → CORE
+    └─ 否 → 是否业务流程必须有它？
+        ├─ 是 → SUPPORTING
+        └─ 否 → GENERIC
+  ```
+- **替代方案**：增加 OTHER 值（会让开发者跳过重要思考）
