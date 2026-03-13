@@ -1,3 +1,8 @@
+plugins {
+    java
+    `java-library`
+}
+
 dependencies {
     implementation(project(":cartisan-core"))
 

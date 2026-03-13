@@ -125,6 +125,34 @@ pitest {
 
 ---
 
+### 规则 TOOL-003：ArchUnit 规则类不适用于 PIT 变异测试
+
+**问题**：尝试对 ArchUnit 规则类运行 PIT 时报错 "No mutations found"。
+
+**原因**：ArchUnit 规则类是声明式配置，没有业务逻辑可供变异：
+```java
+public class CartisanProhibitionRules {
+    @ArchTest
+    static final ArchRule noFieldInjection =
+        noFields()
+            .should()
+            .beAnnotatedWith(Autowired.class)
+            .because("Use constructor injection instead of field injection");
+}
+```
+- 规则是 `static final` 字段，初始化后不可变
+- `ArchRule` 对象由 ArchUnit 库的 fluent API 构建
+- 实际检查逻辑在 ArchUnit 库中，不在我们的代码里
+
+**替代方案**：
+- 使用 **Fixtures 双重验证法**：每条规则都有 pass/fail 成对测试
+- 合规验证：确保规则不误报
+- 违规验证：确保规则能捕获问题
+
+**记忆口诀**：声明式配置没法变异，用 fixtures 测代替。
+
+---
+
 ## 代码风格
 
 ### 规则 STYLE-001：领域接口应包含完整 JavaDoc 和使用示例
