@@ -243,3 +243,54 @@
   - 使用 `DomainException`：会误导运维认为是业务异常，而非代码 bug
   - 使用 `IllegalArgumentException`：语义是"参数非法"，属于前置条件范畴，非后置条件
 - **参考**：DbC（Design by Contract）理论，后置条件违反是内部不变量被破坏，表示实现有缺陷
+
+## ADR-017：ArchUnit 测试使用 importPaths 而非 importPackages
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`CartisanCoreModuleTest` 使用 `importPaths("build/classes/java/main")` 导入生产代码
+- **理由**：
+  1. `importPackages("com.cartisan.core")` 会同时导入测试代码（如 `CartisanCoreModuleTest` 自身）
+  2. 测试规则不应该检查测试代码本身（自指问题）
+  3. 使用 `importPaths()` 直接指向编译输出目录，只包含生产代码
+  4. 与现有 `ArchitectureTest.java` 的模式保持一致
+- **代码示例**：
+  ```java
+  // ✅ 正确：只导入生产代码
+  private final JavaClasses productionClasses = new ClassFileImporter()
+          .importPaths("build/classes/java/main");
+
+  // ❌ 错误：会导入测试代码
+  private final JavaClasses allClasses = new ClassFileImporter()
+          .importPackages("com.cartisan.core");
+  ```
+- **前提条件**：测试前需要先运行 `compileJava`，确保 `build/classes/java/main` 存在
+- **替代方案**：
+  - `importPackages()` + 过滤测试类（复杂，且测试类位于不同包结构）
+  - 使用 ArchUnit 的 `importClasspath()`（性能较差，且 API 不稳定）
+
+## ADR-018：javadoc 任务绑定到 build 而非单独任务
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`tasks.build { dependsOn(tasks.javadoc) }`，每次 build 都执行 javadoc 校验
+- **理由**：
+  1. JavaDoc 格式错误也是代码质量问题，应在每次构建时检查
+  2. 使用 `-Xdoclint:all,-missing` 配置，只检查格式不强制必须存在文档
+  3. javadoc 任务执行快速（通常 < 5 秒），对开发效率影响有限
+  4. 确保 JavaDoc 始终与代码保持同步
+- **配置**：
+  ```kotlin
+  tasks.javadoc {
+      (options as StandardJavadocDocletOptions).apply {
+          addStringOption("Xdoclint:all,-missing", "-quiet")
+      }
+  }
+  tasks.build {
+      dependsOn(tasks.javadoc)
+  }
+  ```
+- **替代方案**：
+  - 仅在 CI 中启用（开发者本地可能忽略 JavaDoc 格式问题）
+  - 使用单独的 `verify` 任务（需要开发者记住执行）
+- **权衡**：轻微的性能开销换取更好的代码质量保证

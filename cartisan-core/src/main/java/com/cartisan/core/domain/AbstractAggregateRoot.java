@@ -10,7 +10,7 @@ import java.util.Objects;
  *
  * <p>提供聚合根的通用功能，主要是领域事件的管理。</p>
  *
- * <h3>事件管理</h3>
+ * <h2>事件管理</h2>
  *
  * <ul>
  *   <li>{@code registerEvent()} - 注册领域事件</li>
@@ -18,7 +18,7 @@ import java.util.Objects;
  *   <li>{@code clearDomainEvents()} - 清空已注册的事件</li>
  * </ul>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  *
  * <pre>{@code
  * public class Order extends AbstractAggregateRoot<Order> {

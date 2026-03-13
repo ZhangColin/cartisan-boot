@@ -9,7 +9,7 @@ import java.util.UUID;
  *
  * <p>领域事件表示在领域中发生的有意义的事情，通常由聚合根发布。</p>
  *
- * <h3>事件元数据</h3>
+ * <h2>事件元数据</h2>
  *
  * <ul>
  *   <li>{@code eventId} - 事件的唯一标识符，自动生成 UUID</li>
@@ -18,7 +18,7 @@ import java.util.UUID;
  *   <li>{@code eventType} - 事件类型名称，默认为类名</li>
  * </ul>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  *
  * <pre>{@code
  * public class OrderCreatedEvent extends DomainEvent {

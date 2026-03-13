@@ -11,7 +11,7 @@ import java.util.Optional;
  *
  * <p>提供前置条件、后置条件和存在性断言，简化防御式编程。</p>
  *
- * <h3>方法概览</h3>
+ * <h2>方法概览</h2>
  * <ul>
  *   <li>{@code require(condition, codeMessage)} — 前置条件断言，失败抛出 {@code DomainException}</li>
  *   <li>{@code ensure(condition, message)} — 后置条件断言，失败抛出 {@code IllegalStateException}</li>
@@ -19,7 +19,7 @@ import java.util.Optional;
  *   <li>{@code requirePresent(optional, codeMessage)} — 存在性断言（完整版），自定义错误码</li>
  * </ul>
  *
- * <h3>异常类型语义</h3>
+ * <h2>异常类型语义</h2>
  * <ul>
  *   <li>{@code require} 失败 → {@code DomainException}：调用者责任 = 业务规则违反 = 4xx</li>
  *   <li>{@code ensure} 失败 → {@code IllegalStateException}：实现者责任 = 代码 bug = 500</li>
@@ -45,7 +45,7 @@ public final class Assertions {
      * <p>用于检查方法调用的前置条件是否满足。如果条件为 {@code false}，
      * 抛出携带指定错误码的 {@code DomainException}。</p>
      *
-     * <h3>使用示例</h3>
+     * <p>示例：</p>
      * <pre>{@code
      * public void cancel() {
      *     Assertions.require(status != OrderStatus.SHIPPED, OrderError.CANNOT_CANCEL_SHIPPED);
@@ -71,7 +71,7 @@ public final class Assertions {
      * <p>用于检查方法执行后的后置条件是否满足。如果条件为 {@code false}，
      * 抛出 {@code IllegalStateException}，表示代码存在 bug。</p>
      *
-     * <h3>使用示例</h3>
+     * <p>示例：</p>
      * <pre>{@code
      * public void addItem(OrderItem item) {
      *     require(item != null, OrderError.ITEM_REQUIRED);
@@ -97,7 +97,7 @@ public final class Assertions {
      *
      * <p>快捷版本，使用标准 404 错误码。适用于不需要区分资源类型的场景。</p>
      *
-     * <h3>使用示例</h3>
+     * <p>示例：</p>
      * <pre>{@code
      * public OrderDto getOrder(Long id) {
      *     Order order = Assertions.requirePresent(orderRepository.findById(id));
@@ -119,7 +119,7 @@ public final class Assertions {
      *
      * <p>完整版本，支持自定义错误码。适用于需要区分资源类型的场景。</p>
      *
-     * <h3>使用示例</h3>
+     * <p>示例：</p>
      * <pre>{@code
      * public OrderDto getUserOrder(Long userId, Long orderId) {
      *     User user = Assertions.requirePresent(

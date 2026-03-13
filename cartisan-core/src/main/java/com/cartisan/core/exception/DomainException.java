@@ -10,7 +10,7 @@ package com.cartisan.core.exception;
  *   <li>领域服务中业务逻辑失败</li>
  * </ul>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  * <pre>{@code
  * public class Order extends AbstractAggregateRoot {
  *     public void cancel() {
@@ -23,7 +23,7 @@ package com.cartisan.core.exception;
  * }
  * }</pre>
  *
- * <h3>与基础设施异常的关系</h3>
+ * <h2>与基础设施异常的关系</h2>
  *
  * <p>当基础设施层抛出异常（如 {@code SQLException}）时，应在端口适配器中将其转换为
  * {@link DomainException} 或 {@link ApplicationException}，避免基础设施泄漏到领域层。</p>

@@ -11,15 +11,16 @@ package com.cartisan.core.exception;
  *   <li>基础设施异常在端口适配器中转换后抛出</li>
  * </ul>
  *
- * <h3>与 DomainException 的区别</h3>
+ * <h2>与 DomainException 的区别</h2>
  *
  * <table border="1">
+ *   <caption>异常类型对比</caption>
  *   <tr><th>异常类型</th><th>使用场景</th><th>示例</th></tr>
  *   <tr><td>DomainException</td><td>业务规则违反</td><td>余额不足、订单已关闭</td></tr>
  *   <tr><td>ApplicationException</td><td>用例流程问题</td><td>用户未登录、参数格式错误</td></tr>
  * </table>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  * <pre>{@code
  * @Service
  * public class UserService {

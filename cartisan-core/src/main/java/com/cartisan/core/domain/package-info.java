@@ -18,7 +18,6 @@
  *   <li>Java Record 友好 - 所有接口均可由 Record 实现</li>
  * </ul>
  *
- * @package com.cartisan.core.domain
  * @since 0.1.0
  */
 package com.cartisan.core.domain;

@@ -14,7 +14,7 @@ import java.util.Objects;
  *   <li>继承 {@link RuntimeException}，为非受检异常</li>
  * </ul>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  * <pre>{@code
  * // 无参数
  * throw new DomainException(BaseCodeMessage.NOT_FOUND);

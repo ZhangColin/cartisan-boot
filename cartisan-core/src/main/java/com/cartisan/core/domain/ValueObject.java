@@ -5,9 +5,10 @@ package com.cartisan.core.domain;
  *
  * <p>值对象是 DDD 中的核心概念，表示通过其属性值而非标识来定义的领域对象。</p>
  *
- * <h3>值对象 vs 实体</h3>
+ * <h2>值对象 vs 实体</h2>
  *
  * <table border="1">
+ *   <caption>值对象与实体的核心区别</caption>
  *   <tr><th>值对象 (ValueObject)</th><th>实体 (Entity)</th></tr>
  *   <tr><td>没有标识</td><td>有唯一标识</td></tr>
  *   <tr><td>通过属性值比较相等性</td><td>通过标识比较相等性</td></tr>
@@ -15,7 +16,7 @@ package com.cartisan.core.domain;
  *   <tr><td>生命周期依附于实体</td><td>有独立生命周期</td></tr>
  * </table>
  *
- * <h3>使用 Record 实现</h3>
+ * <h2>使用 Record 实现</h2>
  *
  * <p>Java Record 是实现值对象的理想方式，编译器自动生成正确的 equals/hashCode：</p>
  *
@@ -59,14 +60,14 @@ package com.cartisan.core.domain;
  * }
  * }</pre>
  *
- * <h3>sameValueAs vs equals</h3>
+ * <h2>sameValueAs vs equals</h2>
  *
  * <ul>
  *   <li>{@code sameValueAs()} - 显式的值比较语义，由接口提供默认实现（委托给 equals）</li>
  *   <li>{@code equals()} - Java 标准相等性比较，Record 自动生成正确实现</li>
  * </ul>
  *
- * <h3>自定义比较逻辑</h3>
+ * <h2>自定义比较逻辑</h2>
  *
  * <p>如果需要自定义值比较逻辑（例如忽略大小写），可以覆写 sameValueAs：</p>
  *

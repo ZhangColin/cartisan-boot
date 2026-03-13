@@ -5,9 +5,10 @@ package com.cartisan.core.domain;
  *
  * <p>实体是 DDD 中的核心概念，表示具有唯一标识的领域对象。</p>
  *
- * <h3>实体 vs 值对象</h3>
+ * <h2>实体 vs 值对象</h2>
  *
  * <table border="1">
+ *   <caption>实体与值对象的核心区别</caption>
  *   <tr><th>实体 (Entity)</th><th>值对象 (ValueObject)</th></tr>
  *   <tr><td>有唯一标识</td><td>没有标识，通过属性值比较</td></tr>
  *   <tr><td>标识相同即为同一对象</td><td>所有属性值相同即为同一对象</td></tr>
@@ -15,7 +16,7 @@ package com.cartisan.core.domain;
  *   <tr><td>生命周期长</td><td>生命周期依附于实体</td></tr>
  * </table>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  *
  * <pre>{@code
  * public class User implements Entity<User, UserId> {
@@ -43,7 +44,7 @@ package com.cartisan.core.domain;
  * }
  * }</pre>
  *
- * <h3>sameIdentityAs vs equals</h3>
+ * <h2>sameIdentityAs vs equals</h2>
  *
  * <ul>
  *   <li>{@code sameIdentityAs()} - 仅比较标识符，由接口提供</li>
@@ -68,7 +69,7 @@ public interface Entity<T, ID> {
     /**
      * 判断当前实体是否与另一个实体具有相同的标识。
      *
-     * <p>默认实现通过 {@link Objects#equals(Object, Object)} 比较标识符。
+     * <p>默认实现通过 {@code Objects.equals()} 比较标识符。
      * 两个实体的 ID 都为 null 时，视为相同标识。</p>
      *
      * @param other 另一个实体，可能为 null

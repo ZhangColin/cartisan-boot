@@ -9,7 +9,7 @@ package com.cartisan.core.exception;
  * <p>通过将 HTTP 状态码包含在错误码中，使错误语义自包含，
  * 便于全局异常处理器直接使用。</p>
  *
- * <h3>使用示例</h3>
+ * <h2>使用示例</h2>
  * <pre>{@code
  * // 定义自定义错误码
  * enum UserCodeMessage implements CodeMessage {

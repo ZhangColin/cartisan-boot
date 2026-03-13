@@ -6,6 +6,7 @@
  *
  * <h2>核心组件</h2>
  * <table border="1">
+ *   <caption>异常体系核心组件</caption>
  *   <tr><th>组件</th><th>类型</th><th>说明</th></tr>
  *   <tr><td>{@link com.cartisan.core.exception.CodeMessage}</td><td>接口</td><td>错误码契约（code、message、httpStatus）</td></tr>
  *   <tr><td>{@link com.cartisan.core.exception.BaseCodeMessage}</td><td>枚举</td><td>HTTP 规范错误码 + 通用业务错误码</td></tr>

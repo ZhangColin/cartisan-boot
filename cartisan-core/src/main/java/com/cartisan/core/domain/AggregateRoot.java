@@ -13,11 +13,11 @@ package com.cartisan.core.domain;
  *   <li>可以发布领域事件</li>
  * </ul>
  *
- * <h3>使用方式</h3>
+ * <h2>使用方式</h2>
  *
  * <p>本接口仅作为标记接口使用，实际功能由 {@link AbstractAggregateRoot} 提供。</p>
  *
- * <h3>示例</h3>
+ * <h2>示例</h2>
  *
  * <pre>{@code
  * // 方式1: 继承 AbstractAggregateRoot（推荐）

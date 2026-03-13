@@ -5,7 +5,7 @@ package com.cartisan.core.domain;
  *
  * <p>领域对象的唯一标识，用于类型安全的 ID 封装。</p>
  *
- * <h3>类型安全</h3>
+ * <h2>类型安全</h2>
  *
  * <p>使用本接口可以避免"基本类型偏执"（Primitive Obsession）反模式，
  * 为不同类型的 ID 提供编译时类型检查：</p>
@@ -20,7 +20,7 @@ package com.cartisan.core.domain;
  * processOrder(user.getId(), order.getId()); // 编译错误！类型不匹配
  * }</pre>
  *
- * <h3>使用 Record 实现</h3>
+ * <h2>使用 Record 实现</h2>
  *
  * <p>Java Record 是实现 Identity 的理想方式，零样板代码：</p>
  *
@@ -53,7 +53,7 @@ package com.cartisan.core.domain;
  * }
  * }</pre>
  *
- * <h3>与 Entity 配合使用</h3>
+ * <h2>与 Entity 配合使用</h2>
  *
  * <pre>{@code
  * public class User implements Entity<User, UserId> {
