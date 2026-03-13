@@ -1,11 +1,14 @@
 package com.cartisan.core.arch;
 
+import com.cartisan.core.exception.CartisanException;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.*;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 /**
@@ -16,6 +19,7 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 class ArchitectureTest {
 
     private static final String DOMAIN_PACKAGE = "com.cartisan.core.domain..";
+    private static final String EXCEPTION_PACKAGE = "com.cartisan.core.exception..";
 
     private final JavaClasses classes = new ClassFileImporter().importPackages("com.cartisan.core");
 
@@ -96,5 +100,62 @@ class ArchitectureTest {
         //         .should().haveNameMatching(".*")
         //         .because("domain classes should follow naming conventions");
         // rule.check(classes);
+    }
+
+    // ========== exception 包架构规则 ==========
+
+    /**
+     * 规则 E-001：exception 包不依赖任何第三方库。
+     */
+    @Test
+    void exceptionPackage_shouldNotDependOnAnyThirdPartyLibrary() {
+        // 只检查生产代码
+        JavaClasses productionClasses = new ClassFileImporter()
+                .importPaths("build/classes/java/main");
+
+        ArchRule rule = noClasses()
+                .that().resideInAPackage(EXCEPTION_PACKAGE)
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework..",
+                        "org.apache..",
+                        "com.google..",
+                        "com.fasterxml..",
+                        "io..",
+                        "jakarta..",
+                        "reactor..",
+                        "com.tngtech.."
+                )
+                .because("exception package should have zero external dependencies (JDK only)");
+
+        rule.check(productionClasses);
+    }
+
+    /**
+     * 规则 E-002：CartisanException 是抽象类。
+     */
+    @Test
+    void cartisanException_shouldBeAbstract() {
+        ArchRule rule = classes()
+                .that().haveSimpleName("CartisanException")
+                .should().haveModifier(JavaModifier.ABSTRACT)
+                .andShould().beAssignableTo(RuntimeException.class)
+                .because("CartisanException should be an abstract RuntimeException");
+
+        rule.check(classes);
+    }
+
+    /**
+     * 规则 E-003：DomainException 和 ApplicationException 继承 CartisanException。
+     */
+    @Test
+    void dddExceptions_shouldExtendCartisanException() {
+        ArchRule rule = classes()
+                .that().haveSimpleName("DomainException")
+                .or().haveSimpleName("ApplicationException")
+                .should().beAssignableTo(CartisanException.class)
+                .because("DDD layer exceptions should extend CartisanException");
+
+        rule.check(classes);
     }
 }
