@@ -110,24 +110,59 @@ cartisan-test/src/
 
 **职责**：组合所有规则的入口，业务项目继承即可获得完整守护
 
-**伪代码**：
+**实际实现**（注：`ArchRules.in()` 在 ArchUnit 1.3.0 中不存在，使用直接字段引用）：
 
 ```java
 public class CartisanArchRules {
     @ArchTest
-    static final ArchRules layering = ArchRules.in(CartisanLayeringRules.class);
+    static final ArchRule domainShouldNotDependOnInfrastructure =
+        CartisanLayeringRules.domainShouldNotDependOnInfrastructure;
 
     @ArchTest
-    static final ArchRules naming = ArchRules.in(CartisanNamingRules.class);
+    static final ArchRule domainShouldNotDependOnSpring =
+        CartisanLayeringRules.domainShouldNotDependOnSpring;
 
     @ArchTest
-    static final ArchRules prohibition = ArchRules.in(CartisanProhibitionRules.class);
+    static final ArchRule controllersShouldOnlyDependOnApplication =
+        CartisanLayeringRules.controllersShouldOnlyDependOnApplication;
+
+    @ArchTest
+    static final ArchRule applicationShouldNotAccessDatabaseDirectly =
+        CartisanLayeringRules.applicationShouldNotAccessDatabaseDirectly;
+
+    @ArchTest
+    static final ArchRule controllersShouldBeSuffixed =
+        CartisanNamingRules.controllersShouldBeSuffixed;
+
+    @ArchTest
+    static final ArchRule appServicesShouldBeSuffixed =
+        CartisanNamingRules.appServicesShouldBeSuffixed;
+
+    @ArchTest
+    static final ArchRule domainServicesShouldBeSuffixed =
+        CartisanNamingRules.domainServicesShouldBeSuffixed;
+
+    @ArchTest
+    static final ArchRule repositoriesShouldBeSuffixed =
+        CartisanNamingRules.repositoriesShouldBeSuffixed;
+
+    @ArchTest
+    static final ArchRule noFieldInjection =
+        CartisanProhibitionRules.noFieldInjection;
+
+    @ArchTest
+    static final ArchRule noJavaUtilDate =
+        CartisanProhibitionRules.noJavaUtilDate;
+
+    @ArchTest
+    static final ArchRule noFloatingPointForMoney =
+        CartisanProhibitionRules.noFloatingPointForMoney;
 }
 ```
 
 **设计说明**：
-- 使用 `ArchRules.in()` 组合，不是 Java 继承
-- 每个分类规则独立成一个 `@ArchTest` 字段
+- 使用直接字段引用聚合规则（`ArchRules.in()` API 不存在于 ArchUnit 1.3.0）
+- 每个规则独立成一个 `@ArchTest` 字段，命名清晰
 - 业务项目 `extends CartisanArchRules` 即继承全部规则
 
 ---

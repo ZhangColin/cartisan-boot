@@ -294,3 +294,37 @@
   - 仅在 CI 中启用（开发者本地可能忽略 JavaDoc 格式问题）
   - 使用单独的 `verify` 任务（需要开发者记住执行）
 - **权衡**：轻微的性能开销换取更好的代码质量保证
+## ADR-019：CartisanArchRules 使用直接字段引用而非 ArchRules.in()
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`CartisanArchRules` 使用直接字段引用聚合规则，而非规范中设想的 `ArchRules.in(Class)` 模式
+- **背景**：
+  1. 规范文档（02_interface.md）设想使用 `ArchRules.in(CartisanLayeringRules.class)` 组合规则
+  2. 实现时发现 `ArchRules` 类和 `in()` 方法在 ArchUnit 1.3.0 中**不存在**
+  3. 检查了 archunit-1.3.0.jar 和 archunit-junit5-api-1.3.0.jar，确认无此 API
+- **实现方式**：
+  ```java
+  // 实际实现
+  public class CartisanArchRules {
+      @ArchTest
+      static final ArchRule domainShouldNotDependOnInfrastructure =
+          CartisanLayeringRules.domainShouldNotDependOnInfrastructure;
+      // ... 其他 10 条规则
+  }
+  ```
+- **理由**：
+  1. 直接字段引用在功能上等价于组合 - 业务项目继承后仍可获得全部规则
+  2. 规则字段有清晰的 JavaDoc，业务项目可查看具体规则内容
+  3. 不影响业务项目的三种使用姿势（继承全部、选择部分、追加自定义）
+  4. ArchUnit 的 `@ArchTest` 字段继承机制已经提供了分组能力
+- **影响评估**：
+  - ✅ 业务项目使用方式不变：`extends CartisanArchRules` 即可获得全部守护
+  - ✅ 规则字段命名清晰，IDE 可以跳转到具体规则定义
+  - ⚠️ 规范文档（02_interface.md）需要更新，以反映实际实现
+- **替代方案**：
+  - 使用 `@ArchTests` 注解的静态方法返回规则组（ArchUnit 1.3.0 中同样不存在）
+  - 等待 ArchUnit 添加 `ArchRules.in()` API（不切实际，时间表未知）
+- **后续行动**：
+  - 更新 02_interface.md，移除不存在的 `ArchRules.in()` 模式描述
+  - 如果未来 ArchUnit 添加组合 API，评估是否迁移
