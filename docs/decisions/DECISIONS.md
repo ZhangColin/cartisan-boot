@@ -33,3 +33,63 @@
 - **决策**：写侧用 Spring Data JPA，读侧用 jOOQ
 - **理由**：JPA 与 DDD 聚合根天然适配；jOOQ 类型安全 SQL，编译期捕获错误，AI 生成代码更可靠
 - **替代方案**：MyBatis-Plus（读写都行，但类型安全弱）
+
+## ADR-006：Entity.sameIdentityAs() 保留运行时类型检查
+
+- **日期**：2026-03-13
+- **决策**：Entity.sameIdentityAs() 方法中保留 `getClass()` 检查和强制类型转换
+- **理由**：由于 Java 泛型类型擦除，接口方法签名中的 `T` 在运行时被擦除为 `Object`，无法直接调用 `other.getId()`
+- **代码对比**：
+  ```java
+  // ❌ 无法编译：other 被擦除为 Object 类型
+  default boolean sameIdentityAs(T other) {
+      return Objects.equals(this.getId(), other.getId());
+  }
+
+  // ✅ 正确实现：需要类型检查和强制转换
+  @SuppressWarnings("unchecked")
+  default boolean sameIdentityAs(T other) {
+      if (other == null) return false;
+      if (this.getClass() != other.getClass()) return false;
+      ID otherId = ((Entity<T, ID>) other).getId();
+      return Objects.equals(this.getId(), otherId);
+  }
+  ```
+- **替代方案**：使用 `Object getId()` 声明（失去类型安全）
+
+## ADR-007：ValueObject.sameValueAs() 简化为直接委托 equals()
+
+- **日期**：2026-03-13
+- **决策**：ValueObject.sameValueAs() 直接调用 `this.equals(other)`，无需类型检查
+- **理由**：`equals()` 方法接受 `Object` 类型，不需要类型擦除的兼容处理；Record 实现的 equals() 已经正确处理类型检查
+- **代码对比**：
+  ```java
+  // ✅ 简洁实现
+  default boolean sameValueAs(T other) {
+      if (other == null) return false;
+      return this.equals(other);
+  }
+  ```
+- **替代方案**：像 Entity 一样进行类型检查（冗余）
+
+## ADR-008：domain 包零外部依赖约束
+
+- **日期**：2026-03-13
+- **决策**：cartisan-core.domain 包仅依赖 JDK 标准库，不依赖任何第三方库
+- **理由**：
+  1. 纯粹的领域抽象，可被任何技术栈复用
+  2. 便于单元测试，无 Mock 依赖
+  3. 降低框架迁移成本
+- **验证**：通过 ArchUnit 自动化规则验证
+- **例外**：测试代码使用 JUnit 5、AssertJ、ArchUnit（仅在 test 作用域）
+
+## ADR-009：F01-02 不包含 Auditable/SoftDeletable
+
+- **日期**：2026-03-13
+- **决策**：F01-02 仅实现 DDD 核心抽象（AggregateRoot/Entity/ValueObject/Identity/DomainEvent），不包含审计（Auditable）和软删除（SoftDeletable）
+- **理由**：
+  1. 审计和软删除属于**基础设施关注点**，非 DDD 核心概念
+  2. 不同业务对审计字段要求不同（如 created_by、updated_by、tenant_id 等），框架层难以统一
+  3. 软删除策略（逻辑删除 vs 物理删除标记位）应由业务项目根据需求选择
+- **后续规划**：在 cartisan-data-jpa 模块中提供 JPA 相关的基础设施（如 @MappedSuperclass 的审计基类）
+- **替代方案**：在 domain 层定义 Auditable 接口（会导致所有实体依赖持久化概念，违反 DDD 分层原则）

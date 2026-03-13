@@ -35,7 +35,7 @@ cartisan-boot 是一个**业务无关的 Java 技术基础框架**，为所有 S
 
 ## AI 协作规范
 
-所有开发严格遵循 `docs/AI协作开发SOP.md`：
+所有开发严格遵循 `docs/sop/AI协作开发SOP.md`：
 - Phase 0：Epic 分解（只产出文档，不写代码）
 - Phase 1-3：需求 → 接口设计 → 实现方案（只产出文档）
 - Phase 4：先写测试（红）→ 再写实现（绿）
