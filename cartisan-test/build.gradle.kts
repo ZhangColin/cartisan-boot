@@ -25,4 +25,5 @@ dependencies {
     // Spring 依赖（规则类需要引用注解，测试 fixtures 需要）
     implementation("org.springframework.boot:spring-boot-starter-web:3.4.0")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.4.0")
+    implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
 }
