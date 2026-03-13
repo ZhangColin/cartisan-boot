@@ -212,3 +212,34 @@
         └─ 否 → GENERIC
   ```
 - **替代方案**：增加 OTHER 值（会让开发者跳过重要思考）
+
+## ADR-016：ensure 断言使用 IllegalStateException 而非 DomainException
+
+- **日期**：2026-03-13
+- **状态**：已实施
+- **决策**：`Assertions.ensure(condition, message)` 失败时抛出 `IllegalStateException`，而非 `DomainException`
+- **理由**：
+  1. **语义差异**：后置条件失败表示**代码有 bug**，而非业务规则违反
+  2. **HTTP 映射**：IllegalStateException 被全局异常处理器映射为 500，DomainException 映射为 4xx
+  3. **运维区分**：500 错误触发 bug 告警，4xx 错误属于正常业务拒绝
+  4. **责任归属**：
+     | 断言类型 | 责任方 | 异常类型 | HTTP | 运维处理 |
+     |---------|--------|---------|------|---------|
+     | require（前置条件） | 调用者 | DomainException | 4xx | 正常日志 |
+     | ensure（后置条件） | 实现者 | IllegalStateException | 500 | Bug 告警 |
+- **代码示例**：
+  ```java
+  // 领域方法中的典型用法
+  public void addItem(OrderItem item) {
+      // 前置条件：调用者的责任
+      Assertions.require(item != null, OrderError.ITEM_REQUIRED);
+      this.items.add(item);
+
+      // 后置条件：实现者的责任，失败 = 我有 bug
+      Assertions.ensure(this.items.contains(item), "item should be present after add");
+  }
+  ```
+- **替代方案**：
+  - 使用 `DomainException`：会误导运维认为是业务异常，而非代码 bug
+  - 使用 `IllegalArgumentException`：语义是"参数非法"，属于前置条件范畴，非后置条件
+- **参考**：DbC（Design by Contract）理论，后置条件违反是内部不变量被破坏，表示实现有缺陷

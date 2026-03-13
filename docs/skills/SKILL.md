@@ -419,3 +419,91 @@ public @interface Port {
     PortType value();
 }
 ```
+
+---
+
+## 断言工具 (Assertions)
+
+### 规则 ASRT-001：异常类型语义决定 HTTP 状态码
+
+**原则**：断言方法抛出的异常类型应反映"这是谁的问题"，而非"哪个层级抛出的"。
+
+| 断言方法 | 异常类型 | 语义 | HTTP | 运维 |
+|---------|---------|------|------|------|
+| `require()` | `DomainException` | 调用者责任 = 业务规则违反 | 4xx | 正常日志 |
+| `ensure()` | `IllegalStateException` | 实现者责任 = 代码 bug | 500 | Bug 告警 |
+| `requirePresent()` | `DomainException` | 资源不存在 | 404/4xx | 正常日志 |
+
+**错误示例**：
+```java
+// ❌ 后置条件失败伪装成业务异常
+public void addItem(OrderItem item) {
+    this.items.add(item);
+    ensure(this.items.contains(item),
+        new DomainException(BaseCodeMessage.INTERNAL_ERROR));  // 误导性
+}
+```
+
+**正确示例**：
+```java
+// ✅ 后置条件失败明确表示代码 bug
+public void addItem(OrderItem item) {
+    this.items.add(item);
+    ensure(this.items.contains(item), "item should be present after add");
+}
+```
+
+---
+
+### 规则 ASRT-002：工具类私有构造函数应抛出异常而非返回 null
+
+**推荐做法**：
+```java
+// ✅ 防止反射实例化
+private Assertions() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+}
+```
+
+**避免**：
+```java
+// ❌ 返回 null 无法阻止反射调用
+private Assertions() {
+    // 空构造函数
+}
+```
+
+**测试验证**：
+```java
+@Test
+void should_throw_exception_when_attempting_instantiation_via_reflection() throws Exception {
+    Constructor<Assertions> constructor = Assertions.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+
+    assertThatThrownBy(constructor::newInstance)
+        .hasCauseExactlyInstanceOf(UnsupportedOperationException.class);
+}
+```
+
+---
+
+## 踩坑记录（续）
+
+### PIT-008 (2026-03-13)：ReflectionnewInstance 抛出 InvocationTargetException
+
+**场景**：通过反射调用 `Constructor.newInstance()` 时，实际抛出 `InvocationTargetException` 而非构造函数内部的异常。
+
+**原因**：`Constructor.newInstance()` 会将构造函数抛出的异常包装在 `InvocationTargetException` 中，需要通过 `.getCause()` 获取原始异常。
+
+**正确做法**：
+```java
+// ✅ 使用 hasCauseExactlyInstanceOf 检查根本原因
+assertThatThrownBy(constructor::newInstance)
+    .hasCauseExactlyInstanceOf(UnsupportedOperationException.class)
+    .satisfies(ex -> {
+        Throwable cause = ex.getCause();
+        assertThat(cause.getMessage()).contains("Utility class");
+    });
+```
+
+**记忆口诀**：反射构造异常被包装，用 `getCause()` 取真身。
