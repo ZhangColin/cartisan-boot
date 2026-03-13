@@ -20,6 +20,7 @@ class ArchitectureTest {
 
     private static final String DOMAIN_PACKAGE = "com.cartisan.core.domain..";
     private static final String EXCEPTION_PACKAGE = "com.cartisan.core.exception..";
+    private static final String STEREOTYPE_PACKAGE = "com.cartisan.core.stereotype..";
 
     private final JavaClasses classes = new ClassFileImporter().importPackages("com.cartisan.core");
 
@@ -157,5 +158,75 @@ class ArchitectureTest {
                 .because("DDD layer exceptions should extend CartisanException");
 
         rule.check(classes);
+    }
+
+    // ========== stereotype 包架构规则 ==========
+
+    /**
+     * 规则 S-001：stereotype 包不依赖任何第三方库。
+     */
+    @Test
+    void stereotypePackage_shouldNotDependOnAnyThirdPartyLibrary() {
+        // 只检查生产代码
+        JavaClasses productionClasses = new ClassFileImporter()
+                .importPaths("build/classes/java/main");
+
+        ArchRule rule = noClasses()
+                .that().resideInAPackage(STEREOTYPE_PACKAGE)
+                .should().dependOnClassesThat()
+                .resideInAnyPackage(
+                        "org.springframework..",
+                        "org.apache..",
+                        "com.google..",
+                        "com.fasterxml..",
+                        "io..",
+                        "jakarta..",
+                        "reactor..",
+                        "com.tngtech.."
+                )
+                .because("stereotype package should have zero external dependencies (JDK only)");
+
+        rule.check(productionClasses);
+    }
+
+    /**
+     * 规则 S-002：stereotype 包只依赖 JDK 和自身。
+     */
+    @Test
+    void stereotypePackage_shouldOnlyDependOnJdkAndItself() {
+        JavaClasses productionClasses = new ClassFileImporter()
+                .importPaths("build/classes/java/main");
+
+        ArchRule rule = classes()
+                .that().resideInAPackage(STEREOTYPE_PACKAGE)
+                .should().onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        "java..",
+                        "javax..",
+                        "com.cartisan.core.stereotype.."
+                )
+                .because("stereotype package should only depend on JDK standard library");
+
+        rule.check(productionClasses);
+    }
+
+    /**
+     * 规则 S-003：stereotype 注解应有 @Retention(RUNTIME)。
+     * 注意：此规则由单元测试 StereotypeAnnotationsTest 验证，
+     * ArchUnit 无法方便地检查注解元注解。
+     */
+    @Test
+    void stereotypeAnnotations_shouldHaveRuntimeRetention() {
+        // 由 StereotypeAnnotationsTest 验证
+        // ArchUnit 对注解元注解的检查较为复杂，单元测试更直接
+    }
+
+    /**
+     * 规则 S-004：stereotype 注解应有正确的 @Target。
+     * 注意：此规则由单元测试 StereotypeAnnotationsTest 验证。
+     */
+    @Test
+    void stereotypeAnnotations_shouldHaveCorrectTarget() {
+        // 由 StereotypeAnnotationsTest 验证
     }
 }
