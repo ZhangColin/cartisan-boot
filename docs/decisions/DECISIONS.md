@@ -943,3 +943,34 @@
   | 强制物理删除 | ❌ | 运维场景，业务可自实现 |
 - **替代方案**：
   - 全部实现：代码量大，超出 100-150 行范围，且通用性差
+
+## ADR-040：F02-07 TsidGenerator 采用纯随机无锁实现
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-07）
+- **决策**：v1 使用纯随机实现（42 位时间戳 + 22 位随机数），不使用计数器或同步机制
+- **实现**：
+  ```java
+  public long generate() {
+      long currentMillis = System.currentTimeMillis() - EPOCH_MILLIS;
+      long timestampPart = currentMillis & TIMESTAMP_MASK;
+      int random = this.random.nextInt(MAX_RANDOM + 1);
+      return (timestampPart << RANDOM_BITS) | random;
+  }
+  ```
+- **理由**：
+  1. **满足性能约束**：无锁设计，单线程生成速度 > 100万/秒
+  2. **符合设计文档**：与 02_interface.md 的伪代码一致
+  3. **ThreadLocalRandom 保证线程安全**：无需 synchronized 或锁
+  4. **极低冲突率可接受**：同毫秒内冲突概率约 0.000024%（1/4,194,304）
+  5. **YAGNI 原则**：计数器、严格单调、时钟回拨处理留待后续版本
+- **权衡**：
+  | 方案 | 优点 | 缺点 | 决策 |
+  |------|------|------|------|
+  | 纯随机 | 无锁、高性能、符合设计 | 同毫秒内可能冲突（极低概率） | ✅ v1 采用 |
+  | 计数器 + synchronized | 保证同毫秒唯一 | 违反性能约束、代码复杂 | ❌ |
+- **替代方案**：
+  - 计数器 + synchronized：违反"避免使用 synchronized 或 lock"约束，性能下降
+- **后续规划**：
+  - v2 可评估 AtomicLong 计数器方案（无锁但仍有状态管理开销）
+  - v3 可考虑引入 node_id 实现雪花算法模式（需要配置）

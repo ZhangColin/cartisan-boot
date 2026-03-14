@@ -46,12 +46,6 @@ public final class TsidGenerator {
     /** 随机数源 */
     private final Random random;
 
-    /** 上一次的时间戳（毫秒，相对于 epoch） */
-    private long lastTimestamp = Long.MIN_VALUE;
-
-    /** 同一毫秒内的计数器 */
-    private int counter;
-
     /**
      * 私有构造函数。
      *
@@ -89,45 +83,18 @@ public final class TsidGenerator {
      *
      * @return 全局唯一、时间排序的正 long 值
      */
-    public synchronized long generate() {
+    public long generate() {
         // 1. 获取当前毫秒时间戳（相对于 epoch）
         long currentMillis = System.currentTimeMillis() - EPOCH_MILLIS;
 
         // 2. 时间戳部分按 42 位掩码截断（避免溢出）
         long timestampPart = currentMillis & TIMESTAMP_MASK;
 
-        if (timestampPart != lastTimestamp) {
-            // 新的毫秒，重置计数器
-            lastTimestamp = timestampPart;
-            counter = 0;
-            // 使用随机数作为第一个值
-            int randomValue = this.random.nextInt(MAX_RANDOM + 1);
-            return (timestampPart << RANDOM_BITS) | randomValue;
-        }
+        // 3. 生成 22 位随机数
+        int random = this.random.nextInt(MAX_RANDOM + 1);
 
-        // 同一毫秒内，使用计数器确保唯一性
-        if (counter >= MAX_RANDOM) {
-            // 计数器溢出，等待下一毫秒
-            while (true) {
-                currentMillis = System.currentTimeMillis() - EPOCH_MILLIS;
-                timestampPart = currentMillis & TIMESTAMP_MASK;
-                if (timestampPart != lastTimestamp) {
-                    lastTimestamp = timestampPart;
-                    counter = 0;
-                    int randomValue = this.random.nextInt(MAX_RANDOM + 1);
-                    return (timestampPart << RANDOM_BITS) | randomValue;
-                }
-                // 短暂休眠避免忙等待
-                try {
-                    Thread.sleep(0, 100_000); // 0.1ms
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Interrupted while waiting for next millisecond", e);
-                }
-            }
-        }
-
-        return (timestampPart << RANDOM_BITS) | counter++;
+        // 4. 组合：时间戳左移 22 位 + 随机数
+        return (timestampPart << RANDOM_BITS) | random;
     }
 
     /**

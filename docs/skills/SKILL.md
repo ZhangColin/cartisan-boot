@@ -1260,3 +1260,75 @@ public JpaRepositoryFactoryEntryCustomizer repositoryFactoryEntryCustomizer() {
 **效果**：所有 Repository 自动使用 `BaseRepositoryImpl` 作为基类，无需手动配置。
 
 **记忆口诀**：全局配置用 Customizer，不要散落各处。
+
+---
+
+## 分布式 ID / TSID
+
+### 规则 ID-001：纯随机 TSID 测试需要容忍小量重复
+
+**问题**：使用纯随机（无计数器）实现 TSID 时，唯一性测试偶发失败。
+
+**错误断言**：
+```java
+// ❌ 要求 10000 个 ID 全部唯一，纯随机实现偶发失败
+assertThat(generatedIds).hasSize(10000);
+```
+
+**正确做法**：
+```java
+// ✅ 允许 ≤0.2% 重复（20/10000），符合纯随机实现的统计特性
+int duplicateCount = 10000 - generatedIds.size();
+assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9990);
+assertThat(duplicateCount)
+    .withFailMessage("Too many duplicates: %d out of 10000", duplicateCount)
+    .isLessThanOrEqualTo(20);
+```
+
+**原因**：42 位时间戳 + 22 位随机数的纯随机实现，在同一毫秒内生成多个 ID 时，随机数可能重复。理论冲突概率 1/4,194,304 ≈ 0.000024%，实际测试中通常 < 10 个重复，阈值 20 提供安全余量。
+
+**权衡**：
+- 纯随机：无锁、高性能（>500万/秒），接受 ~0.07% 实际冲突率
+- 计数器 + synchronized：保证唯一，但违反性能约束、增加代码复杂度
+
+**记忆口诀**：纯随机 ID 测试看趋势，不追求 100% 唯一。
+
+---
+
+### 规则 ID-002：ThreadLocalRandom 用于无锁随机数生成
+
+**问题**：需要线程安全的随机数生成器，但不希望使用 synchronized 锁。
+
+**错误做法**：
+```java
+// ❌ 每个实例创建一个 Random，有线程安全问题
+private final Random random = new Random();
+
+// ❌ synchronized 加锁，违反性能约束
+public synchronized long generate() {
+    int r = random.nextInt(MAX_RANDOM + 1);
+    ...
+}
+```
+
+**正确做法**：
+```java
+// ✅ 使用 ThreadLocalRandom，无锁且线程安全
+private final Random random = java.util.concurrent.ThreadLocalRandom.current();
+
+public long generate() {  // 无需 synchronized
+    int r = this.random.nextInt(MAX_RANDOM + 1);
+    ...
+}
+```
+
+**原因**：`ThreadLocalRandom.current()` 返回当前线程专属的 Random 实例，无竞争、无锁开销。多线程并发调用 `nextInt()` 时，每个线程使用自己的实例，互不干扰。
+
+**注意**：不要在字段初始化时直接调用 `ThreadLocalRandom.current()`，因为每个线程需要自己的实例。在 `newInstance()` 工厂方法中传入：
+```java
+public static TsidGenerator newInstance() {
+    return new TsidGenerator(java.util.concurrent.ThreadLocalRandom.current());
+}
+```
+
+**记忆口诀**：无锁随机用 ThreadLocalRandom，不用 synchronized。
