@@ -1149,3 +1149,40 @@
 - **替代方案**：
   - 在 cartisan-web 中处理 Sa-Token 异常：会导致 cartisan-web 依赖 Sa-Token，违背解耦原则
   - 在 F03-07 统一处理：延迟异常处理会导致鉴权失败暴露原始异常给前端
+
+## ADR-047：F03-03 getCurrentUsername() 返回登录 ID 而非独立用户名字段
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F03-03 Phase 2）
+- **决策**：`SecurityContext.getCurrentUsername()` 返回 `StpUtil.getLoginIdAsString()`，即登录时传入的 ID
+- **理由**：
+  1. Sa-Token 的设计就是用 loginId 作为用户标识，不存储独立的 username 字段
+  2. 避免额外从 Session 获取 username 的复杂度
+  3. 业务项目可自行决定 loginId 是 username 还是 userId
+- **行为说明**：
+  - 若业务登录时传入 username 作为 loginId，则 `getCurrentUsername()` 返回 username
+  - 若业务登录时传入 userId 作为 loginId，则 `getCurrentUsername()` 返回 userId 的字符串形式
+  - 框架层不做额外假设，与 Sa-Token 保持一致
+- **替代方案**：
+  - 从 Session 获取独立 username 字段：增加复杂度，Sa-Token 无此约定
+
+## ADR-048：F03-03 hasRole/hasPermission 参数校验使用 IllegalArgumentException
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F03-03 Phase 2）
+- **决策**：`hasRole()` / `hasPermission()` 参数为 null 或空白时抛 `IllegalArgumentException`
+- **理由**：
+  1. 快速失败（Fail Fast）原则
+  2. 与 `Objects.requireNonNull()` 风格一致
+  3. Sa-Token 内部也会对 null 参数做校验，我们提前校验提供更清晰的错误消息
+- **代码示例**：
+  ```java
+  public static boolean hasRole(String role) {
+      if (role == null || role.isBlank()) {
+          throw new IllegalArgumentException("Role cannot be null or blank");
+      }
+      return StpUtil.hasRole(role);
+  }
+  ```
+- **替代方案**：
+  - 直接调用 Sa-Token，让 Sa-Token 抛异常：错误消息不够清晰，且依赖 Sa-Token 的具体实现
