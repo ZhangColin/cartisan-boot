@@ -1068,3 +1068,109 @@ runtimeOnly("org.postgresql:postgresql:42.7.4")
 
 **记忆口诀**：Docker 报错但 CLI 正常？升级 Testcontainers 到 1.21.4+。
 
+
+---
+
+## Spring Data JPA / 数据访问
+
+### 规则 DATA-001：JPA save() 后必须用原始 entity 发布事件
+
+**问题**：`SimpleJpaRepository.save()` 返回的可能是一个新实例（如延迟加载代理），不是原始传入的实体。
+
+**错误代码**：
+```java
+@Override
+public <S extends T> S save(S entity) {
+    S savedEntity = super.save(entity);
+    publishDomainEvents(savedEntity);  // ❌ savedEntity 上的事件是空的！
+    return savedEntity;
+}
+```
+
+**正确做法**：
+```java
+@Override
+public <S extends T> S save(S entity) {
+    S savedEntity = super.save(entity);
+    publishDomainEvents(entity);  // ✅ 使用原始 entity
+    return savedEntity;
+}
+```
+
+**调试证据**：
+```
+savedEntity.events.size() = 0  // JPA 返回的新实例
+entity.events.size() = 1       // 原始实例才有事件
+```
+
+**记忆口诀**：JPA save 返回值 ≠ 原始参数，后处理必须用原参数。
+
+---
+
+### 规则 DATA-002：Spring Data JPA 创建的 Repository 不是 Spring Bean
+
+**问题**：Repository 接口的实现类由 Spring Data JPA 在运行时动态生成，不在 Spring 容器中。
+
+**现象**：
+```java
+public class BaseRepositoryImpl<T, ID> extends SimpleJpaRepository<T, ID> {
+    // ❌ 无法自动注入——这个构造方法 Spring 不会调用
+    @Autowired
+    public BaseRepositoryImpl(...) {
+        // this.domainEventPublisher 永远是 null
+    }
+}
+```
+
+**正确做法**：使用静态持有者模式
+```java
+// 1. 创建静态持有者
+public final class DomainEventPublisherHolder {
+    private static volatile DomainEventPublisher publisher;
+    public static void setPublisher(DomainEventPublisher p) { publisher = p; }
+    public static DomainEventPublisher getPublisher() { return publisher; }
+}
+
+// 2. 在 AutoConfiguration 中设置
+@Bean
+public Runnable configureDomainEventPublisherHolder(DomainEventPublisher publisher) {
+    return () -> DomainEventPublisherHolder.setPublisher(publisher);
+}
+
+// 3. Repository 中使用
+var publisher = DomainEventPublisherHolder.getPublisher();
+```
+
+**替代方案（不推荐）**：自定义 JpaRepositoryFactoryBean + Factory（过于复杂）
+
+**记忆口诀**：Repository 不是 Bean，依赖注入用静态持有者。
+
+---
+
+## Spring Boot / 自动配置
+
+### 规则 BOOT-001：使用 JpaRepositoryFactoryEntryCustomizer 自动配置 repositoryBaseClass
+
+**问题**：默认情况下，每个使用 `@EnableJpaRepositories` 的地方都需要手动指定 `repositoryBaseClass`。
+
+**传统做法（繁琐）**：
+```java
+@EnableJpaRepositories(
+    basePackages = "com.cartisan.**.repository",
+    repositoryBaseClass = BaseRepositoryImpl.class  // ❌ 每处都要写
+)
+```
+
+**正确做法**：在 AutoConfiguration 中全局配置
+```java
+@Bean
+public JpaRepositoryFactoryEntryCustomizer repositoryFactoryEntryCustomizer() {
+    return (JpaRepositoryFactoryBean<?, ?, ?> factoryBean) -> {
+        factoryBean.setRepositoryBaseClass(BaseRepositoryImpl.class);
+    };
+}
+```
+
+**效果**：所有 Repository 自动使用 `BaseRepositoryImpl` 作为基类，无需手动配置。
+
+**记忆口诀**：全局配置用 Customizer，不要散落各处。

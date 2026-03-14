@@ -660,3 +660,192 @@
   ```
 - **替代方案**：
   - 添加 `cartisan.event.enabled` 配置开关：过度设计，当前无需求
+
+## ADR-032：F02-05 选用 SimpleJpaRepository 继承方式实现事件自动发布
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-05 Phase 1）
+- **决策**：通过创建 `BaseRepositoryImpl extends SimpleJpaRepository` 重写 `save()` 方法，实现聚合根保存时自动发布领域事件
+- **理由**：
+  1. **SimpleJpaRepository 继承** 是替换 Repository 默认 save 行为的唯一途径
+  2. Spring Data 的「自定义实现模式」（XxxRepositoryCustom + XxxRepositoryImpl）只能增加新方法，不能替换已有 save()
+  3. 通过 `@EnableJpaRepositories(repositoryBaseClass = BaseRepositoryImpl.class)` 全局启用，用户只需继承 `BaseRepository<T, ID>` 接口
+  4. 保持 `DomainEventPublisher` 作为统一发布入口，与 cartisan-event 模块设计一致
+- **实现要点**：
+  ```java
+  // 核心逻辑
+  @Override
+  public <S extends T> S save(S entity) {
+      S savedEntity = super.save(entity);  // 先持久化
+      publishDomainEvents(savedEntity);     // 再发布事件
+      return savedEntity;
+  }
+
+  private void publishDomainEvents(T entity) {
+      if (entity instanceof AbstractAggregateRoot) {
+          List<DomainEvent> events = ((AbstractAggregateRoot<?>) entity).getDomainEvents();
+          events.forEach(domainEventPublisher::publish);
+          ((AbstractAggregateRoot<?>) entity).clearDomainEvents();
+      }
+  }
+  ```
+- **替代方案**：
+  - 自定义实现模式（XxxRepositoryCustom）：无法替换 save()，会导致双入口（save 不发布，saveAndPublishEvents 才发布）
+  - Spring Data @DomainEvents 注解：脱离 cartisan-event 的 DomainEventPublisher，破坏统一设计
+
+## ADR-033：F02-05 事件发布采用事务内同步模式
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-05 Phase 1）
+- **决策**：`BaseRepositoryImpl.save()` 在同一事务内同步发布事件，不使用 `@TransactionalEventListener(AFTER_COMMIT)`
+- **约定**：
+  1. 先 `super.save(entity)` 持久化
+  2. 立即调用 `DomainEventPublisher.publish(...)` 发布事件
+  3. 立即调用 `entity.clearDomainEvents()` 清空事件
+- **监听器侧**：
+  - 默认使用 `@EventListener`：与 save 在同一事务内同步执行，抛异常会导致整个事务回滚
+  - 若需事务提交后执行：由业务使用 `@TransactionalEventListener(phase = AFTER_COMMIT)`，框架不强制
+- **理由**：
+  1. 实现简单，行为明确，符合"数据一致性"直觉
+  2. cartisan-boot 定位是基础框架，应提供清晰的默认行为
+  3. 复杂场景（异步事件、事件溯源）可由业务项目自行扩展
+- **替代方案**：
+  - 事务提交后发布：需要注册 TransactionSynchronization，需处理异常与补偿，复杂度高
+  - 配置开关：YAGNI，当前无需求
+
+## ADR-034：F02-05 仅重写 save(S entity)，不重写 saveAll/saveAndFlush
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-05 Phase 1）
+- **决策**：仅重写 `save(S entity)` 方法，不重写 `saveAll()` 和 `saveAndFlush()`
+- **理由**：
+  1. `SimpleJpaRepository.saveAll(Iterable<S>)` 内部遍历调用 `save(entity)`，会自动走重写后的逻辑
+  2. `SimpleJpaRepository.saveAndFlush(S)` 实现：`save(entity)` + `flush()`，同样会走重写后的 save
+  3. YAGNI：单一入口点足以覆盖所有保存场景
+- **代码溯源**：
+  ```java
+  // SimpleJpaRepository 源码（Spring Data JPA）
+  @Override
+  public <S extends T> List<S> saveAll(Iterable<S> entities) {
+      assertIterableNotNull(entities);  // 非空检查
+      List<S> result = new ArrayList<>();
+      for (S entity : entities) {
+          result.add(save(entity));  // ← 循环调用 save()
+      }
+      return result;
+  }
+
+  @Override
+  public <S extends T> S saveAndFlush(S entity) {
+      S result = save(entity);  // ← 调用 save()
+      flush();
+      return result;
+  }
+  ```
+- **替代方案**：
+  - 同时重写 saveAll/saveAndFlush：代码重复，无额外收益
+
+## ADR-035：F02-05 使用 FactoryBean + Factory 两层结构注入 DomainEventPublisher
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-05 Phase 1）
+- **决策**：通过自定义 `JpaRepositoryFactoryBean` + `JpaRepositoryFactory` 实现三参构造器注入
+- **层次结构**：
+  ```
+  @EnableJpaRepositories(repositoryFactoryBeanClass = CartisanJpaRepositoryFactoryBean.class)
+                                     │
+                                     v
+                   CartisanJpaRepositoryFactoryBean（FactoryBean）
+                                     │
+                                     │ createRepositoryFactory(EntityManager)
+                                     v
+                   CartisanJpaRepositoryFactory（Factory）
+                                     │
+                                     │ getTargetRepository(RepositoryInformation)
+                                     v
+                   BaseRepositoryImpl(entityInformation, entityManager, eventPublisher)
+  ```
+- **职责分工**：
+  - **FactoryBean**：负责创建 Factory 实例，将 ApplicationContext 传入
+  - **Factory**：负责创建 Repository 实例，从 ApplicationContext 获取 DomainEventPublisher 并注入
+- **关键代码**：
+  ```java
+  // FactoryBean
+  public class CartisanJpaRepositoryFactoryBean<T extends Repository<S, ID>, S, ID>
+          extends JpaRepositoryFactoryBean<T, S, ID> {
+      @Override
+      protected RepositoryFactorySupport createRepositoryFactory(EntityManager em) {
+          return new CartisanJpaRepositoryFactory(em, getApplicationContext());
+      }
+  }
+
+  // Factory
+  public class CartisanJpaRepositoryFactory extends JpaRepositoryFactory {
+      @Override
+      protected Object getTargetRepository(RepositoryInformation information) {
+          DomainEventPublisher publisher = applicationContext.getBean(DomainEventPublisher.class);
+          return new BaseRepositoryImpl(entityInformation, entityManager, publisher);
+      }
+  }
+  ```
+- **替代方案**：
+  - 只自定义 Factory：无法获得 ApplicationContext，无法获取 DomainEventPublisher
+
+## ADR-008：Repository 事件发布采用静态持有者模式
+
+- **日期**：2026-03-14
+- **上下文**：F02-05 Repository 保存时自动发布领域事件
+- **问题**：Spring Data JPA 创建的 Repository 实例不是 Spring Bean，无法通过 @Autowired 注入 DomainEventPublisher
+- **决策**：使用 `DomainEventPublisherHolder` 静态持有者模式，在 AutoConfiguration 中通过回调设置 Publisher
+- **理由**：
+  - Repository 实例由 Spring Data JPA 动态代理创建，不在 Spring 容器中
+  - 三参数构造函数（手动注入 Publisher）需要覆盖 final 方法，行不通
+  - FactoryBean + Factory 方案过于复杂，需要侵入 Spring Data JPA 内部 API
+- **代码**：
+  ```java
+  // 静态持有者
+  public final class DomainEventPublisherHolder {
+      private static volatile DomainEventPublisher publisher;
+
+      public static void setPublisher(DomainEventPublisher publisher) {
+          DomainEventPublisherHolder.publisher = Objects.requireNonNull(publisher);
+      }
+
+      public static DomainEventPublisher getPublisher() {
+          return publisher;
+      }
+  }
+
+  // AutoConfiguration 中设置
+  @Bean
+  public Runnable configureDomainEventPublisherHolder(DomainEventPublisher publisher) {
+      return () -> DomainEventPublisherHolder.setPublisher(publisher);
+  }
+  ```
+- **替代方案**：
+  - 三参数构造函数：无法覆盖 final 方法
+  - FactoryBean + Factory：过于复杂，需要维护自定义 Factory
+
+## ADR-009：JPA save() 返回新实例，事件发布必须使用原始实体参数
+
+- **日期**：2026-03-14
+- **上下文**：F02-05 实现 BaseRepositoryImpl.save() 方法时发现
+- **问题**：调用 `publishDomainEvents(savedEntity)` 时事件列表为空
+- **原因**：JPA 的 `save()` 方法可能返回一个新实例（如延迟加载代理），而不是原始传入的实体
+- **决策**：事件发布时使用原始 `entity` 参数，而非 `savedEntity` 返回值
+- **代码**：
+  ```java
+  @Override
+  public <S extends T> S save(S entity) {
+      S savedEntity = super.save(entity);
+      // 使用原始 entity 发布事件，因为 savedEntity 可能是新实例
+      publishDomainEvents(entity);  // ✅ 正确
+      return savedEntity;
+  }
+  ```
+- **调试验证**：
+  ```
+  savedEntity.events = 0  // 空的！
+  entity.events = 1       // 事件在这里
+  ```
+- **替代方案**：无，这是 JPA 规范行为
