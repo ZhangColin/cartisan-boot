@@ -523,3 +523,63 @@
   - 如果只声明 `implementation`，业务项目无法使用这些类
 - **替代方案**：
   - 使用 `compileOnly` + `api`：Gradle 不支持这种组合，且语义不清晰
+
+## ADR-027：临时使用 IllegalArgumentException 模拟 AccessDeniedException
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-02）
+- **决策**：在 `cartisan-web` 模块中使用 `IllegalArgumentException` 代替 Spring Security 的 `AccessDeniedException`
+- **理由**：
+  1. cartisan-web 不应强制依赖 Spring Security（保持框架轻量）
+  2. 通过检查异常消息是否包含 "Access denied" 来区分权限拒绝和普通参数错误
+  3. 实际项目中引入 Spring Security 后，应替换为真正的 `AccessDeniedException` 处理器
+- **代码示例**：
+  ```java
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<ApiResponse<Void>> handleAccessDenied(IllegalArgumentException ex) {
+      if (ex.getMessage() != null && ex.getMessage().contains("Access denied")) {
+          log.warn("Access denied: {}", ex.getMessage());
+          return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                  .body(ApiResponse.error(BaseCodeMessage.FORBIDDEN));
+      }
+      // 其他 IllegalArgumentException 作为通用 400 处理
+      log.warn("Bad request: {}", ex.getMessage());
+      return ResponseEntity.badRequest()
+              .body(ApiResponse.error(400, ex.getMessage()));
+  }
+  ```
+- **后续行动**：在 cartisan-security 模块中实现真正的 `AccessDeniedException` 处理器
+- **替代方案**：
+  - 强制依赖 Spring Security：违背框架轻量原则
+
+## ADR-028：全局异常日志策略 4xx → WARN、5xx → ERROR
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-02）
+- **决策**：全局异常处理器根据 HTTP 状态码决定日志级别和堆栈打印
+- **规则**：
+  | HTTP 状态码范围 | 日志级别 | 打印堆栈 | 理由 |
+  |---------------|---------|---------|------|
+  | 4xx | WARN | 否 | 客户端错误，正常业务拒绝 |
+  | 5xx | ERROR | 是 | 服务器错误，需要运维关注 |
+- **实现细节**：
+  ```java
+  // CartisanException 根据状态码判断
+  @ExceptionHandler(CartisanException.class)
+  public ResponseEntity<ApiResponse<Void>> handleCartisanException(CartisanException ex) {
+      int status = ex.getCodeMessage().httpStatus();
+      if (status >= 500) {
+          log.error("Business error: {}", ex.getMessage(), ex);  // 5xx + 堆栈
+      } else {
+          log.warn("Business error: {}", ex.getMessage());  // 4xx，无堆栈
+      }
+      // ...
+  }
+  ```
+- **理由**：
+  1. 4xx 错误是正常的业务拒绝（如参数校验失败），不应产生大量 ERROR 日志
+  2. 5xx 错误表示服务端异常，需要立即告警并定位问题
+  3. 不打印堆栈减少日志量，避免干扰关键错误追踪
+- **替代方案**：
+  - 所有异常都打印堆栈：日志量巨大，关键错误被淹没
+

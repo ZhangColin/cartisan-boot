@@ -4,6 +4,7 @@ import com.cartisan.core.exception.CodeMessage;
 import com.cartisan.core.exception.BaseCodeMessage;
 
 import java.text.MessageFormat;
+import java.util.List;
 
 /**
  * 统一 API 响应体。
@@ -23,7 +24,10 @@ public record ApiResponse<T>(
         T data,
 
         /** 请求追踪 ID，可选字段（由 F02-03 填充） */
-        String requestId
+        String requestId,
+
+        /** 字段级错误信息，校验失败时填充 */
+        List<FieldError> errors
 ) {
 
     /**
@@ -31,13 +35,14 @@ public record ApiResponse<T>(
      *
      * @param data 响应数据
      * @param <T>  数据类型
-     * @return code=200, message="Success", data=传入值, requestId=null
+     * @return code=200, message="Success", data=传入值, requestId=null, errors=null
      */
     public static <T> ApiResponse<T> ok(T data) {
         return new ApiResponse<>(
                 BaseCodeMessage.SUCCESS.httpStatus(),
                 BaseCodeMessage.SUCCESS.message(),
                 data,
+                null,
                 null
         );
     }
@@ -45,7 +50,7 @@ public record ApiResponse<T>(
     /**
      * 构造成功响应（无数据）。
      *
-     * @return code=200, message="Success", data=null, requestId=null
+     * @return code=200, message="Success", data=null, requestId=null, errors=null
      */
     public static ApiResponse<Void> ok() {
         return ok(null);
@@ -55,12 +60,13 @@ public record ApiResponse<T>(
      * 构造错误响应（使用错误码枚举）。
      *
      * @param codeMessage 错误码枚举
-     * @return code=枚举.httpStatus(), message=枚举.message(), data=null
+     * @return code=枚举.httpStatus(), message=枚举.message(), data=null, errors=null
      */
     public static ApiResponse<Void> error(CodeMessage codeMessage) {
         return new ApiResponse<>(
                 codeMessage.httpStatus(),
                 codeMessage.message(),
+                null,
                 null,
                 null
         );
@@ -87,6 +93,7 @@ public record ApiResponse<T>(
                 codeMessage.httpStatus(),
                 formattedMessage,
                 null,
+                null,
                 null
         );
     }
@@ -101,6 +108,22 @@ public record ApiResponse<T>(
      * @return 自定义错误响应
      */
     public static ApiResponse<Void> error(int code, String message) {
-        return new ApiResponse<>(code, message, null, null);
+        return new ApiResponse<>(code, message, null, null, null);
+    }
+
+    /**
+     * 构造校验失败响应（带字段级错误）。
+     *
+     * @param errors 字段级错误列表
+     * @return code=400, message="Parameter validation failed", data=null, errors=传入值
+     */
+    public static ApiResponse<Void> validationError(List<FieldError> errors) {
+        return new ApiResponse<>(
+                BaseCodeMessage.BAD_REQUEST.httpStatus(),
+                "Parameter validation failed",
+                null,
+                null,
+                errors
+        );
     }
 }

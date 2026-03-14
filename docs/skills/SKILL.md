@@ -804,3 +804,127 @@ public static BigDecimal randomAmount() {
 ```
 
 **记忆口诀**：随机数要排除 0，用 min + random() * (max - min)。
+
+---
+
+### PIT-017 (2026-03-14)：Spring Security AccessDeniedException 依赖问题
+
+**场景**：在 `cartisan-web` 中需要处理权限拒绝异常，返回 403 状态码。
+
+**问题**：Spring Security 的 `AccessDeniedException` 位于 `spring-security-web` 模块，但 cartisan-web 不应强制依赖 Spring Security。
+
+**临时方案**：使用 `IllegalArgumentException` 并检查消息内容：
+```java
+@ExceptionHandler(IllegalArgumentException.class)
+public ResponseEntity<ApiResponse<Void>> handleAccessDenied(IllegalArgumentException ex) {
+    if (ex.getMessage() != null && ex.getMessage().contains("Access denied")) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(BaseCodeMessage.FORBIDDEN));
+    }
+    // 其他 IllegalArgumentException 返回 400
+    return ResponseEntity.badRequest()
+            .body(ApiResponse.error(400, ex.getMessage()));
+}
+```
+
+**后续计划**：在 cartisan-security 模块中实现真正的 `AccessDeniedException` 处理器。
+
+**记忆口诀**：权限异常临时用 IllegalArgumentException 模拟，消息含 "Access denied" 返回 403。
+
+---
+
+### PIT-018 (2026-03-14)：@Validated 必须放在类上触发 @RequestParam 校验
+
+**场景**：测试 `@RequestParam @Email String email` 时，`ConstraintViolationException` 没有被触发。
+
+**原因**：`@Validated` 注解必须放在 Controller 类上，Spring 才会校验方法参数。
+
+**错误代码**：
+```java
+// ❌ @Validated 缺失，参数校验不生效
+@RestController
+@RequestMapping("/test")
+public class TestController {
+    @GetMapping("/validate-request-param")
+    public void validateRequestParam(@RequestParam @Email String email) {
+        // 不会触发校验
+    }
+}
+```
+
+**正确做法**：
+```java
+// ✅ 添加 @Validated
+@Validated  // 必须有
+@RestController
+@RequestMapping("/test")
+public class TestController {
+    @GetMapping("/validate-request-param")
+    public void validateRequestParam(@RequestParam @Email String email) {
+        // Spring 会先校验，校验失败抛出 ConstraintViolationException
+    }
+}
+```
+
+**记忆口诀**：@RequestParam 校验要生效，类上必须加 @Validated。
+
+---
+
+### PIT-019 (2026-03-14)：测试 405 异常需用不支持的 HTTP 方法
+
+**场景**：测试 `HttpRequestMethodNotSupportedException` 时，期望返回 405 但实际返回 200。
+
+**原因**：TestController 的 endpoint 使用了 `@PostMapping`，测试也用 `POST`，方法匹配成功。
+
+**错误代码**：
+```java
+// ❌ 方法匹配，不会触发异常
+@PostMapping("/method-not-allowed")
+public void methodNotAllowed() {
+}
+
+// 测试
+mockMvc.perform(post("/test/method-not-allowed"))  // 返回 200
+```
+
+**正确做法**：
+```java
+// ✅ endpoint 只支持 GET
+@GetMapping("/method-not-allowed")
+public void methodNotAllowed() {
+}
+
+// 测试用 POST 触发 405
+mockMvc.perform(post("/test/method-not-allowed"))
+    .andExpect(status().isMethodNotAllowed());
+```
+
+**记忆口诀**：测 405 异常，endpoint 和测试要用不同 HTTP 方法。
+
+---
+
+### PIT-020 (2026-03-14)：@RequestBody String 不会触发 JSON 解析异常
+
+**场景**：测试 `HttpMessageNotReadableException` 时，畸形 JSON 仍然返回 200。
+
+**原因**：`@RequestBody String` 会将请求体作为原始字符串接收，不进行 JSON 解析。
+
+**错误代码**：
+```java
+// ❌ String 接收原始内容，不解析 JSON
+@PostMapping("/malformed-json")
+public void malformedJson(@RequestBody String body) {
+}
+```
+
+**正确做法**：
+```java
+// ✅ 使用 Object 或具体类型，触发 JSON 解析
+@PostMapping("/malformed-json")
+public void malformedJson(@RequestBody Object body) {
+    // JSON 解析失败会抛出 HttpMessageNotReadableException
+}
+```
+
+**记忆口诀**：测 JSON 解析异常，@RequestBody 不要用 String。
+

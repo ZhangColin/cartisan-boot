@@ -4,6 +4,8 @@ import com.cartisan.core.exception.BaseCodeMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("ApiResponse 单元测试")
@@ -80,5 +82,54 @@ class ApiResponseTest {
 
         assertThat(stringResponse.data()).isInstanceOf(String.class);
         assertThat(intResponse.data()).isInstanceOf(Integer.class);
+    }
+
+    @Test
+    @DisplayName("给定成功响应 - 验证 errors 字段为 null")
+    void given_success_response_then_errors_field_is_null() {
+        ApiResponse<String> response = ApiResponse.ok("data");
+
+        assertThat(response.errors()).isNull();
+    }
+
+    @Test
+    @DisplayName("给定错误响应 - 验证 errors 字段为 null")
+    void given_error_response_then_errors_field_is_null() {
+        ApiResponse<Void> response = ApiResponse.error(BaseCodeMessage.NOT_FOUND);
+
+        assertThat(response.errors()).isNull();
+    }
+
+    @Test
+    @DisplayName("给定字段错误列表 - 调用 validationError - 返回校验失败响应")
+    void given_fieldErrors_when_validationError_then_return_validation_error_response() {
+        List<FieldError> errors = List.of(
+                new FieldError("email", "must be well-formed", "Email"),
+                new FieldError("password", "size must be between 8 and 20", "Size")
+        );
+
+        ApiResponse<Void> response = ApiResponse.validationError(errors);
+
+        assertThat(response.code()).isEqualTo(400);
+        assertThat(response.message()).isEqualTo("Parameter validation failed");
+        assertThat(response.data()).isNull();
+        assertThat(response.requestId()).isNull();
+        assertThat(response.errors()).hasSize(2);
+        assertThat(response.errors().get(0).field()).isEqualTo("email");
+        assertThat(response.errors().get(0).message()).isEqualTo("must be well-formed");
+        assertThat(response.errors().get(0).errorCode()).isEqualTo("Email");
+        assertThat(response.errors().get(1).field()).isEqualTo("password");
+        assertThat(response.errors().get(1).errorCode()).isEqualTo("Size");
+    }
+
+    @Test
+    @DisplayName("给定空字段错误列表 - 调用 validationError - 返回响应但 errors 为空列表")
+    void given_emptyFieldErrors_when_validationError_then_return_response_with_empty_errors() {
+        List<FieldError> errors = List.of();
+
+        ApiResponse<Void> response = ApiResponse.validationError(errors);
+
+        assertThat(response.code()).isEqualTo(400);
+        assertThat(response.errors()).isEmpty();
     }
 }
