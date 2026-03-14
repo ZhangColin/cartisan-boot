@@ -610,3 +610,53 @@
 - **替代方案**：
   - 降级 Docker Desktop：不现实，新版本有安全修复和新特性
   - 使用 Docker 环境变量绕过：无效，这是 API 兼容性问题而非配置问题
+
+## ADR-030：DomainEvent 直接发布，不使用自定义包装类
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-08）
+- **决策**：`SpringDomainEventPublisher` 直接发布 `DomainEvent`，利用 Spring 4.2+ 的 `PayloadApplicationEvent` 机制，不创建自定义包装类
+- **理由**：
+  1. Spring 4.2+ 的 `ApplicationEventPublisher.publishEvent(Object)` 可以发布任意对象
+  2. Spring 自动将非 `ApplicationEvent` 对象包装为 `PayloadApplicationEvent<T>`
+  3. 监听器直接接收 `DomainEvent` 子类，无需解包
+  4. cartisan-core 保持零 Spring 依赖
+- **代码示例**：
+  ```java
+  // 发布器：直接发布 DomainEvent
+  @Override
+  public void publish(DomainEvent event) {
+      applicationEventPublisher.publishEvent(event);  // Spring 自动包装
+  }
+
+  // 监听器：直接接收领域事件子类
+  @EventListener
+  void handle(OrderCreatedEvent event) {  // 直接收 DomainEvent 子类
+      // ...
+  }
+  ```
+- **替代方案**：
+  - 创建 `SpringDomainEvent extends ApplicationEvent` 包装类：需要解包，增加复杂度
+
+## ADR-031：事件发布使用 @ConditionalOnMissingBean 支持用户覆盖
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-08）
+- **决策**：自动配置使用 `@ConditionalOnMissingBean(DomainEventPublisher.class)`，不提供 `enabled` 配置开关
+- **理由**：
+  1. 用户可通过自定义 Bean 覆盖默认实现（如发到 Kafka）
+  2. 职责单一，无需"关闭但不提供替代"的场景
+  3. 符合 YAGNI 原则
+- **代码示例**：
+  ```java
+  @Configuration
+  @ConditionalOnMissingBean(DomainEventPublisher.class)
+  public class CartisanEventAutoConfiguration {
+      @Bean
+      public DomainEventPublisher domainEventPublisher(ApplicationEventPublisher publisher) {
+          return new SpringDomainEventPublisher(publisher);
+      }
+  }
+  ```
+- **替代方案**：
+  - 添加 `cartisan.event.enabled` 配置开关：过度设计，当前无需求
