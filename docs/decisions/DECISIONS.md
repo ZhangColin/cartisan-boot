@@ -1186,3 +1186,24 @@
   ```
 - **替代方案**：
   - 直接调用 Sa-Token，让 Sa-Token 抛异常：错误消息不够清晰，且依赖 Sa-Token 的具体实现
+
+## ADR-032：TenantContext 使用 ScopedValue.isBound() + get() 模式
+
+- **日期**：2026-03-14
+- **Epic**：Epic 03 Security / Feature F03-04 TenantContext
+- **决策**：使用 `ScopedValue.isBound()` 检查后 `get()`，而非假设的 `getOrDefault()`
+- **背景**：原 02_interface.md 设计使用 `ScopedValue.getOrDefault(TENANT_ID, null)`，但 Java 21 的 ScopedValue API 不存在此方法
+- **实现**：
+  ```java
+  public static Long getCurrentTenantId() {
+      if (!TENANT_ID.isBound()) {
+          return null;
+      }
+      return TENANT_ID.get();
+  }
+  ```
+- **理由**：
+  - `ScopedValue.get()` 在未绑定时抛 `NoSuchElementException`
+  - `isBound()` 检查明确表达意图："先检查是否存在，再获取值"
+  - 避免异常处理的开销
+- **影响**：02_interface.md 中的设计描述需要更新，实际实现更优

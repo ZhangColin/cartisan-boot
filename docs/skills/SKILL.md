@@ -1332,3 +1332,65 @@ public static TsidGenerator newInstance() {
 ```
 
 **记忆口诀**：无锁随机用 ThreadLocalRandom，不用 synchronized。
+
+---
+
+## Java 21 / ScopedValue
+
+### 规则 JV-001：ScopedValue 需要 --enable-preview
+
+**问题**：Java 21 中 ScopedValue 是预览 API，编译时会报错。
+
+**错误表现**：
+```
+错误: ScopedValue 是预览 API，默认情况下处于禁用状态。
+```
+
+**正确做法**：
+```kotlin
+// cartisan-security/build.gradle.kts
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("--enable-preview")
+}
+
+tasks.withType<Test> {
+    jvmArgs("--enable-preview")
+}
+```
+
+**原因**：ScopedValue 在 Java 21 中是预览特性，需要显式启用。同时需要在编译和测试时都启用。
+
+**记忆口诀**：用 ScopedValue 记得开预览，编译测试都要加。
+
+---
+
+### 规则 JV-002：ScopedValue 使用 isBound() + get() 模式
+
+**问题**：ScopedValue 不存在 `getOrDefault()` 方法，直接调用 `get()` 在未绑定时抛异常。
+
+**错误做法**：
+```java
+// ❌ getOrDefault() 方法不存在
+return ScopedValue.getOrDefault(TENANT_ID, null);
+
+// ❌ 直接 get() 在未绑定时抛 NoSuchElementException
+return TENANT_ID.get();
+```
+
+**正确做法**：
+```java
+// ✅ 先检查 isBound()，再 get()
+public static Long getCurrentTenantId() {
+    if (!TENANT_ID.isBound()) {
+        return null;
+    }
+    return TENANT_ID.get();
+}
+```
+
+**原因**：ScopedValue 的 API 设计：
+- `isBound()` — 检查是否已绑定值
+- `get()` — 获取绑定的值，未绑定时抛 `NoSuchElementException`
+- 不存在 `getOrDefault()` 方法
+
+**记忆口诀**：ScopedValue 取值先 isBound()，再 get()。
