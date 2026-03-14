@@ -1098,3 +1098,54 @@
   ```
 - **替代方案**：
   - 使用普通 `java` 插件而非 `java-platform`：失去平台版本管理的优势
+
+## ADR-045：F03-02 不同类型注解使用 AND 逻辑
+
+- **日期**：2026-03-14
+- **状态**：已实施（F03-02）
+- **决策**：`@RequireAuth`、`@RequireRole`、`@RequirePermission` 之间使用 AND 逻辑，全部检查通过才放行
+- **理由**：
+  1. 方法注解优先仅适用于**同一类型注解**（如类和方法都有 `@RequireAuth`）
+  2. 不同类型注解之间是叠加关系，如 `@RequireAuth` + `@RequireRole("admin")` 表示"需登录 AND 需 admin 角色"
+  3. 符合安全最佳实践：多重安全控制应该全部满足，而非满足其一即可
+  4. 与 02_interface.md 的设计一致："鉴权顺序：@RequireAuth → @RequireRole → @RequirePermission（AND 逻辑）"
+- **代码示例**：
+  ```java
+  @RequireAuth  // 类级别：需要登录
+  public class AdminController {
+      @RequireRole({"admin"})  // 方法级别：需要 admin 角色
+      @PostMapping("/users")
+      public void createUser() {
+          // 需要同时满足：登录 AND admin 角色（AND 逻辑）
+      }
+  }
+  ```
+- **测试验证**：
+  - `given_classRequireAuthAndMethodRequireRole_when_preHandle_then_callBoth()` 验证 AND 逻辑
+  - 验证 `StpUtil.checkLogin()` 和 `StpUtil.checkRoleOr("admin")` 都被调用
+- **替代方案**：
+  - 方法有注解时忽略类注解：会导致 `@RequireAuth(false)` 无法覆盖类注解，且违背安全原则
+
+## ADR-046：F03-02 异常处理器在 cartisan-security 内部实现
+
+- **日期**：2026-03-14
+- **状态**：已实施（F03-02）
+- **决策**：`SecurityExceptionHandler` 位于 cartisan-security 模块内部，使用 `@ControllerAdvice`，依赖 cartisan-web 的 `ApiResponse`
+- **理由**：
+  1. 保持 cartisan-web 与安全实现解耦（cartisan-web 不依赖 Sa-Token）
+  2. cartisan-security 已依赖 cartisan-web（需要 `ApiResponse`），反方向不依赖保证无循环
+  3. 多个 `@ControllerAdvice` 是正常做法，Spring MVC 会收集所有异常处理器
+  4. 职责清晰：安全相关异常由安全模块处理，通用异常由 cartisan-web 处理
+- **包结构**：
+  ```
+  cartisan-security
+  ├── com.cartisan.security.config.SecurityExceptionHandler (@ControllerAdvice)
+  └── 依赖 cartisan-web.ApiResponse
+
+  cartisan-web
+  ├── com.cartisan.web.exception.GlobalExceptionHandler (@ControllerAdvice)
+  └── 不依赖 Sa-Token 或 cartisan-security
+  ```
+- **替代方案**：
+  - 在 cartisan-web 中处理 Sa-Token 异常：会导致 cartisan-web 依赖 Sa-Token，违背解耦原则
+  - 在 F03-07 统一处理：延迟异常处理会导致鉴权失败暴露原始异常给前端
