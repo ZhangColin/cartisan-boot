@@ -11,6 +11,7 @@ subprojects {
     // cartisan-dependencies uses java-platform plugin, not java-library
     if (project.name != "cartisan-dependencies") {
         apply(plugin = "java-library")
+        apply(plugin = "jacoco")
     }
 
     // Only configure Java toolchain for java-library projects
@@ -32,6 +33,14 @@ subprojects {
 
         tasks.withType<Test> {
             useJUnitPlatform()
+        }
+
+        // Jacoco 配置
+        tasks.named<JacocoReport>("jacocoTestReport") {
+            reports {
+                xml.required.set(true)
+                html.required.set(true)
+            }
         }
     }
 }
