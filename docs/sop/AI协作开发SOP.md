@@ -1,8 +1,8 @@
-yge# AI 协作开发标准作业流程 (SOP)
+# AI 协作开发标准作业流程 (SOP)
 
-> 版本：v0.3 | 日期：2026-03-11
+> 版本：v0.4 | 日期：2026-03-14
 > 定位：本文档是团队 AI 辅助开发的标准规范与操作手册，适用于所有项目成员及 AI 工具。
-> 存放位置：项目根目录 `docs/sop/AI协作开发SOP.md`，在 `CLAUDE.md` 中引用。
+> 存放位置：项目根目录 `docs/sop/AI协作开发SOP.md`；CLAUDE.md 中引用路径与上述一致，便于 AI 加载。
 
 ---
 
@@ -34,8 +34,8 @@ yge# AI 协作开发标准作业流程 (SOP)
 | # | 铁律 | 理由 |
 |---|------|------|
 | 1 | **先文档，后代码** | 文档锁定上下文，防止 AI 在长对话中漂移 |
-| 2 | **先测试，后实现** | 测试基于 Spec 编写，实现基于测试驱动，形成交叉验证，防止 AI 伪造测试 |
-| 3 | **原子化任务** | 交给 AI 的每个任务控制在 50-150 行代码，超过此范围必须进一步拆解 |
+| 2 | **先测试，后实现** | 测试基于 Spec 编写，实现基于测试驱动，形成交叉验证，防止 AI 伪造测试。在「按类型分步」实施时，允许某类型的实现与该类型的测试成对推进，但同一类型内仍应先写测试再写实现；全量「先全红灯再全绿灯」为推荐形态 |
+| 3 | **原子化任务** | 交给 AI 的每个任务控制在 50-150 行代码（行数指单次变更规模，可含测试代码）；略超 150 行可拆子步或在 03 中说明原因，避免机械执行 |
 | 4 | **编译器是第一道防线** | 利用 Java 强类型、接口契约、注解校验，让编译器替你检查 AI 产出 |
 | 5 | **换模型交叉审查** | 写代码和审查代码使用不同模型或不同会话，避免自我确认偏差 |
 
@@ -113,7 +113,7 @@ claude
 
 - 使用 Java Record 定义 DTO（Command、Query、Response）
 - 构造函数校验不变量，只暴露允许修改的字段的 setter
-- 测试方法命名：should_期望行为_when_前置条件
+- 测试方法命名：以项目 docs/skills/SKILL.md 为准（如 given_*_when_*_then_* 或 should_*_when_*，命名一致、可读、可映射到 AC）
 - 测试使用 AssertJ 断言，禁止无意义断言
 
 ## 常用命令
@@ -163,13 +163,13 @@ project-root/
 │   │   └── AI协作开发SOP.md             # 本文档
 │   ├── specs/                           # 热文档——开发期使用
 │   │   └── epic-xxx-{名称}/            # 每个 Epic 一个目录
-│   │       ├── epic-backlog.md          # Feature 清单 + 依赖关系
-│   │       ├── feature-001-{名称}/     # 每个 Feature 一个子目录
+│   │       ├── 00_epic_backlog.md      # Feature 清单 + 依赖关系（推荐数字前缀，或 epic-backlog.md）
+│   │       ├── F01-01-{名称}/          # 每个 Feature 一个子目录，示例：feature-001-xxx 或 F01-01-xxx
 │   │       │   ├── 01_requirement.md
 │   │       │   ├── 02_interface.md
 │   │       │   ├── 03_implementation.md
 │   │       │   └── 04_test_spec.md
-│   │       └── feature-002-{名称}/
+│   │       └── F01-02-{名称}/
 │   │           └── ...
 │   ├── decisions/
 │   │   └── DECISIONS.md                 # 设计决策日志（为什么这么做）
@@ -252,12 +252,12 @@ Spec 目录：docs/specs/epic-xxx/
 |------|------|------|---------|---------|
 | **CLAUDE.md** | 项目根目录 | 项目"宪法"——核心约束与规范 | 项目初始化时创建，重大变更时更新 | 人类维护 |
 | **SKILL.md** | docs/skills/ | "判例法"——踩坑经验持续积累 | 每次踩坑后追加 | Phase 5 归档时 AI 辅助生成，人类审核 |
-| **DECISIONS.md** | docs/decisions/ | 设计决策审计——为什么这么做 | 每次做出技术决策时追加 | Phase 2/5 中 AI 辅助生成，人类审核 |
-| **epic-backlog.md** | docs/specs/epic-xxx/ | Feature 清单与依赖关系 | Phase 0 产出 | AI 辅助生成，人类审核 |
+| **DECISIONS.md** | docs/decisions/ | 设计决策审计——为什么这么做（与 ADR 格式兼容，可采用 ADR-001 等编号） | 每次做出技术决策时追加 | Phase 2/5 中 AI 辅助生成，人类审核 |
+| **00_epic_backlog.md** / **epic-backlog.md** | docs/specs/epic-xxx/ | Feature 清单与依赖关系 | Phase 0 产出 | AI 辅助生成，人类审核 |
 | **01_requirement.md** | docs/specs/.../feature-xxx/ | 需求意图——做什么、怎样算完成 | Phase 1 产出 | AI 起草，人类 Sign-off |
 | **02_interface.md** | docs/specs/.../feature-xxx/ | 接口契约——数据结构、错误码 | Phase 2 产出 | AI 起草，人类 Sign-off |
 | **03_implementation.md** | docs/specs/.../feature-xxx/ | 实施计划——原子任务清单 | Phase 3 产出 | AI 起草，人类 Sign-off |
-| **04_test_spec.md** | docs/specs/.../feature-xxx/ | 测试策略与用例清单 | Phase 5 归档 | AI 归档 |
+| **04_test_spec.md** | docs/specs/.../feature-xxx/ | 测试策略与用例清单；Phase 5 与 01/02/03 一起作为 Feature 完成时的文档集，便于交接 | Phase 5 归档 | AI 归档 |
 | **guide/README.md** | docs/guide/ | 模块使用手册——冷文档 | Epic 完成后归档 | AI 浓缩，人类审核 |
 
 ### 4.2 DECISIONS.md 详解
@@ -309,6 +309,8 @@ Spec 目录：docs/specs/epic-xxx/
 - 不影响已有功能
 ```
 
+**实现阶段对 02_interface.md 的任何修改都应在 DECISIONS 中留一条「Spec 变更」记录，便于审计。**
+
 **区分 Spec 变更与新需求：**
 
 | 情况 | 处理方式 |
@@ -346,6 +348,8 @@ Spec 目录：docs/specs/epic-xxx/
 - PIT-002 (2026-03-22)：Testcontainers 的 PostgreSQL 容器版本要与
   生产一致（postgres:16），否则 JSONB 行为可能不同
 ```
+
+**无代码 / 纯配置 Feature：** 仅涉及构建、配置或脚本、无业务代码的 Feature（如 Gradle 骨架、BOM 配置），可简化：02 仅描述变更范围与验收方式，03 为步骤清单，04 可为验收方式与手动检查清单，不必强行写「测试用例」。
 
 ### 4.4 各 Spec 文档模板
 
@@ -501,9 +505,9 @@ Spec 目录：docs/specs/epic-xxx/
 - [ ] 依赖关系是否正确？有无循环依赖？
 - [ ] 是否遗漏非功能性 Feature？
 
-#### Step 4：产出 epic-backlog.md
+#### Step 4：产出 Epic Backlog
 
-存放位置：`docs/specs/epic-xxx-{名称}/epic-backlog.md`
+存放位置：`docs/specs/epic-xxx-{名称}/00_epic_backlog.md`（推荐数字前缀，与 01_requirement 等一致）或 `epic-backlog.md`
 
 ```markdown
 # Epic: {名称}
@@ -649,7 +653,7 @@ Feature 描述：
 - 第一步必须是"将接口描述转为 Java 源代码（接口 + Record + 错误码枚举）"
 - 然后是"编写测试（红灯）"
 - 然后是"编写实现（绿灯）"
-- 每步 50-150 行
+- 每步 50-150 行（指单次变更规模，可含测试代码；略超可拆子步或说明原因）
 - 测试和实现必须是独立的 Step
 
 需求：{01_requirement.md}
@@ -662,7 +666,7 @@ Feature 描述：
 
 - [ ] 第一个 Step 是"生成接口/DTO 代码"
 - [ ] 测试 Step 和实现 Step 是分开的
-- [ ] 每个 Step 在 150 行以内
+- [ ] 每个 Step 在 150 行以内（行数指单次变更规模、可含测试代码；略超可拆子步或在 03 中说明原因）
 - [ ] 所有 AC 有对应的测试覆盖
 
 ---
@@ -694,6 +698,8 @@ Step C: 写实现（绿灯）
 
 如果让 AI 同时写测试和实现，它会"对着实现凑测试"——写出永远通过但不验证任何逻辑的伪测试。分离后：测试基于 Spec 写，实现基于测试驱动，两者交叉验证。
 
+**执行形态：** 推荐全量「先写齐所有测试（红灯）→ 再写齐所有实现（绿灯）」；若采用「按类型分步」（某类型的实现 + 该类型的测试成对推进），须在 03_implementation.md 中写清并保持团队统一。
+
 #### 操作步骤
 
 **1. 契约代码化（Step A）：**
@@ -718,7 +724,7 @@ Step C: 写实现（绿灯）
 
 规则：
 - JUnit 5 + AssertJ
-- 命名：should_期望行为_when_前置条件
+- 命名：以项目 docs/skills/SKILL.md 为准（命名一致、可读、可映射到 AC）
 - 覆盖以下场景：{AC 列表}
 - 实现类尚未存在，测试应编译通过但全部失败
 - 禁止 assertTrue(true)、assertNotNull(result) 等无意义断言
@@ -792,12 +798,12 @@ Step C: 写实现（绿灯）
 
 ```bash
 ./gradlew check           # 编译 + 测试 + ArchUnit
-./gradlew pitest          # 变异测试（检查测试质量）
+./gradlew pitest          # 变异测试（已配置 PIT 的模块为 Phase 5 必跑项，见下方「Feature 完成检查」）
 ```
 
 **2. 交叉审查（换模型）：**
 
-使用不同于编码阶段的模型（如 OpenCode + GPT-4o）：
+使用不同于编码阶段的模型（如 OpenCode + GPT-4o）。**审查结论应留痕**：在 `04_test_spec.md` 末尾增加「交叉审查」小节，或单独建 `review.md`，记录：审查人/模型、审查范围（Spec + 变更 diff）、结论（通过/待改）、待办（若有）。
 
 ```
 你是 Senior Java 工程师。请基于 Spec 审查代码变更。
@@ -830,8 +836,8 @@ Spec：{01 + 02 内容}
 #### Feature 完成检查
 
 - [ ] 所有测试绿灯 + ArchUnit 通过
-- [ ] PIT 变异杀死率 ≥ 70%
-- [ ] 交叉审查无高优先级问题
+- [ ] PIT：已配置 PIT 的模块必须执行 `./gradlew pitest`（或对应模块），变异杀死率 ≥ 70% 方可关闭；未配置的模块可标注「不适用」
+- [ ] 交叉审查已执行且结论已留痕（04 或 review.md），无高优先级未解决问题
 - [ ] 01/02/03/04 文档齐全且与代码一致
 - [ ] DECISIONS.md 已更新（如有决策）
 - [ ] SKILL.md 已更新（如有新规则）
@@ -976,14 +982,16 @@ if (balance >= amount) {      if (balance > amount) {    ← >= 改为 >
 
 #### 何时运行
 
-**Phase 5 的第一步。** 不需要每次编码都跑——它比较耗时（分钟级），在 Feature 完成审查时运行一次。
+**Phase 5 的必跑项。** 已配置 PIT 的模块在 Feature 完成审查时必须运行，杀死率达标（如 ≥ 70%）方可关闭。不需要每次编码都跑——它比较耗时（分钟级）。
 
 #### 如何配置
+
+**注意：** Gradle 8+ 或 9 需使用兼容版本（如 1.19.x），具体见项目 `docs/skills/SKILL.md` 或构建文档，避免直接使用旧版导致构建失败。
 
 ```kotlin
 // build.gradle.kts
 plugins {
-    id("info.solidsoft.pitest") version "1.15.0"
+    id("info.solidsoft.pitest") version "1.15.0"  // Gradle 9 等需 1.19.x，见 SKILL
 }
 
 dependencies {
@@ -1026,7 +1034,7 @@ pitest {
 
 #### 前提
 
-开发机器需要安装 Docker。
+开发机器需要安装 Docker。**运行含 Testcontainers 的测试（如全量 `./gradlew test`）前，需确保 Docker 可用。** 若仅做单元测试，可只运行不依赖容器的模块（如 `./gradlew :cartisan-core:test`）。
 
 #### 如何配置
 
@@ -1073,8 +1081,8 @@ public abstract class IntegrationTestBase {
 | 单元测试 | JUnit 5 + AssertJ | 单个类的逻辑 | 毫秒 | 每次 `./gradlew test` |
 | 架构测试 | ArchUnit | 代码结构合规 | 秒 | 随单元测试一起 |
 | 契约测试 | MockMvc | API 请求/响应格式 | 毫秒 | 随单元测试一起 |
-| 集成测试 | Testcontainers | 真实中间件交互 | 秒~分钟 | 提交前 `./gradlew integrationTest` |
-| 变异测试 | PIT | 测试自身的质量 | 分钟 | Phase 5 审查时 `./gradlew pitest` |
+| 集成测试 | Testcontainers | 真实中间件交互 | 秒~分钟 | 提交前运行；若项目将集成测试并入 `test`，则提交前即全量 `./gradlew test`，需满足 Docker 前提；若有独立 `integrationTest` 任务则运行该任务 |
+| 变异测试 | PIT | 测试自身的质量 | 分钟 | Phase 5 审查时必跑（已配置模块）`./gradlew pitest`，杀死率 ≥ 70% |
 
 ---
 
@@ -1122,6 +1130,21 @@ Epic（大需求）
 | ArchUnit 失败 | 让 AI 修复，不能关闭规则 |
 | PIT 杀死率太低 | 补充边界测试 |
 | 代码能跑但看不懂 | 不用。让 AI 用更简单的方式重写 |
-| Spec 有遗漏 | **先改 Spec，再改代码。** 记录到 DECISIONS.md |
+| Spec 有遗漏 | **先改 Spec，再改代码。** 实现阶段对 02 的任何修改都应在 DECISIONS 中留一条「Spec 变更」记录 |
 | 开发中发现设计要调整 | 更新 02_interface.md + 记录到 DECISIONS.md |
 | 已上线功能需要变更 | 新建 Feature，走完整 Phase 1-5 |
+
+---
+
+### 8.4 v0.4 修订说明（2026-03-14）
+
+- **测试命名**：明确以项目 `docs/skills/SKILL.md` 为准，SOP 只做原则性描述。
+- **PIT**：Phase 5 门禁必跑、杀死率 ≥ 70%；Gradle 8+/9 版本兼容说明（见 SKILL）。
+- **交叉审查**：审查结论须留痕（04 末节或 review.md：审查模型/范围/结论/待办）。
+- **Epic/Feature 命名**：推荐 `00_epic_backlog.md`、Feature 目录示例 `F01-01-xxx`。
+- **无代码 Feature**：02/03/04 简化写法（变更范围、步骤清单、验收与检查清单）。
+- **Testcontainers**：全量 test 与 Docker 依赖说明；集成测试并入 test 时的运行时机。
+- **原子任务行数**：50–150 行含测试代码、略超可说明或拆子步。
+- **「先测试后实现」**：允许按类型分步，推荐形态仍为全量红灯再绿灯。
+- **Spec 变更**：实现阶段对 02 的任何修改均在 DECISIONS 留痕。
+- **DECISIONS**：注明与 ADR 格式兼容，可采用 ADR-001 等编号。

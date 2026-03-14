@@ -42,3 +42,31 @@ cartisan-boot 是一个**业务无关的 Java 技术基础框架**，为所有 S
 - Phase 5：Review + ArchUnit + PIT
 
 **任务粒度：单次实现 50-150 行代码。超过则继续拆分。**
+
+## 开发环境要求
+
+### Docker 环境（集成测试必需）
+
+本项目的 cartisan-test 模块使用 Testcontainers 进行集成测试，需要本地 Docker 环境。
+
+- **运行单元测试**（无需 Docker）：`./gradlew :cartisan-core:test`
+- **运行全部测试**（需要 Docker）：`./gradlew test`
+- **Docker 验证**：运行 `docker ps` 确认 Docker 可用
+
+如 Docker 未安装或未启动，cartisan-test 模块的测试会失败（报错：`Could not find a valid Docker environment`）。
+
+## 质量门禁
+
+### 测试命名规范
+
+遵循 `docs/skills/SKILL.md` 中的 **TEST-002** 规则：`given_{条件}_when_{操作}_then_{预期结果}`。
+
+### PIT 变异测试
+
+cartisan-core 模块已配置 PIT（Mutation Testing），Phase 5 审查时必须执行：
+
+```bash
+./gradlew :cartisan-core:pitest
+```
+
+**验收标准**：变异杀死率 ≥ 70%，报告位于 `build/reports/pitest/index.html`。

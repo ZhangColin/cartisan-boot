@@ -153,6 +153,26 @@ public class CartisanProhibitionRules {
 
 ---
 
+### 规则 TOOL-004：PIT 变异测试是 Phase 5 必跑门禁
+
+**执行方式**：
+```bash
+# 方式一：使用脚本（推荐）
+./scripts/run-pitest.sh cartisan-core
+
+# 方式二：直接调用 Gradle
+./gradlew :cartisan-core:pitest
+```
+
+**验收标准**：
+- 变异杀死率 ≥ 70%
+- 报告位置：`cartisan-core/build/reports/pitest/index.html`
+- 存活变异需审查，补充边界测试
+
+**注意**：PIT 较耗时（分钟级），仅在 Phase 5 审查时必跑，编码阶段不需要每次运行。
+
+---
+
 ## 代码风格
 
 ### 规则 STYLE-001：领域接口应包含完整 JavaDoc 和使用示例
