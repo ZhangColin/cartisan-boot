@@ -24,11 +24,7 @@ import org.testcontainers.containers.GenericContainer;
  * @since 0.1.0
  */
 @TestConfiguration(proxyBeanMethods = false)
-public final class RedisTestContainer {
-
-    private RedisTestContainer() {
-        throw new UnsupportedOperationException("Utility class");
-    }
+public class RedisTestContainer {
 
     /**
      * 创建 Redis 容器。

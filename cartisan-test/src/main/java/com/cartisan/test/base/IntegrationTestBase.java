@@ -1,12 +1,8 @@
 package com.cartisan.test.base;
 
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import com.cartisan.test.container.PostgresTestContainer;
-import com.cartisan.test.container.RedisTestContainer;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.BeforeEach;
 
 /**
@@ -41,11 +37,6 @@ import org.junit.jupiter.api.BeforeEach;
  *
  * @since 0.1.0
  */
-@SpringBootTest
-@Import({
-    PostgresTestContainer.class,
-    RedisTestContainer.class
-})
 public abstract class IntegrationTestBase {
 
     /**

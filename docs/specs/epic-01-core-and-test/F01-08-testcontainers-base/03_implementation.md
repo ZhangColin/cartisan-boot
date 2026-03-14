@@ -6,7 +6,7 @@
 
 **架构:** 使用 Spring Boot 3.4 的 `@TestConfiguration` + `@ServiceConnection` 自动注入连接属性，IntegrationTestBase 提供 `@BeforeEach` 数据清理（`TRUNCATE ... CASCADE` + `FLUSHDB`）。
 
-**技术栈:** Testcontainers 1.20.4, Spring Boot Testcontainers, JUnit 5, JdbcTemplate, StringRedisTemplate
+**技术栈:** Testcontainers 1.21.4 (兼容 Docker Engine 29), Spring Boot Testcontainers, JUnit 5, JdbcTemplate, StringRedisTemplate
 
 ---
 
@@ -21,7 +21,7 @@
 编辑 `gradle/libs.versions.toml`，在 `[versions]` 节添加：
 
 ```toml
-testcontainers = "1.20.4"
+testcontainers = "1.21.4"
 ```
 
 在 `[libraries]` 节添加：
@@ -44,7 +44,12 @@ api(libs.testcontainers.postgresql)
 
 // Spring Boot Testcontainers 支持
 api("org.springframework.boot:spring-boot-testcontainers")
+
+// PostgreSQL JDBC 驱动（Testcontainers 需要实际驱动连接数据库）
+runtimeOnly("org.postgresql:postgresql:42.7.4")
 ```
+
+> **注意**：PostgreSQL JDBC 驱动必须作为 `runtimeOnly` 依赖显式添加，否则 Testcontainers 启动容器后会因缺少驱动而无法连接数据库，报错 "Failed to determine a suitable driver class"。
 
 **Step 3: 验证构建**
 
@@ -58,7 +63,7 @@ api("org.springframework.boot:spring-boot-testcontainers")
 
 ```bash
 git add gradle/libs.versions.toml cartisan-test/build.gradle.kts
-git commit -m "feat(test): 添加 Testcontainers 1.20.4 依赖"
+git commit -m "feat(test): 添加 Testcontainers 1.21.4 依赖"
 ```
 
 ---
@@ -117,12 +122,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * @since 0.1.0
  */
 @TestConfiguration(proxyBeanMethods = false)
-public final class PostgresTestContainer {
+public class PostgresTestContainer {
 
-    private PostgresTestContainer() {
-        // 工具类，禁止实例化
-        throw new UnsupportedOperationException("Utility class");
-    }
+    // 注意：@TestConfiguration 不能使用工具类模式（私有构造函数 + final），
+    // 因为 Spring 需要能够实例化配置类。
+    // 详见 SKILL.md TOOL-004。
 
     /**
      * 创建 PostgreSQL 容器。
@@ -196,11 +200,11 @@ import org.testcontainers.containers.GenericContainer;
  * @since 0.1.0
  */
 @TestConfiguration(proxyBeanMethods = false)
-public final class RedisTestContainer {
+public class RedisTestContainer {
 
-    private RedisTestContainer() {
-        throw new UnsupportedOperationException("Utility class");
-    }
+    // 注意：@TestConfiguration 不能使用工具类模式（私有构造函数 + final），
+    // 因为 Spring 需要能够实例化配置类。
+    // 详见 SKILL.md TOOL-004。
 
     /**
      * 创建 Redis 容器。
@@ -302,12 +306,10 @@ import org.junit.jupiter.api.BeforeEach;
  *
  * @since 0.1.0
  */
-@SpringBootTest
-@Import({
-    PostgresTestContainer.class,
-    RedisTestContainer.class
-})
 public abstract class IntegrationTestBase {
+    // 注意：不使用 @SpringBootTest 和 @Import，
+    // 由子类测试通过 @SpringBootTest(classes = TestConfiguration.class) 指定配置。
+    // 这样设计允许业务项目自定义配置，同时复用数据清理功能。
 
     /**
      * PostgreSQL 清理 SQL。
@@ -489,31 +491,6 @@ class PostgresTestContainerTest {
     }
 
     @Test
-    @DisplayName("构造函数应抛出 UnsupportedOperationException")
-    void given_whenInstantiate_thenThrowsException() throws Exception {
-        // Given
-        Constructor<PostgresTestContainer> constructor =
-            PostgresTestContainer.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-
-        // When & Then
-        Throwable exception = assertThrows(
-            Exception.class,
-            constructor::newInstance
-        );
-        assertThat(exception)
-            .hasCauseExactlyInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("Utility class");
-    }
-
-    @Test
-    @DisplayName("类应为 final")
-    void given_whenCheckClass_thenIsFinal() {
-        // Then
-        assertThat(Modifier.isFinal(PostgresTestContainer.class.getModifiers())).isTrue();
-    }
-
-    @Test
     @DisplayName("应有 @TestConfiguration 注解")
     void given_whenCheckAnnotation_thenHasTestConfiguration() {
         // Then
@@ -553,31 +530,6 @@ class RedisTestContainerTest {
         // Then
         assertThat(container).isNotNull();
         assertThat(container.getExposedPorts()).contains(6379);
-    }
-
-    @Test
-    @DisplayName("构造函数应抛出 UnsupportedOperationException")
-    void given_whenInstantiate_thenThrowsException() throws Exception {
-        // Given
-        Constructor<RedisTestContainer> constructor =
-            RedisTestContainer.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-
-        // When & Then
-        Throwable exception = assertThrows(
-            Exception.class,
-            constructor::newInstance
-        );
-        assertThat(exception)
-            .hasCauseExactlyInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("Utility class");
-    }
-
-    @Test
-    @DisplayName("类应为 final")
-    void given_whenCheckClass_thenIsFinal() {
-        // Then
-        assertThat(Modifier.isFinal(RedisTestContainer.class.getModifiers())).isTrue();
     }
 
     @Test

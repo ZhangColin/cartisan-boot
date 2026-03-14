@@ -20,6 +20,10 @@ dependencies {
     api(platform(libs.testcontainers.bom))
     api(libs.testcontainers.core)
     api(libs.testcontainers.postgresql)
+    testImplementation("org.testcontainers:junit-jupiter")
+
+    // Docker Java API（显式声明以确保兼容性）
+    testImplementation("com.github.docker-java:docker-java:3.4.0")
 
     // Spring Boot Test 支持（@TestConfiguration 等注解）
     api("org.springframework.boot:spring-boot-test:3.4.0")
@@ -43,10 +47,15 @@ dependencies {
 
     // Jackson（JSON 序列化，ApiTestAssertions 需要）
     implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    // PostgreSQL JDBC 驱动（Testcontainers 需要实际驱动连接数据库）
+    runtimeOnly("org.postgresql:postgresql:42.7.4")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("org.testcontainers.disableRyuk", "true")
+    systemProperty("DOCKER_HOST", "unix:///Users/zhangcolin/.docker/run/docker.sock")
+    environment("DOCKER_HOST", "unix:///Users/zhangcolin/.docker/run/docker.sock")
     jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
 }

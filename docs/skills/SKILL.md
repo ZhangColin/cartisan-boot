@@ -153,7 +153,77 @@ public class CartisanProhibitionRules {
 
 ---
 
-### 规则 TOOL-004：PIT 变异测试是 Phase 5 必跑门禁
+### 规则 TOOL-004：@TestConfiguration 不能使用工具类模式
+
+**问题**：`@TestConfiguration` 类如果使用私有构造函数抛出异常，Spring 会尝试实例化它而失败。
+
+**错误代码**：
+```java
+// ❌ @TestConfiguration + 工具类模式 = Spring 无法实例化
+@TestConfiguration(proxyBeanMethods = false)
+public final class PostgresTestContainer {
+    private PostgresTestContainer() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
+    @Bean
+    @ServiceConnection
+    static PostgreSQLContainer<?> postgres() {
+        return new PostgreSQLContainer<>("postgres:16-alpine");
+    }
+}
+```
+
+**正确做法**：
+```java
+// ✅ @TestConfiguration 应该允许 Spring 实例化
+@TestConfiguration(proxyBeanMethods = false)
+public class PostgresTestContainer {
+    // 无构造函数或使用默认构造函数
+
+    @Bean
+    @ServiceConnection
+    static PostgreSQLContainer<?> postgres() {
+        return new PostgreSQLContainer<>("postgres:16-alpine");
+    }
+}
+```
+
+**错误表现**：
+```
+BeanInstantiationException: Error creating bean with name 'postgresTestContainer'
+Caused by: UnsupportedOperationException: Utility class
+```
+
+**记忆口诀**：`@TestConfiguration` + `@Bean` ≠ 工具类。
+
+---
+
+### 规则 TOOL-005：Testcontainers 与 Docker Desktop 版本兼容性
+
+**症状**：`Could not find a valid Docker environment` 错误，但 Docker CLI 正常工作。
+
+**原因**：Testcontainers 1.20.4 及以下版本与 Docker Engine 29 / Docker Desktop 4.59+ 不兼容。
+
+**解决方案**：
+1. 升级到 Testcontainers 1.21.4 或更高版本
+2. 确认版本：`gradle/libs.versions.toml` 中 `testcontainers = "1.21.4"`
+3. 添加 PostgreSQL JDBC 驱动：
+   ```kotlin
+   runtimeOnly("org.postgresql:postgresql:42.7.4")
+   ```
+
+**验证命令**：
+```bash
+./gradlew :cartisan-test:test --info | grep "Container is started"
+# 应输出：Container postgres:16-alpine started in PT0.6s
+```
+
+**相关决策**：见 ADR-029。
+
+---
+
+### 规则 TOOL-006：PIT 变异测试是 Phase 5 必跑门禁
 
 **执行方式**：
 ```bash
@@ -927,4 +997,36 @@ public void malformedJson(@RequestBody Object body) {
 ```
 
 **记忆口诀**：测 JSON 解析异常，@RequestBody 不要用 String。
+
+---
+
+### PIT-021 (2026-03-14)：Testcontainers 与 Docker Engine 29 不兼容
+
+**场景**：Testcontainers 集成测试报错 "Could not find a valid Docker environment"，但 `docker ps` 命令正常工作。
+
+**原因**：Testcontainers 1.20.x 与 Docker Engine 29 / Docker Desktop 4.59+ 不兼容。
+
+**解决方案**：
+```toml
+# gradle/libs.versions.toml
+[versions]
+testcontainers = "1.21.4"  # 从 1.20.4 升级
+```
+
+```kotlin
+# cartisan-test/build.gradle.kts
+// 添加 PostgreSQL JDBC 驱动（Testcontainers 需要实际驱动连接数据库）
+runtimeOnly("org.postgresql:postgresql:42.7.4")
+```
+
+**验证**：
+```bash
+./gradlew :cartisan-test:test --info | grep "Container is started"
+# ✅ 成功：Container postgres:16-alpine started in PT0.6s
+# ❌ 失败：Could not find a valid Docker environment
+```
+
+**相关决策**：见 ADR-029。
+
+**记忆口诀**：Docker 报错但 CLI 正常？升级 Testcontainers 到 1.21.4+。
 

@@ -583,3 +583,30 @@
 - **替代方案**：
   - 所有异常都打印堆栈：日志量巨大，关键错误被淹没
 
+## ADR-029：Testcontainers 版本选择与 Docker 兼容性
+
+- **日期**：2026-03-14
+- **状态**：已实施
+- **决策**：使用 Testcontainers 1.21.4+ 以兼容 Docker Engine 29 / Docker Desktop 4.59+
+- **理由**：
+  1. Testcontainers 1.20.x 及以下版本与 Docker Engine 29 不兼容
+  2. 1.21.4 发布说明明确写道："This release makes version 1.21.x works with recent Docker Engine changes."
+  3. 典型错误：`Could not find a valid Docker environment`（但 Docker CLI 正常工作）
+- **影响范围**：cartisan-test 模块
+- **依赖配置**：
+  ```kotlin
+  // gradle/libs.versions.toml
+  testcontainers = "1.21.4"
+  ```
+- **验证方式**：
+  ```bash
+  ./gradlew :cartisan-test:test --info | grep "Container is started"
+  # 应输出：Container postgres:16-alpine started in PT0.6s
+  ```
+- **附加依赖**：需显式添加 PostgreSQL JDBC 驱动
+  ```kotlin
+  runtimeOnly("org.postgresql:postgresql:42.7.4")
+  ```
+- **替代方案**：
+  - 降级 Docker Desktop：不现实，新版本有安全修复和新特性
+  - 使用 Docker 环境变量绕过：无效，这是 API 兼容性问题而非配置问题

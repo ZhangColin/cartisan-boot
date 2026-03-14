@@ -2,9 +2,10 @@ package com.cartisan.test.base;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -15,12 +16,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * @since 0.1.0
  */
-@WebMvcTest(controllers = TestController.class,
-    excludeAutoConfiguration = {
-        org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
-        org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration.class
-    })
+@WebMvcTest(controllers = TestController.class)
 public class ApiTestAssertionsTest {
+
+    @Configuration
+    @EnableAutoConfiguration
+    @ComponentScan(basePackageClasses = TestController.class)
+    static class TestConfig {
+    }
 
     @Autowired
     private MockMvc mvc;

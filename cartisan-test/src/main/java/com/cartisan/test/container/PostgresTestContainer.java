@@ -25,12 +25,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * @since 0.1.0
  */
 @TestConfiguration(proxyBeanMethods = false)
-public final class PostgresTestContainer {
-
-    private PostgresTestContainer() {
-        // 工具类，禁止实例化
-        throw new UnsupportedOperationException("Utility class");
-    }
+public class PostgresTestContainer {
 
     /**
      * 创建 PostgreSQL 容器。
