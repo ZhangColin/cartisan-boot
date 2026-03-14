@@ -7,6 +7,7 @@ package com.cartisan.core.exception;
  *
  * <h2>HTTP 规范错误码</h2>
  * <ul>
+ *   <li>{@link #SUCCESS} - 200</li>
  *   <li>{@link #BAD_REQUEST} - 400</li>
  *   <li>{@link #UNAUTHORIZED} - 401</li>
  *   <li>{@link #FORBIDDEN} - 403</li>
@@ -33,6 +34,11 @@ package com.cartisan.core.exception;
 public enum BaseCodeMessage implements CodeMessage {
 
     // ========== HTTP 规范错误码 ==========
+
+    /**
+     * 200 OK - 请求成功。
+     */
+    SUCCESS(200, "success", "Success"),
 
     /**
      * 400 Bad Request - 请求参数无效。

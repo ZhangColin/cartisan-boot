@@ -24,7 +24,7 @@ class BaseCodeMessageTest {
                 .isTrue();
     }
 
-    @ParameterizedTest(name = "{0} 的 httpStatus 应在 400-599 之间")
+    @ParameterizedTest(name = "{0} 的 httpStatus 应在 200-599 之间")
     @EnumSource(BaseCodeMessage.class)
     void shouldHaveValidHttpStatus(BaseCodeMessage codeMessage) {
         // When
@@ -32,8 +32,8 @@ class BaseCodeMessageTest {
 
         // Then
         assertThat(httpStatus)
-                .as("HTTP 状态码应在 400-599 之间")
-                .isGreaterThanOrEqualTo(400)
+                .as("HTTP 状态码应在 200-599 之间（SUCCESS 为 200，其他为 400-599）")
+                .isGreaterThanOrEqualTo(200)
                 .isLessThanOrEqualTo(599);
     }
 
@@ -106,5 +106,16 @@ class BaseCodeMessageTest {
 
         // UNKNOWN_ERROR 不应有占位符
         assertThat(BaseCodeMessage.UNKNOWN_ERROR.message()).doesNotContain("{");
+    }
+
+    @Test
+    void shouldHaveSuccessEnum_withCorrectValues() {
+        // Given & When - SUCCESS 枚举值
+        BaseCodeMessage success = BaseCodeMessage.SUCCESS;
+
+        // Then - 验证 SUCCESS 的所有字段
+        assertThat(success.httpStatus()).isEqualTo(200);
+        assertThat(success.code()).isEqualTo("success");
+        assertThat(success.message()).isEqualTo("Success");
     }
 }
