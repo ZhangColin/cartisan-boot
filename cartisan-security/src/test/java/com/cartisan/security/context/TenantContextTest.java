@@ -64,4 +64,29 @@ class TenantContextTest {
         assertThat(tenantIdInScope.get()).isEqualTo(111L);
         assertThat(TenantContext.getCurrentTenantId()).isNull();
     }
+
+    @Test
+    void givenNoTenant_whenHasTenant_thenReturnsFalse() {
+        // Given - 无租户上下文
+
+        // When
+        boolean hasTenant = TenantContext.hasTenant();
+
+        // Then
+        assertThat(hasTenant).isFalse();
+    }
+
+    @Test
+    void givenTenant_whenHasTenant_thenReturnsTrue() {
+        // Given
+        AtomicReference<Boolean> result = new AtomicReference<>();
+
+        TenantContext.runWithTenant(456L, () -> {
+            // When
+            result.set(TenantContext.hasTenant());
+        });
+
+        // Then
+        assertThat(result.get()).isTrue();
+    }
 }
