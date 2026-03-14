@@ -281,6 +281,53 @@ public class RequestContextFilter extends OncePerRequestFilter {
 
 ---
 
+### 规则 TOOL-008：Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token`
+
+**问题**：根据 Maven 坐标 `cn.dev33:sa-token-spring-boot3-starter`，容易误以为包路径是 `cn.dev33.sa-token.*`。
+
+**正确导入**：
+```java
+// ✅ 正确
+import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.session.SaSession;
+
+// ❌ 错误（会导致编译失败：找不到符号）
+import cn.dev33.sa-token.stp.StpUtil;
+```
+
+**验证方式**：
+```bash
+# 查看 JAR 包内容
+find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "StpUtil"
+# 输出：cn/dev33/satoken/stp/StpUtil.class
+```
+
+**记忆口诀**：Maven 坐标有横杠，包路径没横杠。
+
+---
+
+### 规则 TOOL-009：Sa-Token Session 类是 `SaSession`，不是 `Session`
+
+**问题**：容易误以为存在 `cn.dev33.satoken.session.Session` 类。
+
+**正确用法**：
+```java
+// ✅ 正确
+import cn.dev33.satoken.session.SaSession;
+SaSession session = StpUtil.getSession();
+
+// ❌ 错误（编译失败：找不到符号 Session）
+import cn.dev33.satoken.session.Session;
+```
+
+**验证方式**：
+```bash
+find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "Session"
+# 输出：cn/dev33/satoken/session/SaSession.class（没有 Session.class）
+```
+
+---
+
 ## 代码风格
 
 ### 规则 STYLE-001：领域接口应包含完整 JavaDoc 和使用示例

@@ -1207,3 +1207,59 @@
   - `isBound()` 检查明确表达意图："先检查是否存在，再获取值"
   - 避免异常处理的开销
 - **影响**：02_interface.md 中的设计描述需要更新，实际实现更优
+
+## ADR-049：TenantContextFilter 使用 @Component 显式命名避免冲突
+
+- **日期**：2026-03-15
+- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
+- **决策**：`TenantContextFilter` 使用 `@Component("cartisanTenantContextFilter")` 显式指定 Bean 名称
+- **理由**：
+  - 默认 Bean 名称是类名首字母小写（`tenantContextFilter`）
+  - 可能与其他库或业务项目的同名 Filter 冲突
+  - 使用模块前缀 `cartisan` 区分
+- **参考**：SKILL.md TOOL-007
+- **替代方案**：使用 `@Configuration + @Bean` 方式注册（由 F03-07 统一处理）
+
+## ADR-050：TenantContextFilter Header 格式错误采用宽容策略
+
+- **日期**：2026-03-15
+- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
+- **决策**：`X-Tenant-Id` Header 格式错误时，记录 WARN 日志并忽略，不返回 400 错误
+- **理由**：
+  1. Filter 的职责是"尽力解析"，不是"强制校验"
+  2. 格式错误可能是客户端 bug，不应阻塞业务流程
+  3. 降级到从 Session 读取租户信息
+  4. 业务层可自行实现租户校验（如 `@RequireTenant` 注解）
+- **替代方案**：返回 400 Bad Request（过于严格，影响业务连续性）
+
+## ADR-051：TenantContextFilter Session 租户信息使用固定 key
+
+- **日期**：2026-03-15
+- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
+- **决策**：从 Sa-Token Session 读取租户信息时，使用固定 key `"tenantId"`
+- **理由**：
+  1. YAGNI 原则，当前无可配置需求
+  2. 保持简单，减少配置复杂度
+  3. 后续如需扩展，可在 `AuthenticationService` 层面增加配置属性
+- **替代方案**：提供配置属性 `cartisan.security.tenant.session-key`（过度设计）
+
+## ADR-052：TenantContextFilter 使用 runWithTenant() 作用域模式
+
+- **日期**：2026-03-15
+- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
+- **决策**：Filter 调用 `TenantContext.runWithTenant(tenantId, runnable)` 绑定租户上下文，不使用 `setCurrentTenantId()` + `clear()` 模式
+- **理由**：
+  1. F03-04 TenantContext 已采用 `ScopedValue` 实现，提供 `runWithTenant()` 作用域方法
+  2. 作用域结束自动清理，无需手动 `clear()`，避免忘记清理导致租户串扰
+  3. 与 Virtual Threads 完美兼容
+- **代码**：
+  ```java
+  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+      Long tenantId = resolveTenantId((HttpServletRequest) request);
+      TenantContext.runWithTenant(tenantId, () -> {
+          chain.doFilter(request, response);
+      });
+      // 作用域结束，租户上下文自动清理
+  }
+  ```
+- **替代方案**：手动 `setCurrentTenantId()` + `try-finally clear()`（ ScopedValue 不支持此模式）
