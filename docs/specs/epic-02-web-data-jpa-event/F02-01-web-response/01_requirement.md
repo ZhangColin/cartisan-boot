@@ -77,9 +77,9 @@ cartisan-boot 作为业务无关的技术基础框架，需要为所有基于其
 ### AC4: ApiResponse.error(CodeMessage, Object...) 参数化消息
 
 - [ ] `args` 为空数组时，直接使用 `codeMessage.message()`
-- [ ] `args` 非空时，使用 `String.format(codeMessage.message(), args)` 格式化
-- [ ] 支持占位符格式：`%s`（字符串）、`%d`（数字）等
-- [ ] 示例：`error(BaseCodeMessage.INVALID_PARAMETER, "email")` → `message="Invalid parameter: email"`（假设枚举定义是 `"Invalid parameter: %s"`）
+- [ ] `args` 非空时，使用 `MessageFormat.format(codeMessage.message(), args)` 格式化
+- [ ] 支持占位符格式：`{0}`、`{1}` 等（与 BaseCodeMessage 一致）
+- [ ] 示例：`error(BaseCodeMessage.INVALID_PARAMETER, "email")` → `message="Invalid parameter: email"`（枚举定义是 `"Invalid parameter: {0}"`）
 
 ### AC5: ApiResponse.error(int, String) 自定义错误
 

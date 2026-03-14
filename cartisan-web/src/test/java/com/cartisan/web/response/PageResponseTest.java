@@ -9,8 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PageResponseTest {
 
     @Test
-    @DisplayName("应该构造分页响应")
-    void should_construct_page_response() {
+    @DisplayName("给定分页数据 - 构造 PageResponse - 返回正确分页响应")
+    void given_pageData_when_construct_then_return_page_response() {
         PageResponse<String> response = new PageResponse<>(
                 java.util.List.of("item1", "item2"),
                 100L,
@@ -26,8 +26,8 @@ class PageResponseTest {
     }
 
     @Test
-    @DisplayName("应该支持空列表")
-    void should_support_empty_items() {
+    @DisplayName("给定空列表 - 构造 PageResponse - 支持空列表")
+    void given_emptyList_when_construct_then_support_empty_items() {
         PageResponse<String> response = new PageResponse<>(
                 java.util.List.of(),
                 0L,
@@ -40,8 +40,8 @@ class PageResponseTest {
     }
 
     @Test
-    @DisplayName("应该支持泛型类型")
-    void should_support_generic_types() {
+    @DisplayName("给定不同类型数据 - 构造 PageResponse - 支持泛型类型")
+    void given_differentTypeData_when_construct_then_support_generic_types() {
         PageResponse<Integer> intResponse = new PageResponse<>(
                 java.util.List.of(1, 2, 3),
                 3L,
