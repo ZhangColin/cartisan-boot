@@ -32,7 +32,28 @@ import java.util.UUID;
  *   <li>记录 WARN 日志便于排查</li>
  * </ul>
  */
-@Component
+/**
+ * 请求上下文初始化 Filter。
+ *
+ * <p>执行顺序：HIGHEST_PRECEDENCE（最早执行）</p>
+ *
+ * <p>职责：</p>
+ * <ol>
+ *   <li>requestId：优先从 X-Request-Id Header 读取，否则生成 UUID</li>
+ *   <li>clientIp：按 X-Forwarded-For → X-Real-IP → RemoteAddr 优先级</li>
+ *   <li>请求结束时清理 ThreadLocal</li>
+ * </ol>
+ *
+ * <p>容错策略：</p>
+ * <ul>
+ *   <li>初始化失败时使用 null 值，请求继续</li>
+ *   <li>记录 WARN 日志便于排查</li>
+ * </ul>
+ *
+ * <p><strong>Bean 命名</strong>：使用 {@code cartisanRequestContextFilter} 作为 bean 名称，
+ * 避免与 Spring Boot 自动配置的 {@code requestContextFilter} 冲突。</p>
+ */
+@Component("cartisanRequestContextFilter")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestContextFilter extends OncePerRequestFilter {
 
