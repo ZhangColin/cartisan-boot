@@ -3,6 +3,7 @@ package com.cartisan.security.context;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * TenantContext 单元测试。
@@ -88,5 +89,30 @@ class TenantContextTest {
 
         // Then
         assertThat(result.get()).isTrue();
+    }
+
+    @Test
+    void givenNoTenant_whenRequireTenant_thenThrowsIllegalStateException() {
+        // Given - 无租户上下文
+
+        // When & Then
+        assertThatThrownBy(TenantContext::requireTenant)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("No tenant context");
+    }
+
+    @Test
+    void givenTenant_whenRequireTenant_thenReturnsTenantId() {
+        // Given
+        Long expectedTenantId = 789L;
+        AtomicReference<Long> actualTenantId = new AtomicReference<>();
+
+        TenantContext.runWithTenant(expectedTenantId, () -> {
+            // When
+            actualTenantId.set(TenantContext.requireTenant());
+        });
+
+        // Then
+        assertThat(actualTenantId.get()).isEqualTo(expectedTenantId);
     }
 }
