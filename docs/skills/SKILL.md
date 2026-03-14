@@ -243,6 +243,44 @@ Caused by: UnsupportedOperationException: Utility class
 
 ---
 
+### 规则 TOOL-007：@Component 默认 bean 名称可能与自动配置冲突
+
+**问题**：`@Component` 注解的类，默认 bean 名称是类名首字母小写（如 `RequestContextFilter` → `requestContextFilter`），可能与 Spring Boot 自动配置的 bean 冲突。
+
+**错误表现**：
+```
+BeanDefinitionOverrideException: Invalid bean definition with name 'requestContextFilter'
+... Cannot register bean definition ... since there is already ... bound
+```
+
+**错误代码**：
+```java
+// ❌ 默认 bean 名称是 "requestContextFilter"
+@Component
+public class RequestContextFilter extends OncePerRequestFilter {
+    // ...
+}
+```
+
+**正确做法**：
+```java
+// ✅ 显式指定 bean 名称，避免与 Spring Boot 自动配置冲突
+@Component("cartisanRequestContextFilter")
+public class RequestContextFilter extends OncePerRequestFilter {
+    // ...
+}
+```
+
+**命名建议**：
+- 使用模块前缀：`{module}{ClassName}`，如 `cartisanRequestContextFilter`
+- 或使用功能前缀：`{feature}{ClassName}`，如 `tenantRequestContextFilter`
+
+**相关**：Spring Boot 自动配置的 `requestContextFilter` 用于 `RequestContextListener`（LocaleResolver / ThemeResolver），与业务自定义的请求上下文 Filter 无关。
+
+**记忆口诀**：`@Component` 显式命名，避自动配置之嫌。
+
+---
+
 ## 代码风格
 
 ### 规则 STYLE-001：领域接口应包含完整 JavaDoc 和使用示例
