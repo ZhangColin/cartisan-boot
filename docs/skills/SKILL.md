@@ -1147,6 +1147,92 @@ var publisher = DomainEventPublisherHolder.getPublisher();
 
 ---
 
+### 规则 DATA-003：@MappedSuperclass 需要添加 @EntityListeners 才能启用 JPA Auditing
+
+**问题**：在 `@MappedSuperclass` 基类上添加 `@CreatedDate`、`@LastModifiedDate` 等注解后，审计字段没有被自动填充。
+
+**错误代码**：
+```java
+// ❌ 缺少 @EntityListeners
+@MappedSuperclass
+public abstract class Auditable {
+    @CreatedDate
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;  // 保存时为 null
+}
+```
+
+**正确做法**：
+```java
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)  // ✅ 必须添加
+public abstract class Auditable {
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "last_modified_date", nullable = false)
+    private LocalDateTime lastModifiedDate;
+}
+```
+
+**记忆口诀**：审计字段需监听，@MappedSuperclass 要加 @EntityListeners。
+
+---
+
+### 规则 DATA-004：@SQLRestriction 在 @MappedSuperclass 上可能无法正确继承
+
+**问题**：在 `@MappedSuperclass` 上添加 `@SQLRestriction` 后，查询时自动过滤可能不生效。
+
+**原因**：Hibernate 的 `@SQLRestriction` 注解在某些配置下可能无法正确继承到子类。
+
+**解决方案**：在具体实体类上重复声明 `@SQLRestriction`
+```java
+// 基类
+@MappedSuperclass
+@SQLRestriction("deleted = false")
+public abstract class SoftDeletable extends Auditable {
+    @Column(name = "deleted", nullable = false)
+    private boolean deleted = false;
+}
+
+// 具体实体类（重复声明确保生效）
+@Entity(name = "test_soft_deletable_entity")
+@SQLRestriction("deleted = false")  // ✅ 重复声明
+public class TestSoftDeletableEntity extends SoftDeletable {
+    // ...
+}
+```
+
+**记忆口诀**：@SQLRestriction 继承不保证，子类重复声明才保险。
+
+---
+
+### 规则 DATA-005：JPQL @Query 查询不受 @SQLRestriction 影响
+
+**问题**：使用 `@Query` 注解编写 JPQL 查询时，`@SQLRestriction` 自动过滤不生效。
+
+**错误代码**：
+```java
+// ❌ JPQL 查询缺少软删除条件，会返回已删除记录
+@Query("SELECT e FROM Product e WHERE e.name = :name")
+List<Product> findByName(@Param("name") String name);
+```
+
+**正确做法**：
+```java
+// ✅ JPQL 查询手动添加软删除条件
+@Query("SELECT e FROM Product e WHERE e.deleted = false AND e.name = :name")
+List<Product> findActiveByName(@Param("name") String name);
+```
+
+**原因**：`@SQLRestriction` 只对 Hibernate 自动生成的 SQL 查询生效（如 `findAll()`、`findById()`、方法名查询等）。JPQL 查询由开发者编写，Hibernate 不会自动添加 `@SQLRestriction` 条件。
+
+**记忆口诀**：JPQL 查询手动加条件，@SQLRestriction 只管自动生成的 SQL。
+
+---
+
 ## Spring Boot / 自动配置
 
 ### 规则 BOOT-001：使用 JpaRepositoryFactoryEntryCustomizer 自动配置 repositoryBaseClass

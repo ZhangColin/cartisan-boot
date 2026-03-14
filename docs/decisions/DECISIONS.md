@@ -849,3 +849,97 @@
   entity.events = 1       // 事件在这里
   ```
 - **替代方案**：无，这是 JPA 规范行为
+
+## ADR-036：F02-06 审计人通过 AuditorAware 接口与安全层解耦
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-06 Phase 2）
+- **决策**：审计字段（`@CreatedBy`/`@LastModifiedBy`）通过 Spring Data JPA 的 `AuditorAware<T>` 接口获取当前用户，由 cartisan-security 或业务项目实现
+- **理由**：
+  1. cartisan-boot 认证层使用 Sa-Token，不硬依赖 Spring Security
+  2. `AuditorAware` 是 Spring Data JPA 标准接口，提供与安全框架解耦的扩展点
+  3. cartisan-security 可实现 `AuditorAware<String>`，内部从 `SecurityContext` 获取当前用户
+  4. 业务项目也可直接提供自己的实现（如从线程局部变量获取）
+- **代码示例**：
+  ```java
+  // cartisan-security 中的实现（未来）
+  @Bean
+  public AuditorAware<String> auditorAware() {
+      return () -> {
+          String currentUser = SecurityContext.getCurrentUser();
+          return Optional.ofNullable(currentUser);
+      };
+  }
+  ```
+- **替代方案**：
+  - 直接使用 Spring Security 的 `SecurityContextHolder`：硬依赖，与 Sa-Token 冲突
+  - 提供 "system"/"anonymous" 默认值：数据库大量无意义值，语义不准确
+
+## ADR-037：F02-06 JPA Auditing 条件装配
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-06 Phase 2）
+- **决策**：使用 `@ConditionalOnBean(AuditorAware.class)` 控制是否启用 JPA Auditing
+- **理由**：
+  1. 无 `AuditorAware` Bean 时，`@CreatedBy`/`@LastModifiedBy` 保持 null，表示"未设置操作人"
+  2. 有 `AuditorAware` Bean 时，自动启用 auditing 并注入该 Bean
+  3. 不提供 "system"/"anonymous" 占位值，保持 null 语义更清晰
+- **代码**：
+  ```java
+  @Configuration
+  @ConditionalOnBean(AuditorAware.class)
+  @EnableJpaAuditing(auditorAwareRef = "auditorAware")
+  public class JpaAuditingConfiguration {
+      // 无需额外代码，注解即完成配置
+  }
+  ```
+- **替代方案**：
+  - 无条件启用 + 默认实现：数据库大量无意义占位值
+
+## ADR-038：F02-06 软删除使用 @SQLRestriction 实现
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-06 Phase 2）
+- **决策**：软删除使用 Hibernate 的 `@SQLRestriction("deleted = false")` 注解自动过滤查询
+- **理由**：
+  1. `@SQLRestriction` 是 Hibernate 原生支持，简洁有效
+  2. 自动附加到所有 JPQL/Criteria 查询，无需手动编写 WHERE 条件
+  3. Spring Data JPA 方法名查询（如 `findAll()`）自动生效
+- **代码**：
+  ```java
+  @MappedSuperclass
+  @SQLRestriction("deleted = false")
+  public abstract class SoftDeletable extends Auditable {
+      @Column(name = "deleted", nullable = false)
+      private boolean deleted = false;
+  }
+  ```
+- **行为约定**：
+  - `repository.delete(entity)` 将 `deleted` 设为 `true`（非物理删除）
+  - 所有查询自动过滤 `deleted = true` 的记录
+  - 允许多次删除（幂等），`deleted` 保持 `true`
+  - 允许更新已删除实体（`@SQLRestriction` 只影响查询，不影响 UPDATE）
+- **替代方案**：
+  - JPA `@Where` 注解：功能较弱，不如 `@SQLRestriction`
+  - 自定义 Repository 覆盖所有方法：代码量大，易遗漏
+
+## ADR-039：F02-06 不提供软删除还原、级联、物理删除能力
+
+- **日期**：2026-03-14
+- **状态**：设计决策（F02-06 Phase 2）
+- **决策**：软删除只提供基础能力（删除标记 + 查询过滤），不提供 `restore()`、级联软删除、强制物理删除
+- **理由**：
+  1. **还原（`restore()`）**：业务语义因场景而异（谁可还原、是否校验状态），应由业务层实现
+  2. **级联软删除**：需要业务规则约定（哪些关联跟着软删），框架无法通用实现
+  3. **强制物理删除（`hardDelete()`）**：运维场景，业务项目可用 `@Modifying` + `@Query` 自行实现
+  4. 控制代码量在 100-150 行范围内，符合复杂度 M 级别
+- **范围约定**：
+  | 功能 | 是否包含 | 原因 |
+  |------|---------|------|
+  | 删除时标记 `deleted = true` | ✅ | 核心能力 |
+  | 查询时自动过滤 | ✅ | 核心能力 |
+  | 还原（`restore()`） | ❌ | 业务语义复杂 |
+  | 级联软删除 | ❌ | 需要业务规则 |
+  | 强制物理删除 | ❌ | 运维场景，业务可自实现 |
+- **替代方案**：
+  - 全部实现：代码量大，超出 100-150 行范围，且通用性差
