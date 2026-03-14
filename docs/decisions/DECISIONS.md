@@ -1059,3 +1059,42 @@
   ```
 - **替代方案**：
   - 移除 `@ControllerAdvice`：异常处理器不生效，功能失效
+
+## ADR-044：java-platform BOM 使用 api() 直接声明版本约束
+
+- **日期**：2026-03-14
+- **状态**：已实施（F03-01）
+- **决策**：cartisan-dependencies 使用 `java-platform` 插件时，在 `dependencies` 块中直接用 `api("group:name:version")` 声明版本约束，不使用 `constraints {}`
+- **理由**：
+  1. `java-platform` 插件不支持 `constraints {}` 块，这是普通 Java 项目的用法
+  2. 平台模块应使用顶层 `api()` / `runtime()` 声明带版本的约束
+  3. `javaPlatform { allowDependencies() }` 配置允许平台依赖其他平台（如 Spring Boot BOM）
+- **代码示例**：
+  ```kotlin
+  plugins {
+      `java-platform`
+  }
+  
+  javaPlatform {
+      allowDependencies()
+  }
+  
+  dependencies {
+      // Spring Boot BOM - manages all Spring Boot starter versions
+      api(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
+      
+      // Sa-Token（F03-01）- 直接用 api() 声明带版本约束
+      api("cn.dev33:sa-token-spring-boot3-starter:1.45.0")
+  }
+  ```
+- **错误模式**：
+  ```kotlin
+  // ❌ 错误：java-platform 不支持 constraints {}
+  dependencies {
+      constraints {
+          api("cn.dev33:sa-token-spring-boot3-starter:1.45.0")
+      }
+  }
+  ```
+- **替代方案**：
+  - 使用普通 `java` 插件而非 `java-platform`：失去平台版本管理的优势
