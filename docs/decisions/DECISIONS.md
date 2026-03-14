@@ -974,3 +974,88 @@
 - **后续规划**：
   - v2 可评估 AtomicLong 计数器方案（无锁但仍有状态管理开销）
   - v3 可考虑引入 node_id 实现雪花算法模式（需要配置）
+
+## ADR-041：F02-09 使用 @AutoConfiguration 实现零配置引入
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-09）
+- **决策**：使用 Spring Boot 3.4+ 的 `@AutoConfiguration` 注解，通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 声明自动配置类
+- **理由**：
+  1. `@AutoConfiguration` 是 Spring Boot 3.2+ 推荐的自动配置注解，替代传统的 `@Configuration` + `@AutoConfigureBefore/After`
+  2. imports 文件路径标准化，Spring Boot 自动扫描和加载
+  3. Bean 注册完全通过 `@Bean` 方法显式声明，不依赖 `@Component` 扫描
+- **模块设计**：
+  | 模块 | AutoConfiguration | 主要 Bean |
+  |------|------------------|-----------|
+  | cartisan-web | CartisanWebAutoConfiguration | RequestContextFilter、GlobalExceptionHandler |
+  | cartisan-data-jpa | CartisanDataJpaAutoConfiguration | @Import JpaAuditingConfiguration |
+  | cartisan-event | CartisanEventAutoConfiguration | DomainEventPublisher |
+- **条件装配策略**：
+  - **cartisan-web**：使用 `@ConditionalOnWebApplication`，仅在 Web 应用中生效
+  - **cartisan-event**：使用 `@ConditionalOnMissingBean(DomainEventPublisher.class)`，允许用户覆盖
+  - **cartisan-data-jpa**：JPA Auditing 使用 `@ConditionalOnBean(AuditorAware.class)`，有 Bean 时才启用
+- **核心组件强制注册**：
+  - `RequestContextFilter`、`GlobalExceptionHandler` 不使用 `@ConditionalOnMissingBean`
+  - 用户需通过排除 AutoConfiguration 或显式注册自定义 Bean 覆盖
+- **替代方案**：
+  - 依赖 `@ComponentScan("com.cartisan.*")`：用户需手动配置，违反"引入即用"原则
+
+## ADR-042：F02-09 RequestContextFilter 通过实现 Ordered 控制顺序
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-09）
+- **决策**：`RequestContextFilter` 实现 `Ordered` 接口，`getOrder()` 返回 `Ordered.HIGHEST_PRECEDENCE`
+- **理由**：
+  1. `@Order` 注解在 `@Bean` 方法上对 Filter 在过滤器链中的顺序无效
+  2. Filter 的执行顺序由 Filter 本身的 `getOrder()` 方法决定
+  3. 移除 `@Component` 注解后，必须通过实现 `Ordered` 接口来控制顺序
+- **代码对比**：
+  ```java
+  // ❌ 错误：@Order 在 @Bean 方法上对 Filter 顺序无效
+  @Bean
+  @Order(Ordered.HIGHEST_PRECEDENCE)
+  public RequestContextFilter requestContextFilter() {
+      return new RequestContextFilter();
+  }
+
+  // ✅ 正确：Filter 实现 Ordered 接口
+  public class RequestContextFilter extends OncePerRequestFilter implements Ordered {
+      @Override
+      public int getOrder() {
+          return Ordered.HIGHEST_PRECEDENCE;
+      }
+  }
+  ```
+- **替代方案**：
+  - 使用 `FilterRegistrationBean`：增加配置复杂度，YAGNI
+
+## ADR-043：F02-09 GlobalExceptionHandler 保留 @ControllerAdvice
+
+- **日期**：2026-03-14
+- **状态**：已实施（F02-09）
+- **决策**：`GlobalExceptionHandler` 保留 `@ControllerAdvice` 注解，通过 AutoConfiguration 的 `@Bean` 方法注册
+- **理由**：
+  1. `@ControllerAdvice` 是 Spring MVC 识别全局异常处理器的必要注解
+  2. 移除后 `@ExceptionHandler` 方法不会生效
+  3. "不依赖包扫描"指的是不通过 `@ComponentScan` 发现类，而非移除行为注解
+- **代码示例**：
+  ```java
+  // ✅ 正确：保留 @ControllerAdvice，通过 @Bean 注册
+  @ControllerAdvice  // 行为注解，必须保留
+  public class GlobalExceptionHandler {
+      @ExceptionHandler(CartisanException.class)
+      public ResponseEntity<ApiResponse<Void>> handleCartisanException(CartisanException ex) {
+          // ...
+      }
+  }
+
+  @AutoConfiguration
+  public class CartisanWebAutoConfiguration {
+      @Bean
+      public GlobalExceptionHandler globalExceptionHandler() {
+          return new GlobalExceptionHandler();  // 显式注册，不依赖扫描
+      }
+  }
+  ```
+- **替代方案**：
+  - 移除 `@ControllerAdvice`：异常处理器不生效，功能失效

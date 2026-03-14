@@ -4,13 +4,19 @@ import com.cartisan.data.jpa.repository.impl.DomainEventPublisherHolder;
 import com.cartisan.event.DomainEventPublisher;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 /**
  * cartisan-data-jpa 模块自动配置。
  *
- * <p>配置领域事件发布器持有者，使 Repository 实例能够发布领域事件。</p>
+ * <p>配置内容：
+ * <ul>
+ *   <li>领域事件发布器持有者 — 使 Repository 实例能够发布领域事件</li>
+ *   <li>JPA Auditing — 当存在 {@code AuditorAware} Bean 时自动启用</li>
+ * </ul>
  */
 @AutoConfiguration
+@Import(JpaAuditingConfiguration.class)
 public class CartisanDataJpaAutoConfiguration {
 
     /**

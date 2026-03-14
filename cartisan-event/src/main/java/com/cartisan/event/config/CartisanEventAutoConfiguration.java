@@ -2,10 +2,10 @@ package com.cartisan.event.config;
 
 import com.cartisan.event.DomainEventPublisher;
 import com.cartisan.event.SpringDomainEventPublisher;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * cartisan-event 模块的 Spring Boot 自动配置。
@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * @since 0.1.0
  */
-@Configuration
+@AutoConfiguration
 @ConditionalOnMissingBean(DomainEventPublisher.class)
 public class CartisanEventAutoConfiguration {
 

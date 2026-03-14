@@ -7,8 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -31,31 +29,14 @@ import java.util.UUID;
  *   <li>初始化失败时使用 null 值，请求继续</li>
  *   <li>记录 WARN 日志便于排查</li>
  * </ul>
- */
-/**
- * 请求上下文初始化 Filter。
- *
- * <p>执行顺序：HIGHEST_PRECEDENCE（最早执行）</p>
- *
- * <p>职责：</p>
- * <ol>
- *   <li>requestId：优先从 X-Request-Id Header 读取，否则生成 UUID</li>
- *   <li>clientIp：按 X-Forwarded-For → X-Real-IP → RemoteAddr 优先级</li>
- *   <li>请求结束时清理 ThreadLocal</li>
- * </ol>
- *
- * <p>容错策略：</p>
- * <ul>
- *   <li>初始化失败时使用 null 值，请求继续</li>
- *   <li>记录 WARN 日志便于排查</li>
- * </ul>
  *
  * <p><strong>Bean 命名</strong>：使用 {@code cartisanRequestContextFilter} 作为 bean 名称，
  * 避免与 Spring Boot 自动配置的 {@code requestContextFilter} 冲突。</p>
+ *
+ * <p><strong>过滤顺序</strong>：通过实现 {@link Ordered} 接口返回 {@code HIGHEST_PRECEDENCE}，
+ * 确保在过滤器链中最早执行。</p>
  */
-@Component("cartisanRequestContextFilter")
-@Order(Ordered.HIGHEST_PRECEDENCE)
-public class RequestContextFilter extends OncePerRequestFilter {
+public class RequestContextFilter extends OncePerRequestFilter implements Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(RequestContextFilter.class);
 
@@ -67,6 +48,11 @@ public class RequestContextFilter extends OncePerRequestFilter {
 
     /** X-Real-IP Header 名称 */
     private static final String HEADER_X_REAL_IP = "X-Real-IP";
+
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
 
     @Override
     protected void doFilterInternal(
