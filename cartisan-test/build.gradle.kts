@@ -44,3 +44,9 @@ dependencies {
     // Jackson（JSON 序列化，ApiTestAssertions 需要）
     implementation("com.fasterxml.jackson.core:jackson-databind")
 }
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+    systemProperty("org.testcontainers.disableRyuk", "true")
+    jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
+}
