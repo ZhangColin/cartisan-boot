@@ -144,8 +144,12 @@ import jakarta.servlet.http.HttpServletRequest;
  *   <li>初始化失败时使用 null 值，请求继续</li>
  *   <li>记录 WARN 日志便于排查</li>
  * </ul>
+ *
+ * <p><strong>Bean 命名</strong>：使用 {@code cartisanRequestContextFilter} 作为 bean 名称，
+ * 避免与 Spring Boot 自动配置的 {@code requestContextFilter} 冲突。
+ * 详见 SKILL.md TOOL-007。</p>
  */
-@Component
+@Component("cartisanRequestContextFilter")
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestContextFilter extends OncePerRequestFilter {
     // 实现...
