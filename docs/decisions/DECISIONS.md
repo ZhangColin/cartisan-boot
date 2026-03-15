@@ -1623,3 +1623,35 @@
 - **替代方案**：
   - 首版不做日志功能：排查问题时需临时加代码调试
   - 支持复杂配置（日志级别、慢查询阈值）：过度设计，首版无需求
+
+## ADR-013：F04-03 单元测试范围简化
+
+- **日期**：2026-03-15
+- **状态**：已实施
+- **决策**：F04-03 单元测试只覆盖无租户场景 + null 参数校验，有租户场景留给 F04-05 集成测试
+- **理由**：
+  - `TenantContext.runWithTenant()` 是 package-private 方法，测试类无法直接调用
+  - 不为测试目的修改 `TenantContext` 的访问级别（保持封装性）
+  - 有租户场景需要真实的 DSLContext 环境，更适合集成测试验证
+- **影响**：
+  - F04-03 单元测试只验证核心逻辑（null 检查、无租户降级）
+  - F04-05 集成测试需补充有租户场景的端到端验证
+
+## ADR-014：cartisan-data-query 启用 Java 预览功能
+
+- **日期**：2026-03-15
+- **状态**：已实施
+- **决策**：cartisan-data-query 模块启用 `--enable-preview` 编译和测试选项
+- **理由**：
+  - 依赖 cartisan-security 的 `TenantContext`（使用 ScopedValue 预览功能）
+  - `compileOnly` 依赖仍需在编译期加载 TenantContext 类
+- **配置**：
+  ```kotlin
+  tasks.withType<JavaCompile> {
+      options.compilerArgs.add("--enable-preview")
+  }
+  tasks.withType<Test> {
+      jvmArgs("--enable-preview")
+  }
+  ```
+- **影响**：与 cartisan-security 保持一致，确保编译和测试都能使用 ScopedValue

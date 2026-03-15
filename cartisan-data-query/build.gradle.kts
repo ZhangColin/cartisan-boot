@@ -19,6 +19,13 @@ dependencies {
     // Spring Boot AutoConfiguration 支持
     compileOnly("org.springframework.boot:spring-boot-autoconfigure")
 
+    // cartisan-security - 可选依赖（编译期需要，运行时由使用方提供）
+    // 用于 JooqTenantSupport 访问 TenantContext
+    compileOnly(project(":cartisan-security"))
+
+    // 测试时需要完整的 cartisan-security（用于 TenantContext 测试）
+    testImplementation(project(":cartisan-security"))
+
     // 配置属性元数据处理器（IDE 自动补全提示）
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:3.4.0")
 
@@ -35,8 +42,10 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("--enable-preview")
 }
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
+    options.compilerArgs.add("--enable-preview")
 }
