@@ -1,7 +1,7 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.1 | **日期**：2026-03-15
-> **基于 Epic**：Epic 01 - 项目骨架 + Core + Test
+> **版本**：v0.2 | **日期**：2026-03-15
+> **基于 Epic**：Epic 01 + Epic 02 - Core + Test + Web + Data-JPA + Event
 
 ---
 
@@ -24,6 +24,33 @@
 | **Testcontainers** | PostgreSQL + Redis 集成测试基类 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
 | **Fixture 工具** | 随机数据生成器 + 对象构建器 |
+
+### 1.3 cartisan-web 模块
+
+| 能力 | 说明 |
+|------|------|
+| **统一响应体** | `ApiResponse<T>`、`PageResponse<T>`、`FieldError` |
+| **全局异常处理** | `@ControllerAdvice` 自动捕获异常并转换为响应 |
+| **请求上下文** | `RequestContext` 存储 requestId、clientIp（ThreadLocal） |
+| **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+### 1.4 cartisan-data-jpa 模块
+
+| 能力 | 说明 |
+|------|------|
+| **BaseRepository** | 约束 T 必须是 `AggregateRoot<?>`，继承 JPA + Specification |
+| **事件自动发布** | Repository save() 时自动发布领域事件 |
+| **审计支持** | `@CreatedDate`、`@LastModifiedDate`、`@CreatedBy`、`@LastModifiedBy` |
+| **软删除** | `@SQLRestriction` 自动过滤已删除记录 |
+| **分布式 ID** | TSID 生成器（42 位时间戳 + 22 位随机数） |
+
+### 1.5 cartisan-event 模块
+
+| 能力 | 说明 |
+|------|------|
+| **事件发布器** | `DomainEventPublisher` 接口 + Spring 实现 |
+| **事务监听** | 支持 `@TransactionalEventListener(phase=AFTER_COMMIT)` |
+| **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ---
 
@@ -106,6 +133,63 @@
 | `FixtureNumbers` | `randomInt()`, `randomAmount()` | 数字/金额随机生成 |
 | `FixtureDates` | `pastDays(7)`, `futureDays(3)` | 日期随机生成 |
 | `FixtureBuilder<T>` | `of(clazz).with(name, value).build()` | 对象构建器 |
+
+### 2.9 Web 响应体（com.cartisan.web.response）
+
+| 类/Record | 方法/字段 | 说明 |
+|-----------|----------|------|
+| `ApiResponse<T>` | `code`, `message`, `data`, `requestId`, `errors` | 统一响应字段 |
+| | `ok(T data)` | 成功响应（带数据） |
+| | `ok()` | 成功响应（无数据） |
+| | `error(CodeMessage)` | 错误响应（枚举） |
+| | `error(CodeMessage, Object...)` | 错误响应（参数化） |
+| | `error(int, String)` | 错误响应（自定义） |
+| | `validationError(List<FieldError>)` | 校验失败响应 |
+| `PageResponse<T>` | `items`, `total`, `page`, `size` | 分页响应字段 |
+| `FieldError` | `field`, `message`, `errorCode` | 字段级错误 |
+
+### 2.10 请求上下文（com.cartisan.web.context）
+
+| 类 | 方法 | 说明 |
+|----|------|------|
+| `RequestContext` | `getRequestId()` | 获取请求追踪 ID（可能为 null） |
+| | `getClientIp()` | 获取客户端 IP（可能为 null） |
+| `RequestContextFilter` | - | 自动初始化 RequestContext（@Component） |
+
+### 2.11 BaseRepository（com.cartisan.data.jpa.repository）
+
+| 接口 | 约束 | 说明 |
+|----|------|------|
+| `BaseRepository<T, ID>` | `T extends AggregateRoot<?>` | 继承 JpaRepository + JpaSpecificationExecutor |
+| | `ID extends Serializable` | ID 类型约束 |
+| `BaseRepositoryImpl` | 重写 `save()` | JPA save 后自动发布领域事件 |
+
+### 2.12 审计与软删除（com.cartisan.data.jpa.domain）
+
+| 类 | 字段/注解 | 说明 |
+|----|----------|------|
+| `Auditable` | `@CreatedDate createdAt` | 创建时间（自动填充） |
+| | `@LastModifiedDate lastModifiedDate` | 修改时间（自动更新） |
+| | `@CreatedBy createdBy` | 创建人（需 AuditorAware） |
+| | `@LastModifiedBy lastModifiedBy` | 修改人（需 AuditorAware） |
+| `SoftDeletable` | `boolean deleted` | 软删除标记 |
+| | `@SQLRestriction("deleted = false")` | 查询自动过滤 |
+
+### 2.13 TSID 生成器（com.cartisan.data.jpa.id）
+
+| 类 | 方法 | 说明 |
+|----|------|------|
+| `TsidGenerator` | `generate()` | 生成时间排序的全局唯一 Long ID |
+| | `toInstant(long tsid)` | 从 TSID 提取生成时间 |
+| | `newInstance()` | 创建默认实例（ThreadLocalRandom） |
+| | `withRandom(Random)` | 测试用：指定随机数源 |
+
+### 2.14 领域事件发布器（com.cartisan.event）
+
+| 接口/类 | 方法 | 说明 |
+|---------|------|------|
+| `DomainEventPublisher` | `publish(DomainEvent)` | 发布领域事件 |
+| `SpringDomainEventPublisher` | - | 委托给 Spring ApplicationEventPublisher |
 
 ---
 
@@ -329,6 +413,159 @@ class OrderServiceTest {
 }
 ```
 
+### 3.7 使用 ApiResponse 响应体
+
+```java
+@RestController
+@RequestMapping("/api/v1/orders")
+public class OrderController {
+
+    // 成功响应（带数据）
+    @GetMapping("/{id}")
+    public ApiResponse<OrderDto> getOrder(@PathVariable Long id) {
+        Order order = orderService.findById(id);
+        return ApiResponse.ok(OrderDto.from(order));
+    }
+
+    // 成功响应（无数据）
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteOrder(@PathVariable Long id) {
+        orderService.delete(id);
+        return ApiResponse.ok();
+    }
+}
+```
+
+### 3.8 使用 RequestContext
+
+```java
+// 在任何地方获取请求上下文
+@Service
+public class OrderService {
+
+    public void createOrder(CreateOrderRequest request) {
+        String requestId = RequestContext.getRequestId();
+        String clientIp = RequestContext.getClientIp();
+
+        log.info("Creating order, requestId={}, clientIp={}", requestId, clientIp);
+        // ...
+    }
+}
+
+// requestId 生成逻辑（RequestContextFilter 自动执行）：
+// 1. 优先从 X-Request-Id Header 读取
+// 2. 否则生成 UUID
+```
+
+### 3.9 定义 Repository（泛型约束）
+
+```java
+// 聚合根
+@Entity
+public class Order extends AbstractAggregateRoot<Order> {
+    @Id
+    private Long id;
+
+    public void ship() {
+        registerEvent(new OrderShippedEvent(id));
+    }
+}
+
+// Repository 接口（T 必须是 AggregateRoot<?>）
+public interface OrderRepository extends BaseRepository<Order, Long> {
+    // 继承全部 JPA 方法 + Specification
+    // save() 时自动发布领域事件
+}
+
+// 使用
+@Service
+public class OrderService {
+    private final OrderRepository orderRepository;
+
+    public void createOrder(Order order) {
+        order.registerEvent(new OrderCreatedEvent(order.getId()));
+        orderRepository.save(order);  // 自动发布事件
+    }
+}
+```
+
+### 3.10 使用审计和软删除基类
+
+```java
+// 仅审计
+@Entity
+public class Product extends Auditable {
+    @Id private Long id;
+    private String name;
+    // 自动拥有：createdAt, lastModifiedDate, createdBy, lastModifiedBy
+}
+
+// 审计 + 软删除
+@Entity
+@SQLRestriction("deleted = false")  // 查询时自动过滤
+public class Order extends SoftDeletable {
+    @Id private Long id;
+    private String status;
+    // 自动拥有：审计字段 + deleted
+}
+
+// 软删除操作
+orderRepository.delete(order);  // UPDATE SET deleted = true
+orderRepository.findAll();      // 自动过滤 deleted = true
+```
+
+### 3.11 使用 TSID 生成器
+
+```java
+@Entity
+public class Order extends AbstractAggregateRoot<Order> {
+
+    @Id
+    private Long id;
+
+    @PrePersist
+    void generateId() {
+        if (id == null) {
+            id = tsidGenerator.generate();
+        }
+    }
+}
+
+// 或在 Service 层生成
+@Service
+public class OrderService {
+    private final TsidGenerator tsidGenerator;
+
+    public Long createOrder() {
+        Long orderId = tsidGenerator.generate();
+        Instant createTime = tsidGenerator.toInstant(orderId);
+        // ...
+        return orderId;
+    }
+}
+```
+
+### 3.12 监听领域事件
+
+```java
+@Component
+public class OrderEventHandler {
+
+    // 事务提交后执行（推荐）
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handle(OrderCreatedEvent event) {
+        // 发送通知、调用外部服务等
+        notificationService.sendOrderCreated(event);
+    }
+
+    // 事务内同步执行
+    @EventListener
+    public void handle2(OrderShippedEvent event) {
+        // 同库操作，如更新其他聚合根
+    }
+}
+```
+
 ---
 
 ## 四、注意事项
@@ -342,7 +579,31 @@ class OrderServiceTest {
 | **DDD-003** | 领域事件应自动生成 `eventId` 和 `occurredAt`，`aggregateId` 由子类提供 |
 | **STYLE-003** | 使用 Record 实现 ValueObject 和 Identity |
 
-### 4.2 工具配置
+### 4.2 JPA / 数据访问
+
+| 规则 | 说明 |
+|------|------|
+| **DATA-001** | JPA `save()` 后必须用原始 entity 发布事件，而非返回值 |
+| **DATA-002** | Repository 不是 Spring Bean，依赖注入用静态持有者模式 |
+| **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
+| **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
+| **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
+
+### 4.3 Spring Boot / 自动配置
+
+| 规则 | 说明 |
+|------|------|
+| **BOOT-001** | 使用 `JpaRepositoryFactoryEntryCustomizer` 全局配置 `repositoryBaseClass` |
+| **TOOL-007** | `@Component` 默认 bean 名称可能与自动配置冲突，需显式指定如 `@Component("cartisanXxx")` |
+
+### 4.4 分布式 ID / TSID
+
+| 规则 | 说明 |
+|------|------|
+| **ID-001** | 纯随机 TSID 测试需要容忍小量重复（≤0.2%），不应要求 100% 唯一 |
+| **ID-002** | 无锁随机数生成使用 `ThreadLocalRandom`，不用 `synchronized` |
+
+### 4.5 工具配置
 
 | 规则 | 说明 |
 |------|------|
@@ -351,14 +612,14 @@ class OrderServiceTest {
 | **TOOL-004** | `@TestConfiguration` 不能使用工具类模式（私有构造抛异常） |
 | **TEST-003** | Spring Boot Test 依赖分层：`api` 暴露给业务，`implementation` 本模块使用 |
 
-### 4.3 代码风格
+### 4.6 代码风格
 
 | 规则 | 说明 |
 |------|------|
 | **STYLE-001** | 领域接口应包含完整 JavaDoc 和使用示例 |
 | **STYLE-002** | JavaDoc 中必须转义 HTML 特殊字符：`<` → `&lt;`，`>` → `&gt;` |
 
-### 4.4 测试
+### 4.7 测试
 
 | 规则 | 说明 |
 |------|------|
@@ -366,21 +627,6 @@ class OrderServiceTest {
 | **TEST-002** | 测试方法命名遵循 `given_{条件}_when_{操作}_then_{预期结果}` |
 | **ASRT-001** | `require()` 抛 DomainException（4xx），`ensure()` 抛 IllegalStateException（500） |
 | **ASRT-002** | 工具类私有构造函数应抛出异常，而非返回 null |
-
-### 4.5 JPA / 数据访问
-
-| 规则 | 说明 |
-|------|------|
-| **DATA-001** | JPA `save()` 后必须用原始 entity 发布事件，而非返回值 |
-| **DATA-002** | Repository 不是 Spring Bean，依赖注入用静态持有者模式 |
-| **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
-| **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
-
-### 4.6 Spring Boot
-
-| 规则 | 说明 |
-|------|------|
-| **BOOT-001** | 使用 `JpaRepositoryFactoryEntryCustomizer` 全局配置 `repositoryBaseClass` |
 
 ---
 
@@ -408,6 +654,41 @@ implementation 依赖：
 - Spring Boot Starter Data Redis
 ```
 
+### 5.3 cartisan-web
+
+```
+api 依赖：
+- cartisan-core
+
+implementation 依赖：
+- Spring Boot Starter Web
+- Spring Boot Starter Validation
+```
+
+### 5.4 cartisan-data-jpa
+
+```
+api 依赖：
+- cartisan-core
+
+implementation 依赖：
+- Spring Boot Starter Data JPA
+- Hibernate Core（传递）
+```
+
+### 5.5 cartisan-event
+
+```
+api 依赖：
+- cartisan-core
+
+implementation 依赖：
+- Spring Context
+- Spring Boot AutoConfigure
+```
+
 ---
 
-**文档结束** | 如有疑问请参考 [docs/specs/epic-01-core-and-test/](../specs/epic-01-core-and-test/)
+**文档结束** | 如有疑问请参考：
+- [docs/specs/epic-01-core-and-test/](../specs/epic-01-core-and-test/)
+- [docs/specs/epic-02-web-data-jpa-event/](../specs/epic-02-web-data-jpa-event/)
