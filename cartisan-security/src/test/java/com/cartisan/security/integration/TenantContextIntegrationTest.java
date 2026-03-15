@@ -1,7 +1,6 @@
 package com.cartisan.security.integration;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -17,18 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @DisplayName("租户上下文集成测试")
 class TenantContextIntegrationTest extends AbstractSecurityIntegrationTest {
-
-    /**
-     * 从登录响应中提取 token。
-     */
-    private String extractToken(String responseContent) {
-        try {
-            JsonNode root = objectMapper.readTree(responseContent);
-            return root.path("data").path("token").asText();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to extract token from response", e);
-        }
-    }
 
     @Test
     @DisplayName("无租户信息时 getCurrentTenantId 应返回 null")
@@ -60,7 +47,7 @@ class TenantContextIntegrationTest extends AbstractSecurityIntegrationTest {
             mvc.perform(MockMvcRequestBuilders.get("/test/tenant/current")
                             .header("satoken", token))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.tenantId").isNumber());
+                    .andExpect(jsonPath("$.data.tenantId").value(456));
         } finally {
             StpUtil.logout(100L);
         }

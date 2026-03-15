@@ -1,6 +1,5 @@
 package com.cartisan.security.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -17,18 +16,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @DisplayName("认证服务集成测试")
 class AuthenticationServiceIntegrationTest extends AbstractSecurityIntegrationTest {
-
-    /**
-     * 从登录响应中提取 token。
-     */
-    private String extractToken(String responseContent) {
-        try {
-            JsonNode root = objectMapper.readTree(responseContent);
-            return root.path("data").path("token").asText();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to extract token from response", e);
-        }
-    }
 
     @Test
     @DisplayName("登录成功返回有效 token")

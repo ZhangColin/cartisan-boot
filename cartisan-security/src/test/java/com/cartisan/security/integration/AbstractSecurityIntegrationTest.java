@@ -1,6 +1,7 @@
 package com.cartisan.security.integration;
 
 import com.cartisan.security.integration.support.SecurityTestHelpers;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,5 +43,20 @@ public abstract class AbstractSecurityIntegrationTest {
     void tearDown() {
         // TenantContext 使用 ScopedValue，请求结束后自动清理
         // 若测试中直接调用了 runWithTenant，可在此补充清理逻辑
+    }
+
+    /**
+     * 从登录响应中提取 token。
+     *
+     * @param responseContent 响应内容
+     * @return token 值
+     */
+    protected String extractToken(String responseContent) {
+        try {
+            JsonNode root = objectMapper.readTree(responseContent);
+            return root.path("data").path("token").asText();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to extract token from response", e);
+        }
     }
 }
