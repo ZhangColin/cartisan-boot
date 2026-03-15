@@ -1478,3 +1478,60 @@
   - 在测试中手动初始化 Sa-Token 上下文：复杂且易出错
   - 使用 @SpringBootTest 的真实环境：启动慢，失去单元测试的隔离性
 - **影响**：生产环境仍走正常模式，测试模式仅在不满足 isLogin() 条件时触发，无性能影响
+
+## ADR-061：F04-01 PageQuery 使用 Record 而非 Class
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-01 Phase 2）
+- **决策**：PageQuery 使用 Java Record 实现，而非传统 Class
+- **理由**：
+  1. PageQuery 是纯数据类，无需可变性
+  2. Record 自动生成 `equals()`、`hashCode()`、`toString()`，减少样板代码
+  3. 与 cartisan-web 的 PageResponse 保持一致，API 风格统一
+- **替代方案**：
+  - 使用 Lombok @Value：引入额外依赖，与项目风格不一致
+  - 使用传统 Class + final 字段：需要手动生成 equals/hashCode/toString
+
+## ADR-062：F04-01 PageQuery 参数校验放在 Compact Constructor
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-01 Phase 2）
+- **决策**：使用 Record 的 Compact Constructor（`public PageQuery { ... }`）进行参数校验和修正
+- **理由**：
+  1. Record 规范的校验方式，语义清晰
+  2. 构造时立即修正边界值，避免后续代码处理各种边界情况
+  3. 调用方无需手动校验，使用更简洁
+- **代码**：
+  ```java
+  public record PageQuery(int page, int size) {
+      public PageQuery {
+          if (page < 1) page = 1;
+          if (size < 1) size = 20;
+          else if (size > 100) size = 100;
+      }
+  }
+  ```
+- **替代方案**：
+  - 使用静态工厂方法抛出异常：调用方必须 try-catch，不符合参数修正的语义
+  - 不做校验，由调用方保证：容易遗漏，导致数据库查询错误
+
+## ADR-063：F04-01 jOOQ 版本通过 BOM 统一管理
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-01 Phase 2）
+- **决策**：在 cartisan-dependencies BOM 中添加 jOOQ BOM（版本 3.19.15）
+- **理由**：
+  1. 与现有「cartisan-dependencies 做 BOM、继承 Spring Boot BOM」的架构一致
+  2. 版本集中管理，业务项目通过 BOM 获取统一版本
+  3. 避免不同模块（data-query、业务项目）声明不同版本的 jOOQ
+  4. jOOQ 3.19.15 与 Spring Boot 3.4.0 兼容
+- **代码**：
+  ```kotlin
+  // cartisan-dependencies/build.gradle.kts
+  dependencies {
+      api(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
+      api(platform("org.jooq:jooq-bom:3.19.15"))
+  }
+  ```
+- **替代方案**：
+  - 在 cartisan-data-query 中直接指定版本：后续业务项目使用时可能版本不一致
