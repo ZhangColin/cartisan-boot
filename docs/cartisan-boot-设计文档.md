@@ -514,7 +514,8 @@ TsidGenerator
 ```
 com.cartisan.data.query/
 ├── page/                 # 分页工具
-└── config/               # jOOQ 自动配置 + 代码生成
+├── tenant/               # 多租户工具
+└── config/               # jOOQ 自动配置
 ```
 
 #### 核心组件
@@ -525,18 +526,60 @@ com.cartisan.data.query/
 PageQuery（Record）
   - page: int（默认 1）
   - size: int（默认 20，上限 100）
+  - offset(): long          # 计算 OFFSET 值
 
-PageResult<T>（Record）
-  - items: List<T>
-  - total: long
+分页结果统一使用 cartisan-web 的 PageResponse<T>（items, total, page, size）
+读侧与写侧分页 API 保持一致。
 ```
 
 **jOOQ 自动配置：**
 
 ```
-- 配置 jOOQ 使用项目的 DataSource
+- 配置 DSLContext Bean（使用项目的 DataSource）
 - 配置 PostgreSQL 方言
-- 代码生成：从 Flyway 迁移后的数据库 schema 生成 jOOQ 类型安全的查询 DSL
+- 配置 SQL 执行日志（可选）
+- 通过 Spring Boot AutoConfiguration 实现，引入依赖后自动生效
+```
+
+**多租户工具（可选依赖 cartisan-security）：**
+
+```
+JooqTenantSupport
+  - eqTenantId(TableField<?, Long> tenantIdField) → Condition
+
+设计原则：
+  - 按列入参（TableField），任意表都可用
+  - 显式调用，代码意图清晰，调试友好
+  - 无租户上下文时返回 noCondition()，不添加过滤
+
+业务项目使用示例：
+  ctx.selectFrom(USER)
+     .where(eqTenantId(USER.TENANT_ID))
+     .fetch();
+```
+
+**代码生成（在业务项目中完成）：**
+
+```
+本模块不提供独立代码生成 CLI，而是提供：
+  - 标准 build.gradle.kts 配置片段
+  - PostgreSQL 方言与生成策略示例
+  - 文档：generateJooq 依赖 flywayMigrate、生成目录约定等
+
+代码生成必须在业务项目执行，因为真实 schema 来自业务项目的 Flyway 迁移。
+```
+
+**集成测试：**
+
+```
+必测项：
+  - jOOQ DSL 正确查询数据库
+  - 分页计算正确（offset/limit 转换、PageResponse 封装）
+  - DataSource 集成正常
+
+可选增强（CQRS 共存验证）：
+  - JPA 写 → jOOQ 读 数据一致性
+  - 不涉及事务边界、领域事件等复杂场景
 ```
 
 **CQRS 使用模式：**
@@ -938,13 +981,14 @@ cartisan-core（零外部依赖，纯 Java）
 
 cartisan-security            （core + web + Sa-Token）
 
-cartisan-data-query          （jOOQ，可独立使用，不依赖 core）
+cartisan-data-query          （jOOQ，依赖 web 复用 PageResponse；可独立使用，配合 web 时更顺畅）
 
 cartisan-storage             （Spring Boot Starter，不依赖 core）
 
 cartisan-payment             （Spring Boot Starter，不依赖 core）
 
 cartisan-data-jpa ──→ cartisan-event（save 时发布领域事件）
+cartisan-data-query ──→ cartisan-web（复用 PageResponse，读侧与写侧分页 API 一致）
 ```
 
 **依赖方向铁律：**
@@ -952,6 +996,7 @@ cartisan-data-jpa ──→ cartisan-event（save 时发布领域事件）
 - core 不依赖 Spring
 - web、data-jpa、event、ai、test 依赖 core
 - security 依赖 core + web
+- data-query 依赖 web（复用 PageResponse，读侧与写侧分页 API 一致）
 - storage、payment 是独立 Starter，仅依赖 Spring Boot
 - 任何模块不产生循环依赖
 
