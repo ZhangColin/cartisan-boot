@@ -58,6 +58,7 @@ cartisan-boot/
 
 ## 开发指南
 
+- **使用手册**：参见 [docs/guides/cartisan-boot-使用手册.md](docs/guides/cartisan-boot-使用手册.md)
 - **架构设计**：参见 [docs/cartisan-boot-设计文档.md](docs/cartisan-boot-设计文档.md)
 - **协作规范**：参见 [docs/sop/AI协作开发SOP.md](docs/sop/AI协作开发SOP.md)
 - **踩坑经验**：参见 [docs/skills/SKILL.md](docs/skills/SKILL.md)
