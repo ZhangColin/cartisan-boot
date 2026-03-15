@@ -1,7 +1,7 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.2 | **日期**：2026-03-15
-> **基于 Epic**：Epic 01 + Epic 02 - Core + Test + Web + Data-JPA + Event
+> **版本**：v0.3 | **日期**：2026-03-15
+> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 - Core + Test + Web + Data-JPA + Event + Security
 
 ---
 
@@ -50,6 +50,19 @@
 |------|------|
 | **事件发布器** | `DomainEventPublisher` 接口 + Spring 实现 |
 | **事务监听** | 支持 `@TransactionalEventListener(phase=AFTER_COMMIT)` |
+| **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+### 1.6 cartisan-security 模块
+
+| 能力 | 说明 |
+|------|------|
+| **权限注解** | `@RequireAuth`、`@RequireRole`、`@RequirePermission` |
+| **MVC 拦截器** | `SecurityInterceptor` 处理鉴权逻辑 |
+| **异常处理** | `SecurityExceptionHandler` 处理 Sa-Token 异常（401/403） |
+| **安全上下文** | `SecurityContext` 获取当前用户信息 |
+| **多租户上下文** | `TenantContext` 获取租户 ID（Header > Session 优先级） |
+| **租户过滤器** | `TenantContextFilter` 解析租户 ID，兼容 Virtual Threads |
+| **认证服务** | `AuthenticationService` 接口 + Sa-Token 实现 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ---
@@ -190,6 +203,66 @@
 |---------|------|------|
 | `DomainEventPublisher` | `publish(DomainEvent)` | 发布领域事件 |
 | `SpringDomainEventPublisher` | - | 委托给 Spring ApplicationEventPublisher |
+
+### 2.15 权限注解（com.cartisan.security.annotation）
+
+| 注解 | 目标 | 说明 |
+|------|------|------|
+| `@RequireAuth` | TYPE/METHOD | 需要登录 |
+| `@RequireRole` | TYPE/METHOD | 需要指定角色（OR 逻辑） |
+| `@RequirePermission` | TYPE/METHOD | 需要指定权限（OR 逻辑） |
+
+### 2.16 SecurityContext（com.cartisan.security.context）
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getCurrentUserId()` | `Long` / `null` | 获取当前用户 ID |
+| `getCurrentUsername()` | `String` / `null` | 获取当前用户名（登录 ID） |
+| `hasRole(String role)` | `boolean` | 判断是否拥有角色 |
+| `hasPermission(String permission)` | `boolean` | 判断是否拥有权限 |
+| `isAuthenticated()` | `boolean` | 判断是否已登录 |
+
+### 2.17 TenantContext（com.cartisan.security.context）
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `getCurrentTenantId()` | `Long` / `null` | 获取当前租户 ID |
+| `hasTenant()` | `boolean` | 判断是否有租户上下文 |
+| `requireTenant()` | `Long` | 获取租户 ID，不存在抛异常 |
+
+**存储机制**：使用 `ScopedValue`（Java 21+），兼容 Virtual Threads，作用域结束自动清理。
+
+### 2.18 AuthenticationService（com.cartisan.security.authentication）
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `AuthenticationService` | `login(Long loginId)` | 创建登录会话 |
+| | `logout()` | 销毁当前会话 |
+| | `getTokenInfo()` | 获取当前 Token 信息 |
+| | `authenticate(username, password)` | 业务层扩展点（默认抛异常） |
+
+### 2.19 TokenInfo（com.cartisan.security.authentication）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `token` | `String` | Token 值 |
+| `loginId` | `Long` | 用户标识 |
+| `expireTime` | `Instant` | 过期时间 |
+
+### 2.20 异常处理器（com.cartisan.security.config）
+
+| 异常类型 | HTTP 状态码 | 响应消息 |
+|---------|------------|---------|
+| `NotLoginException` | 401 UNAUTHORIZED | 未登录或登录已过期 |
+| `NotRoleException` | 403 FORBIDDEN | 无权限访问 |
+| `NotPermissionException` | 403 FORBIDDEN | 无权限访问 |
+
+### 2.21 配置属性（com.cartisan.security.config.properties）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `cartisan.security.interceptor.path-patterns` | `List<String>` | `["/**"]` | 拦截器生效路径 |
+| `cartisan.security.interceptor.exclude-path-patterns` | `List<String>` | `["/error", "/actuator/**"]` | 排除路径 |
 
 ---
 
@@ -566,6 +639,172 @@ public class OrderEventHandler {
 }
 ```
 
+### 3.13 使用权限注解
+
+```java
+// 类级别注解
+@RestController
+@RequireAuth  // 类内所有方法都需要登录
+@RequestMapping("/api/v1/users")
+public class UserController {
+    @GetMapping("/me")
+    public ApiResponse<User> getCurrentUser() { ... }
+}
+
+// 方法级别注解
+@RestController
+@RequestMapping("/api/v1/admin")
+public class AdminController {
+
+    @RequireRole({"admin"})
+    @PostMapping("/users")
+    public ApiResponse<Void> createUser() { ... }
+
+    @RequirePermission({"user:delete"})
+    @DeleteMapping("/users/{id}")
+    public ApiResponse<Void> deleteUser(@PathVariable Long id) { ... }
+}
+
+// 方法覆盖类注解
+@RestController
+@RequireAuth  // 默认需要登录
+@RequestMapping("/api/v1/public")
+public class PublicController {
+
+    @GetMapping("/info")
+    public ApiResponse<Info> getInfo() { ... }  // 需要登录
+
+    @RequireAuth(false)  // 覆盖类注解，允许匿名访问
+    @GetMapping("/ping")
+    public ApiResponse<String> ping() { ... }
+}
+```
+
+### 3.14 使用 SecurityContext
+
+```java
+@Service
+public class OrderService {
+
+    public void createOrder(CreateOrderRequest request) {
+        // 推荐用法：先检查是否登录
+        if (SecurityContext.isAuthenticated()) {
+            Long userId = SecurityContext.getCurrentUserId();
+            String username = SecurityContext.getCurrentUsername();
+
+            // 判断角色/权限
+            boolean isAdmin = SecurityContext.hasRole("admin");
+            boolean canCreate = SecurityContext.hasPermission("order:create");
+
+            // 使用用户信息...
+        }
+    }
+
+    // 或者：对返回值做 null 检查
+    public void updateOrder(Long orderId, UpdateOrderRequest request) {
+        Long userId = SecurityContext.getCurrentUserId();
+        if (userId != null) {
+            // 使用 userId...
+        }
+    }
+}
+```
+
+### 3.15 使用 TenantContext
+
+```java
+@Service
+public class OrderService {
+
+    public void createOrder(CreateOrderRequest request) {
+        // 获取租户 ID（可能为 null）
+        Long tenantId = TenantContext.getCurrentTenantId();
+
+        // 判断是否有租户上下文
+        if (TenantContext.hasTenant()) {
+            // 使用租户 ID...
+            Order order = new Order(tenantId, request);
+            orderRepository.save(order);
+        }
+    }
+
+    // 强制必须有租户上下文
+    public void deleteOrder(Long orderId) {
+        Long tenantId = TenantContext.requireTenant();  // 无租户抛异常
+        Order order = orderRepository.findByIdAndTenantId(orderId, tenantId)
+            .orElseThrow();
+        orderRepository.delete(order);
+    }
+}
+```
+
+### 3.16 使用 AuthenticationService
+
+```java
+@RestController
+@RequestMapping("/api/v1/auth")
+public class AuthController {
+
+    private final AuthenticationService authService;
+
+    // 业务层验证密码后调用 login
+    @PostMapping("/login")
+    public ApiResponse<TokenInfo> login(@RequestBody LoginRequest request) {
+        // 1. 业务层验证密码
+        User user = userService.validatePassword(request.getUsername(), request.getPassword());
+
+        // 2. 调用认证服务创建会话
+        TokenInfo tokenInfo = authService.login(user.getId());
+
+        // 3. 可选：设置租户 ID 到 Session
+        StpUtil.getSession().set("tenantId", user.getTenantId());
+
+        return ApiResponse.ok(tokenInfo);
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout() {
+        authService.logout();
+        return ApiResponse.ok();
+    }
+
+    @GetMapping("/token-info")
+    public ApiResponse<TokenInfo> getTokenInfo() {
+        TokenInfo tokenInfo = authService.getTokenInfo();
+        if (tokenInfo == null) {
+            return ApiResponse.error(401, "未登录");
+        }
+        return ApiResponse.ok(tokenInfo);
+    }
+}
+```
+
+### 3.17 配置拦截器路径
+
+```yaml
+# 仅保护 API 路径（默认是 /**）
+cartisan:
+  security:
+    interceptor:
+      path-patterns:
+        - "/api/**"
+        - "/admin/**"
+
+# 完整配置示例
+cartisan:
+  security:
+    interceptor:
+      path-patterns:
+        - "/api/**"
+        - "/admin/**"
+        - "/internal/**"
+      exclude-path-patterns:
+        - "/api/public/**"
+        - "/api/health"
+        - "/error"
+        - "/actuator/**"
+```
+
 ---
 
 ## 四、注意事项
@@ -628,6 +867,88 @@ public class OrderEventHandler {
 | **ASRT-001** | `require()` 抛 DomainException（4xx），`ensure()` 抛 IllegalStateException（500） |
 | **ASRT-002** | 工具类私有构造函数应抛出异常，而非返回 null |
 
+### 4.8 Security
+
+| 规则 | 说明 |
+|------|------|
+| **SECURITY-001** | Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token` |
+| **SECURITY-002** | Sa-Token Session 类是 `SaSession`，不是 `Session` |
+| **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
+| **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller，不能直接调用 `StpUtil.login()` |
+| **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
+
+#### TOOL-008 / SECURITY-001：Sa-Token 包路径
+
+```java
+// ❌ 错误：包路径不是 cn.dev33.sa-token
+import cn.dev33.sa-token.stp.StpUtil;
+
+// ✅ 正确：包路径是 cn.dev33.satoken
+import cn.dev33.satoken.stp.StpUtil;
+```
+
+#### TOOL-009 / SECURITY-002：Sa-Token Session 类
+
+```java
+// ❌ 错误：没有 cn.dev33.satoken.session.Session
+import cn.dev33.satoken.session.Session;
+
+// ✅ 正确：Session 类是 SaSession
+import cn.dev33.satoken.session.SaSession;
+```
+
+#### SECURITY-003：ScopedValue 使用方式
+
+```java
+// ❌ 错误：直接 get() 可能抛 NoSuchElementException
+public static Long getCurrentTenantId() {
+    return TENANT_ID.get();
+}
+
+// ✅ 正确：先检查 isBound()，再 get()
+public static Long getCurrentTenantId() {
+    if (!TENANT_ID.isBound()) {
+        return null;
+    }
+    return TENANT_ID.get();
+}
+
+// ✅ 或使用 getOrDefault()
+public static Long getCurrentTenantId() {
+    return ScopedValue.getOrDefault(TENANT_ID, null);
+}
+```
+
+#### TEST-004 / SECURITY-004：MockMvc 集成测试方式
+
+```java
+// ❌ 错误：直接调用 StpUtil.login()，Sa-Token 上下文未初始化
+@Test
+void test() {
+    StpUtil.login(100L);
+    mvc.perform(get("/api/users"))
+        .andExpect(status().isOk());
+}
+
+// ✅ 正确：创建测试专用 Controller，通过 HTTP 请求触发登录
+@RestController
+@RequestMapping("/test/auth")
+class TestAuthController {
+    @PostMapping("/login")
+    public ApiResponse<Void> login(@RequestParam Long userId) {
+        StpUtil.login(userId);
+        return ApiResponse.ok();
+    }
+}
+
+@Test
+void test() throws Exception {
+    mvc.perform(post("/test/auth/login?userId=100"))
+        .andExpect(status().isOk());
+    // 现在 Sa-Token 上下文已正确初始化
+}
+```
+
 ---
 
 ## 五、依赖说明
@@ -687,8 +1008,20 @@ implementation 依赖：
 - Spring Boot AutoConfigure
 ```
 
+### 5.6 cartisan-security
+
+```
+api 依赖：
+- cartisan-core
+- cartisan-web
+
+implementation 依赖：
+- Sa-Token 1.45.0（sa-token-spring-boot3-starter）
+```
+
 ---
 
 **文档结束** | 如有疑问请参考：
 - [docs/specs/epic-01-core-and-test/](../specs/epic-01-core-and-test/)
 - [docs/specs/epic-02-web-data-jpa-event/](../specs/epic-02-web-data-jpa-event/)
+- [docs/specs/epic-03-security/](../specs/epic-03-security/)
