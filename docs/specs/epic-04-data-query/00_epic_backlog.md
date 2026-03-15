@@ -25,9 +25,9 @@
 |----|---------|------|--------|-----------|
 | **F04-01** | 模块骨架 + PageQuery | 创建 cartisan-data-query 模块、定义 PageQuery Record | S | 50-80 行 |
 | **F04-02** | jOOQ 自动配置 | DSLContext Bean 配置、PostgreSQL 方言、DataSource 集成 | S | 60-100 行 | ✅ Phase 5 审查归档 |
-| **F04-03** | JooqTenantSupport | 多租户查询工具方法 `eqTenantId(TableField)` | S | 30-50 行 |
-| **F04-04** | 代码生成配置指南 | build.gradle.kts 示例、生成策略文档 | S | 文档 + 示例 |
-| **F04-05** | 集成测试 | jOOQ 查询、分页、CQRS 共存验证 | M | 150-200 行 |
+| **F04-03** | JooqTenantSupport | 多租户查询工具方法 `eqTenantId(TableField)` | S | 30-50 行 | ✅ Phase 5 审查归档 |
+| **F04-04** | 代码生成配置指南 | build.gradle.kts 示例、生成策略文档 | S | 文档 + 示例 | ✅ 完成 |
+| **F04-05** | 集成测试 | jOOQ 查询、分页、CQRS 共存验证 | M | 150-200 行 | ✅ Phase 5 审查归档 |
 
 ---
 
