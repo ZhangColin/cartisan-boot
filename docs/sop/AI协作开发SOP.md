@@ -190,7 +190,7 @@ project-root/
 | 读者 | 当前开发者 + AI | 未来使用者 + AI（如使用 cartisan-boot 的业务项目） |
 | 维护 | 开发期实时更新 | 每个 Epic 完成后整理一次 |
 
-**归档流程：** 当一个 Epic 的所有 Feature 完成上线后，将关键信息浓缩进 `docs/guide/`。归档时可让 AI 辅助：
+**归档流程：** 当一个 Epic 的所有 Feature 完成上线后，将关键信息浓缩进 `docs/guides/`。归档时可让 AI 辅助：
 
 ```
 请阅读以下 Feature Spec 目录中的所有文档，将其精简为一份使用手册：
