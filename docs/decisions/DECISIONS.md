@@ -1452,3 +1452,29 @@
   | `/actuator/**` 请求 | 不经过拦截器 |
 - **替代方案**：
   - 默认 `/api/**`：依赖路径约定，不符合约定的项目"看起来不生效"
+
+## ADR-060：F03-08 TenantContextFilter 支持测试模式
+
+- **日期**：2026-03-15
+- **状态**：已实现（F03-08 Phase 4）
+- **决策**：TenantContextFilter 增加测试模式，当 Sa-Token 上下文未初始化时，通过 token 手动查询 Session
+- **理由**：
+  1. MockMvc 测试环境中 SaServletFilter 未执行，Sa-Token 上下文未初始化
+  2. 正常模式的 `StpUtil.isLogin()` 会抛出 SaTokenContextException
+  3. 测试模式通过 `StpUtil.getLoginIdByToken(token)` 绕过上下文检查，直接查询 Session
+- **实现**：
+  ```java
+  // 正常模式：Sa-Token 上下文已初始化
+  if (StpUtil.isLogin()) {
+      return StpUtil.getSession().get(TENANT_ID_SESSION_KEY);
+  }
+  
+  // 测试模式：从请求读取 token 后手动查询
+  String token = extractSaToken(request);
+  Object loginId = StpUtil.getLoginIdByToken(token);
+  return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
+  ```
+- **替代方案**：
+  - 在测试中手动初始化 Sa-Token 上下文：复杂且易出错
+  - 使用 @SpringBootTest 的真实环境：启动慢，失去单元测试的隔离性
+- **影响**：生产环境仍走正常模式，测试模式仅在不满足 isLogin() 条件时触发，无性能影响

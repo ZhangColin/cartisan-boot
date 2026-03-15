@@ -1441,3 +1441,150 @@ public static Long getCurrentTenantId() {
 - 不存在 `getOrDefault()` 方法
 
 **记忆口诀**：ScopedValue 取值先 isBound()，再 get()。
+
+---
+
+## 测试（续）
+
+### 规则 TEST-004：MockMvc 集成测试需要测试专用 Controller
+
+**问题**：直接在测试中调用 `StpUtil.login()` 后使用 MockMvc，Sa-Token 上下文未初始化。
+
+**错误代码**：
+```java
+// ❌ StpUtil.login() 在测试线程，MockMvc 请求在不同线程
+@BeforeEach
+void setUp() {
+    StpUtil.login(100L);  // 上下文只在测试线程
+}
+
+@Test
+void testProtectedEndpoint() {
+    mvc.perform(get("/test/protected"))
+        // SaTokenContextException: 上下文尚未初始化
+}
+```
+
+**正确做法**：创建测试专用 Controller，通过 HTTP 请求触发登录
+```java
+// ✅ 通过 MockMvc 请求登录，Sa-Token 上下文正确初始化
+@RestController
+@RequestMapping("/test/auth")
+public class TestAuthController {
+    @GetMapping("/login/{userId}")
+    public ApiResponse<Map<String, String>> login(@PathVariable Long userId) {
+        StpUtil.login(userId);
+        String token = StpUtil.getTokenValue();
+        return ApiResponse.ok(Map.of("token", token));
+    }
+}
+
+// 测试中先登录获取 token
+String token = extractToken(mvc.perform(get("/test/auth/login/100"))
+    .andReturn()
+    .getResponse()
+    .getContentAsString());
+
+// 使用 token 访问受保护端点
+mvc.perform(get("/test/protected").header("satoken", token))
+    .andExpect(status().isOk());
+```
+
+**记忆口诀**：MockMvc 测试用 Controller 登录，不要直接调 StpUtil。
+
+**相关**：见 ADR-060。
+
+---
+
+### 规则 TEST-005：集成测试辅助方法应提取到基类
+
+**问题**：`extractToken()` 等辅助方法在多个测试类中重复。
+
+**正确做法**：
+```java
+// ✅ 抽象基类提供公共方法
+public abstract class AbstractSecurityIntegrationTest {
+    @Autowired protected MockMvc mvc;
+    @Autowired protected ObjectMapper objectMapper;
+
+    /**
+     * 从登录响应中提取 token。
+     */
+    protected String extractToken(String responseContent) {
+        try {
+            JsonNode root = objectMapper.readTree(responseContent);
+            return root.path("data").path("token").asText();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to extract token from response", e);
+        }
+    }
+}
+
+// 子类直接使用
+class AuthAnnotationIntegrationTest extends AbstractSecurityIntegrationTest {
+    @Test
+    void test() {
+        String token = extractToken(response);  // 直接调用
+    }
+}
+```
+
+**记忆口诀**：测试辅助方法去重，基类统一提供。
+
+---
+
+## 踩坑记录（续）
+
+### PIT-022 (2026-03-15)：MockMvc 环境下 Sa-Token 上下文未初始化
+
+**场景**：TenantContextFilter 中调用 `StpUtil.isLogin()` 抛出 `SaTokenContextException`。
+
+**错误表现**：
+```
+cn.dev33.satoken.exception.SaTokenContextException: 上下文尚未初始化
+    at cn.dev33.satoken.context.SaTokenContextForThreadLocalStaff.getModelBox
+```
+
+**原因**：
+1. MockMvc 测试中 SaServletFilter 未执行
+2. `SaTokenContextForThreadLocal` 未从请求中读取 token 初始化上下文
+3. `StpUtil.isLogin()` 依赖已初始化的上下文
+
+**解决方案**：在 Filter 中增加测试模式降级
+```java
+// ✅ 正常模式：上下文已初始化
+if (StpUtil.isLogin()) {
+    return StpUtil.getSession().get(TENANT_ID_SESSION_KEY);
+}
+
+// 测试模式：通过 token 手动查询 Session
+String token = extractSaToken(request);
+Object loginId = StpUtil.getLoginIdByToken(token);
+return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
+```
+
+**相关决策**：见 ADR-060。
+
+**记忆口诀**：MockMvc 缺 Filter 上下文，token 直接查 Session。
+
+---
+
+### PIT-023 (2026-03-15)：集成测试断言应验证确切值而非类型
+
+**场景**：`TenantContextIntegrationTest` 只验证 Session 租户 ID 是数字，不验证具体值。
+
+**错误代码**：
+```java
+// ❌ 只验证是数字，无法证明 Session 解析正确
+.andExpect(jsonPath("$.data.tenantId").isNumber());
+```
+
+**正确做法**：
+```java
+// ✅ 验证确切值，确保 Session 租户 ID 正确解析
+.andExpect(jsonPath("$.data.tenantId").value(456));
+```
+
+**原因**：`isNumber()` 只验证类型，不验证值。如果 Session 解析逻辑有 bug（如返回默认值 0），测试仍会通过。
+
+**记忆口诀**：断言验证确切值，类型检查不够用。
