@@ -2,8 +2,8 @@ package com.cartisan.data.query.support;
 
 import com.cartisan.security.context.TenantContext;
 import org.jooq.Condition;
+import org.jooq.Field;
 import org.jooq.impl.DSL;
-import org.jooq.TableField;
 
 /**
  * jOOQ 多租户查询支持工具类。
@@ -19,6 +19,13 @@ import org.jooq.TableField;
  * List<UserRecord> users = dslContext.selectFrom(USER)
  *     .where(USER.NAME.like("%name%"))
  *     .and(eqTenantId(USER.TENANT_ID))  // 自动添加租户过滤
+ *     .fetch();
+ *
+ * // 或使用动态字段
+ * var table = DSL.table("my_table");
+ * var tenantIdField = table.field("tenant_id", Long.class);
+ * List<Record> results = dslContext.selectFrom(table)
+ *     .where(eqTenantId(tenantIdField))
  *     .fetch();
  * }</pre>
  *
@@ -58,7 +65,7 @@ public final class JooqTenantSupport {
      * @return jOOQ Condition 对象，永远非 null
      * @throws NullPointerException 若 {@code tenantIdField} 为 null
      */
-    public static Condition eqTenantId(TableField<?, Long> tenantIdField) {
+    public static Condition eqTenantId(Field<Long> tenantIdField) {
         // 前置检查
         if (tenantIdField == null) {
             throw new NullPointerException("tenantIdField cannot be null");
