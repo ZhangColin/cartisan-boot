@@ -1535,3 +1535,91 @@
   ```
 - **替代方案**：
   - 在 cartisan-data-query 中直接指定版本：后续业务项目使用时可能版本不一致
+
+## ADR-064：F04-02 jOOQ 自动配置显式使用 PostgreSQL 方言
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-02 Phase 2）
+- **决策**：`JooqAutoConfiguration` 显式配置 `SQLDialect.POSTGRES`，不使用 jOOQ 的自动检测
+- **理由**：
+  1. 项目技术栈已选定 PostgreSQL 16+，框架层应明确表达这一决策
+  2. 避免因数据库连接池、代理、不同环境导致的自动检测不一致
+  3. 行为可预期，CI/本地/容器环境完全一致
+  4. AI 生成的 SQL 始终按 PostgreSQL 语义，避免隐蔽问题
+- **代码**：
+  ```java
+  @Bean
+  public DSLContext dslContext(DataSource dataSource, JooqProperties properties) {
+      return DSL.using(
+          dataSource,
+          SQLDialect.POSTGRES,  // 显式配置，不依赖自动检测
+          settings(properties)
+      );
+  }
+  ```
+- **替代方案**：
+  - 使用 jOOQ 默认自动检测：可能在连接池/代理场景下推断出错误方言
+
+## ADR-065：F04-02 自动配置条件组合使用 @ConditionalOnBean + @ConditionalOnMissingBean
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-02 Phase 2）
+- **决策**：同时使用 `@ConditionalOnBean(DataSource.class)` 和 `@ConditionalOnMissingBean(DSLContext.class)`
+- **理由**：
+  1. `@ConditionalOnBean(DataSource)` — 无 DataSource 时不创建，避免强制依赖
+  2. `@ConditionalOnMissingBean(DSLContext)` — 用户自定义时退让，允许覆盖
+  3. 两者组合实现：有数据源且无用户自定义时才自动配置
+- **代码**：
+  ```java
+  @AutoConfiguration
+  @ConditionalOnBean(DataSource.class)
+  @ConditionalOnMissingBean(DSLContext.class)
+  @EnableConfigurationProperties(JooqProperties.class)
+  public class JooqAutoConfiguration { }
+  ```
+- **行为**：
+  | 场景 | 行为 |
+  |------|------|
+  | 无 DataSource | 跳过自动配置 |
+  | 有 DataSource + 用户 DSLContext | 跳过自动配置，使用用户定义 |
+  | 有 DataSource + 无用户 DSLContext | 创建自动配置的 Bean |
+- **替代方案**：
+  - 只用 `@ConditionalOnBean`：用户无法自定义覆盖
+  - 只用 `@ConditionalOnMissingBean`：无 DataSource 时会尝试创建然后失败
+
+## ADR-066：F04-02 SQL 日志使用简单布尔开关
+
+- **日期**：2026-03-15
+- **状态**：已设计（F04-02 Phase 2）
+- **决策**：通过 `cartisan.data-query.jooq.sql-logging` 布尔配置控制 SQL 日志，默认 false
+- **理由**：
+  1. 首版够用：开发/排查时能通过 `sql-logging=true` 看到 SQL
+  2. 实现简单：使用 jOOQ 的 `Settings.executeLogging(true)` 即可
+  3. YAGNI：日志级别、格式化、慢查询阈值等留待后续按需扩展
+- **代码**：
+  ```java
+  @ConfigurationProperties("cartisan.data-query.jooq")
+  public class JooqProperties {
+      private boolean sqlLogging = false;
+      // getter/setter
+  }
+
+  // 自动配置中
+  private Settings settings(JooqProperties properties) {
+      SettingsBuilder builder = new SettingsBuilder();
+      if (properties.isSqlLogging()) {
+          builder.executeLogging(true);
+      }
+      return builder.build();
+  }
+  ```
+- **配置示例**：
+  ```yaml
+  cartisan:
+    data-query:
+      jooq:
+        sql-logging: true  # 开发环境启用，生产环境建议关闭
+  ```
+- **替代方案**：
+  - 首版不做日志功能：排查问题时需临时加代码调试
+  - 支持复杂配置（日志级别、慢查询阈值）：过度设计，首版无需求
