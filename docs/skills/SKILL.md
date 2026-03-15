@@ -356,7 +356,51 @@ find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep
 
 ---
 
-### 规则 STYLE-002：使用 Record 实现 ValueObject 和 Identity
+### 规则 STYLE-002：JavaDoc 中必须转义 HTML 特殊字符
+
+**问题**：JavaDoc 解析器会将 `<` 和 `>` 解析为 HTML 标签，导致编译失败。
+
+**错误示例**：
+```java
+/**
+ * 分页查询参数。
+ * <p>参数自动校验：
+ *   <li>page < 1 时修正为 1</li>   ❌ javadoc 错误
+ *   <li>size > 100 时修正为 100</li> ❌ javadoc 错误
+ * </p>
+ */
+```
+
+**正确做法**：
+```java
+/**
+ * 分页查询参数。
+ * <p>参数自动校验：
+ *   <li>page &lt; 1 时修正为 1</li>     ✅ 使用 HTML 实体
+ *   <li>size &gt; 100 时修正为 100</li> ✅ 使用 HTML 实体
+ * </p>
+ */
+```
+
+**常用 HTML 实体**：
+| 字符 | 实体 | 说明 |
+|------|------|------|
+| `<` | `&lt;` | 小于号 |
+| `>` | `&gt;` | 大于号 |
+| `&` | `&amp;` | 与号 |
+| `@` | `&#64;` | 在某些上下文中 |
+
+**记忆口诀**：JavaDoc 里写比较符号，`<` 换 `&lt;`，`>` 换 `&gt;`。
+
+**验证方式**：
+```bash
+./gradlew :module:javadoc
+# 应该无错误输出
+```
+
+---
+
+### 规则 STYLE-003：使用 Record 实现 ValueObject 和 Identity
 
 **推荐做法**：
 ```java
