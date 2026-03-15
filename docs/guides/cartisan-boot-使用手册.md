@@ -1,7 +1,7 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.3 | **日期**：2026-03-15
-> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 - Core + Test + Web + Data-JPA + Event + Security
+> **版本**：v0.4 | **日期**：2026-03-15
+> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 + Epic 04 - Core + Test + Web + Data-JPA + Event + Security + Data-Query
 
 ---
 
@@ -63,6 +63,15 @@
 | **多租户上下文** | `TenantContext` 获取租户 ID（Header > Session 优先级） |
 | **租户过滤器** | `TenantContextFilter` 解析租户 ID，兼容 Virtual Threads |
 | **认证服务** | `AuthenticationService` 接口 + Sa-Token 实现 |
+| **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+### 1.7 cartisan-data-query 模块
+
+| 能力 | 说明 |
+|------|------|
+| **分页查询参数** | `PageQuery` 分页参数类（page、size、offset） |
+| **jOOQ 自动配置** | `DSLContext` Bean 自动配置（PostgreSQL 方言、SQL 日志） |
+| **多租户查询** | `JooqTenantSupport.eqTenantId()` 租户过滤条件生成 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ---
@@ -263,6 +272,43 @@
 |--------|------|--------|------|
 | `cartisan.security.interceptor.path-patterns` | `List<String>` | `["/**"]` | 拦截器生效路径 |
 | `cartisan.security.interceptor.exclude-path-patterns` | `List<String>` | `["/error", "/actuator/**"]` | 排除路径 |
+
+### 2.22 PageQuery（com.cartisan.data.query.page）
+
+| 字段/方法 | 类型/返回值 | 说明 |
+|-----------|------------|------|
+| `page` | `int` | 当前页码（最小 1） |
+| `size` | `int` | 每页大小（范围 1-100） |
+| `offset()` | `long` | 计算 OFFSET 值：`(page - 1) * size` |
+| `of(int, int)` | `PageQuery` | 静态工厂方法，创建实例 |
+
+**参数校验**：
+- `page < 1` 时自动修正为 1
+- `size < 1` 时修正为 20
+- `size > 100` 时修正为 100
+
+### 2.23 DSLContext 自动配置（com.cartisan.data.query.config）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `cartisan.data-query.jooq.sql-logging` | `boolean` | `false` | 是否启用 SQL 执行日志 |
+
+**自动配置类**：`JooqAutoConfiguration`
+- 条件：存在 `DataSource` 且无用户自定义 `DSLContext`
+- 方言：固定为 `SQLDialect.POSTGRES`
+- Bean：可被用户自定义配置覆盖
+
+### 2.24 JooqTenantSupport（com.cartisan.data.query.support）
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `eqTenantId(TableField<?, Long>)` | `Condition` | 生成租户等值过滤条件 |
+
+**行为**：
+- 有租户上下文时：返回 `tenantIdField.eq(tenantId)`
+- 无租户上下文时：返回 `DSL.noCondition()`（不添加过滤）
+
+**依赖说明**：需要 `cartisan-security` 模块（可选依赖）
 
 ---
 
@@ -805,6 +851,169 @@ cartisan:
         - "/actuator/**"
 ```
 
+### 3.18 使用 PageQuery
+
+```java
+@RestController
+@RequestMapping("/api/v1/users")
+public class UserController {
+
+    // 接收前端分页参数
+    @GetMapping
+    public ApiResponse<PageResponse<UserDto>> listUsers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        PageQuery pageQuery = PageQuery.of(page, size);
+        // pageQuery 自动校验参数：
+        // - page < 1 → 修正为 1
+        // - size < 1 → 修正为 20
+        // - size > 100 → 修正为 100
+
+        long offset = pageQuery.offset();  // (page - 1) * size
+
+        // 用于 jOOQ 查询
+        List<User> users = dsl.selectFrom(USER)
+            .limit(pageQuery.size())
+            .offset(pageQuery.offset())
+            .fetchInto(User.class);
+
+        return ApiResponse.ok(PageResponse.of(users, total, page, size));
+    }
+}
+```
+
+### 3.19 使用 jOOQ 自动配置
+
+```java
+// 引入依赖后，DSLContext 自动注入可用
+@Service
+public class UserService {
+    private final DSLContext dsl;
+
+    public UserService(DSLContext dsl) {
+        this.dsl = dsl;
+    }
+
+    public List<User> findActiveUsers() {
+        return dsl.selectFrom(USER)
+            .where(USER.STATUS.eq("ACTIVE"))
+            .orderBy(USER.CREATED_AT.desc())
+            .fetchInto(User.class);
+    }
+
+    // 复杂查询示例：JOIN + 聚合
+    public List<OrderSummary> getOrderSummaries(LocalDate startDate) {
+        return dsl.select(
+                USER.ID,
+                USER.NAME,
+                DSL.count.ORDER_ID().as("orderCount"),
+                DSL.sum(ORDER.TOTAL_AMOUNT).as("totalAmount")
+            )
+            .from(USER)
+            .leftJoin(ORDER).on(ORDER.USER_ID.eq(USER.ID))
+            .where(ORDER.CREATED_AT.ge(startDate))
+            .groupBy(USER.ID, USER.NAME)
+            .fetchInto(OrderSummary.class);
+    }
+}
+```
+
+### 3.20 启用 SQL 日志
+
+```yaml
+# application.yml
+cartisan:
+  data-query:
+    jooq:
+      sql-logging: true  # 启用 SQL 执行日志
+```
+
+### 3.21 使用多租户查询
+
+```java
+import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
+
+@Service
+public class UserService {
+    private final DSLContext dsl;
+
+    // 查询时自动添加租户过滤
+    public List<User> listUsers() {
+        return dsl.selectFrom(USER)
+            .where(eqTenantId(USER.TENANT_ID))  // 自动根据当前租户过滤
+            .fetchInto(User.class);
+    }
+
+    // 组合条件查询
+    public List<User> listActiveUsers() {
+        return dsl.selectFrom(USER)
+            .where(
+                USER.STATUS.eq("ACTIVE")
+                .and(eqTenantId(USER.TENANT_ID))  // 租户过滤 + 其他条件
+            )
+            .fetchInto(User.class);
+    }
+
+    // 无租户上下文时，eqTenantId 返回 noCondition()，不影响查询
+    public List<User> listAllUsersForAdmin() {
+        return dsl.selectFrom(USER)
+            .where(eqTenantId(USER.TENANT_ID))  // 管理员可能无租户限制
+            .fetchInto(User.class);
+    }
+}
+```
+
+### 3.22 jOOQ 代码生成配置
+
+在业务项目 `build.gradle.kts` 中添加：
+
+```kotlin
+plugins {
+    id("nu.studer.jooq") version "8.2.1"
+}
+
+dependencies {
+    // jOOQ 代码生成器依赖
+    jooqGenerator("org.jooq:jooq-codegen")
+    jooqGenerator("org.jooq:jooq-meta")
+    jooqGenerator("org.postgresql:postgresql")
+}
+
+jooq {
+    configuration {
+        generator {
+            database {
+                name = "org.jooq.meta.postgres.PostgresDatabase"
+            }
+            generate {
+                isJavaTimeTypes = true  // 使用 java.time 类型
+            }
+            target {
+                packageName = "com.example.db"  // 生成代码的包名
+                directory = "build/generated/jooq"
+            }
+        }
+    }
+}
+
+// 关键：先执行 Flyway 迁移，再生成 jOOQ 代码
+tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
+    dependsOn("flywayMigrate")
+}
+```
+
+生成后使用：
+
+```java
+import static com.example.db.Tables.*;
+
+// 类型安全的 DSL 查询
+List<UserRecord> users = dsl.selectFrom(USER)
+    .where(USER.AGE.gt(18))
+    .fetch();
+```
+
 ---
 
 ## 四、注意事项
@@ -876,6 +1085,113 @@ cartisan:
 | **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
 | **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller，不能直接调用 `StpUtil.login()` |
 | **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
+
+### 4.9 jOOQ / Data-Query
+
+| 规则 | 说明 |
+|------|------|
+| **QUERY-001** | `generateJooq` 任务必须依赖 `flywayMigrate`，确保先生成 schema 再生成代码 |
+| **QUERY-002** | jOOQ 代码生成目录为 `build/generated/jooq`，需在 IDEA 中标记为 Generated Sources Root |
+| **QUERY-003** | `PageQuery` 参数在 compact constructor 中自动校验，调用方无需手动处理边界情况 |
+| **QUERY-004** | `JooqTenantSupport` 需要 `cartisan-security` 可选依赖，无租户上下文时返回 `noCondition()` |
+| **QUERY-005** | jOOQ 版本由 `cartisan-dependencies` BOM 管理，业务项目无需显式指定版本 |
+
+#### QUERY-001：代码生成任务依赖
+
+```kotlin
+// ❌ 错误：缺少任务依赖，可能生成与当前 schema 不一致的代码
+tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
+    // 空配置
+}
+
+// ✅ 正确：先生成 schema，再生成代码
+tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
+    dependsOn("flywayMigrate")
+}
+```
+
+#### QUERY-002：IDEA 识别生成目录
+
+```bash
+# 方式一：通过 Gradle 同步
+./gradlew cleanIdea idea
+
+# 方式二：IDEA 中手动标记
+# 右键 build/generated/jooq → Mark Directory as → Generated Sources Root
+```
+
+#### QUERY-004：JooqTenantSupport 可选依赖
+
+```kotlin
+// cartisan-data-query/build.gradle.kts
+dependencies {
+    // 可选依赖：运行时由使用方提供
+    compileOnly(project(":cartisan-security"))
+}
+```
+
+使用时需引入 security：
+
+```kotlin
+// 业务项目/build.gradle.kts
+dependencies {
+    implementation(project(":cartisan-data-query"))
+    implementation(project(":cartisan-security"))  // 使用 JooqTenantSupport 时需要
+}
+```
+
+---
+
+## 五、CQRS 架构说明
+
+### 5.1 读写分离设计
+
+| 模块 | 职责 | 技术 |
+|------|------|------|
+| **cartisan-data-jpa** | 写侧（Command） | JPA + Hibernate |
+| **cartisan-data-query** | 读侧（Query） | jOOQ + DSL |
+
+### 5.2 典型使用场景
+
+```java
+// 写：使用 JPA 保存聚合根
+@Service
+public class OrderService {
+    private final OrderRepository orderRepository;  // JPA
+
+    public void createOrder(CreateOrderRequest request) {
+        Order order = new Order(request.getCustomerId(), request.getItems());
+        orderRepository.save(order);  // 自动发布领域事件
+    }
+}
+
+// 读：使用 jOOQ 高效查询
+@Service
+public class OrderQueryService {
+    private final DSLContext dsl;  // jOOQ
+
+    public PageResponse<OrderDto> queryOrders(OrderQuery query, PageQuery pageQuery) {
+        // 类型安全的 DSL 查询
+        List<OrderDto> orders = dsl.select(
+                ORDER.ID,
+                ORDER.CUSTOMER_ID,
+                ORDER.STATUS,
+                ORDER.TOTAL_AMOUNT
+            )
+            .from(ORDER)
+            .where(buildConditions(query))
+            .orderBy(OrderConstant)
+            .limit(pageQuery.size())
+            .offset(pageQuery.offset())
+            .fetchInto(OrderDto.class);
+
+        long total = dsl.fetchCount(ORDER);
+        return PageResponse.of(orders, total, pageQuery.page(), pageQuery.size());
+    }
+}
+```
+
+---
 
 #### TOOL-008 / SECURITY-001：Sa-Token 包路径
 
@@ -1019,9 +1335,39 @@ implementation 依赖：
 - Sa-Token 1.45.0（sa-token-spring-boot3-starter）
 ```
 
+### 5.7 cartisan-data-query
+
+```
+api 依赖：
+- cartisan-web
+
+implementation 依赖：
+- jOOQ 3.19.29
+
+compileOnly 依赖：
+- cartisan-security（可选，用于 JooqTenantSupport）
+```
+
 ---
 
-**文档结束** | 如有疑问请参考：
-- [docs/specs/epic-01-core-and-test/](../specs/epic-01-core-and-test/)
-- [docs/specs/epic-02-web-data-jpa-event/](../specs/epic-02-web-data-jpa-event/)
-- [docs/specs/epic-03-security/](../specs/epic-03-security/)
+## 六、参考文档
+
+### 6.1 模块设计
+
+- [cartisan-boot-设计文档.md](../cartisan-boot-设计文档.md)
+- [AI协作开发SOP.md](../sop/AI协作开发SOP.md)
+
+### 6.2 Epic 规格
+
+- [Epic 01: Core + Test](../specs/epic-01-core-and-test/)
+- [Epic 02: Web + Data-JPA + Event](../specs/epic-02-web-data-jpa-event/)
+- [Epic 03: Security](../specs/epic-03-security/)
+- [Epic 04: Data-Query](../specs/epic-04-data-query/)
+
+### 6.3 配置指南
+
+- [jOOQ 代码生成配置指南](./jooq-code-generation.md)
+
+---
+
+**文档结束** | 更新日期：2026-03-15
