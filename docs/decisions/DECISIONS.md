@@ -1208,58 +1208,247 @@
   - 避免异常处理的开销
 - **影响**：02_interface.md 中的设计描述需要更新，实际实现更优
 
-## ADR-049：TenantContextFilter 使用 @Component 显式命名避免冲突
+## ADR-049：F03-05 TenantContext.runWithTenant() 改为 public 访问级别
 
 - **日期**：2026-03-15
-- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
-- **决策**：`TenantContextFilter` 使用 `@Component("cartisanTenantContextFilter")` 显式指定 Bean 名称
+- **状态**：已实施（F03-05）
+- **决策**：`TenantContext.runWithTenant()` 从 package-private 改为 public
 - **理由**：
-  - 默认 Bean 名称是类名首字母小写（`tenantContextFilter`）
-  - 可能与其他库或业务项目的同名 Filter 冲突
-  - 使用模块前缀 `cartisan` 区分
-- **参考**：SKILL.md TOOL-007
-- **替代方案**：使用 `@Configuration + @Bean` 方式注册（由 F03-07 统一处理）
+  1. `TenantContextFilter` 位于 `com.cartisan.security.config` 包
+  2. `TenantContext` 位于 `com.cartisan.security.context` 包
+  3. Java 的 package-private 作用域**不包括子包**，`com.cartisan.security.config` 无法访问 `com.cartisan.security.context` 的 package-private 方法
+  4. 这是 Java 语言设计的特性，不是 bug
+- **包结构**：
+  ```
+  com.cartisan.security
+  ├── context (TenantContext.runWithTenant() package-private → 无法跨子包访问)
+  └── config (TenantContextFilter 需要调用 runWithTenant())
+  ```
+- **影响**：
+  - `runWithTenant()` 成为公开 API，但 JavaDoc 明确标注"业务代码一般不应直接调用"
+  - Filter 可以正常调用，无需创建额外的桥接方法
+- **替代方案**：
+  - 创建桥接方法：增加代码量，无实际收益
+  - 合并包结构：破坏模块化设计
 
-## ADR-050：TenantContextFilter Header 格式错误采用宽容策略
+## ADR-050：F03-05 Lambda 中异常包装为 RuntimeException
 
 - **日期**：2026-03-15
-- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
-- **决策**：`X-Tenant-Id` Header 格式错误时，记录 WARN 日志并忽略，不返回 400 错误
+- **状态**：已实施（F03-05）
+- **决策**：在 `Runnable.run()` 的 lambda 实现中，将 `IOException`/`ServletException` 包装为 `RuntimeException` 抛出
 - **理由**：
-  1. Filter 的职责是"尽力解析"，不是"强制校验"
-  2. 格式错误可能是客户端 bug，不应阻塞业务流程
-  3. 降级到从 Session 读取租户信息
-  4. 业务层可自行实现租户校验（如 `@RequireTenant` 注解）
-- **替代方案**：返回 400 Bad Request（过于严格，影响业务连续性）
-
-## ADR-051：TenantContextFilter Session 租户信息使用固定 key
-
-- **日期**：2026-03-15
-- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
-- **决策**：从 Sa-Token Session 读取租户信息时，使用固定 key `"tenantId"`
-- **理由**：
-  1. YAGNI 原则，当前无可配置需求
-  2. 保持简单，减少配置复杂度
-  3. 后续如需扩展，可在 `AuthenticationService` 层面增加配置属性
-- **替代方案**：提供配置属性 `cartisan.security.tenant.session-key`（过度设计）
-
-## ADR-052：TenantContextFilter 使用 runWithTenant() 作用域模式
-
-- **日期**：2026-03-15
-- **Epic**：Epic 03 Security / Feature F03-05 TenantContextFilter
-- **决策**：Filter 调用 `TenantContext.runWithTenant(tenantId, runnable)` 绑定租户上下文，不使用 `setCurrentTenantId()` + `clear()` 模式
-- **理由**：
-  1. F03-04 TenantContext 已采用 `ScopedValue` 实现，提供 `runWithTenant()` 作用域方法
-  2. 作用域结束自动清理，无需手动 `clear()`，避免忘记清理导致租户串扰
-  3. 与 Virtual Threads 完美兼容
+  1. `Runnable.run()` 不支持抛出 checked exception
+  2. `chain.doFilter()` 声明抛出 `IOException`/`ServletException`
+  3. 必须包装才能在 lambda 中抛出
+  4. 外层 `doFilter()` 方法会捕获并解包，抛出原始异常类型
 - **代码**：
   ```java
-  public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
-      Long tenantId = resolveTenantId((HttpServletRequest) request);
-      TenantContext.runWithTenant(tenantId, () -> {
+  com.cartisan.security.context.TenantContext.runWithTenant(tenantId, () -> {
+      try {
           chain.doFilter(request, response);
-      });
-      // 作用域结束，租户上下文自动清理
+      } catch (IOException | ServletException e) {
+          // 包装为 RuntimeException 以便在 lambda 中抛出
+          // 外层 doFilter 方法会正常处理原始异常类型
+          throw new RuntimeException(e);
+      }
+  });
+  ```
+- **替代方案**：
+  - 自定义函数式接口支持 checked exception：过度设计，增加复杂度
+
+## ADR-051：F03-05 tryParseSession() 捕获所有异常支持单元测试环境
+
+- **日期**：2026-03-15
+- **状态**：已实施（F03-05）
+- **决策**：`tryParseSession()` 使用 catch-all 返回 null，而非仅捕获特定异常
+- **理由**：
+  1. 单元测试环境中没有 Sa-Token 上下文
+  2. `StpUtil.isLogin()` / `StpUtil.getSession()` 会抛出 `NotLoginException`
+  3. 捕获所有异常可以兼容单元测试和集成测试
+  4. Session 解析逻辑由 F03-08 集成测试完整覆盖
+- **代码**：
+  ```java
+  private Long tryParseSession() {
+      try {
+          if (!StpUtil.isLogin()) {
+              return null;
+          }
+          Object sessionValue = StpUtil.getSession().get("tenantId");
+          return convertToLong(sessionValue);
+      } catch (Exception e) {
+          // Sa-Token 上下文不存在或其他异常，返回 null
+          // 这在单元测试中没有 Sa-Token 环境时会触发
+          return null;
+      }
   }
   ```
-- **替代方案**：手动 `setCurrentTenantId()` + `try-finally clear()`（ ScopedValue 不支持此模式）
+- **替代方案**：
+  - 仅捕获 `NotLoginException`：单元测试无法运行，需要完整的 Sa-Token 环境
+
+## ADR-052：F03-06 AuthenticationService 异常体系设计
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-06）
+- **决策**：定义自定义运行时异常体系，不直接暴露 Sa-Token 异常
+- **理由**：
+  1. `AuthenticationService` 是接口，调用方不应依赖 Sa-Token 异常类型
+  2. 换实现时（如从 Sa-Token 换到 Spring Security），异常类型不变
+  3. `GlobalExceptionHandler` 只需映射 cartisan-security 异常，不感知具体实现
+  4. 运行时异常不强制调用方捕获，使用更灵活
+- **异常设计**：
+  ```
+  AuthenticationException (RuntimeException) - 基类
+      ├── NotAuthenticatedException - 未登录（401）
+      └── NotPermissionException - 无权限（403）
+  ```
+- **替代方案**：
+  - 直接暴露 Sa-Token 异常：接口泄漏实现，换实现时调用方需要修改
+  - 检查异常：需要声明 throws，使用繁琐
+
+## ADR-053：F03-06 login() 不校验密码，只接收已验证的 loginId
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-06）
+- **决策**：`login(Long loginId, String username)` 不接收密码，不负责密码校验
+- **理由**：
+  1. 密码校验需要访问用户数据库，属于业务层职责
+  2. 认证服务只负责「给定身份 → 建立会话」，职责单一
+  3. 不同业务场景的校验规则不同（密码、OTP、SSO），保持抽象灵活
+- **代码**：
+  ```java
+  // 业务层：先验证密码，再调用认证服务
+  if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+      throw new BadCredentialsException("Invalid password");
+  }
+  TokenInfo tokenInfo = authService.login(user.getId(), user.getUsername());
+  ```
+- **替代方案**：
+  - 接收密码并校验：认证服务需要依赖用户服务和密码编码器，职责过重
+
+## ADR-054：F03-06 logout(Long) 不校验权限，由调用方负责
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-06）
+- **决策**：`logout(Long loginId)` 实现层不校验权限，只做「使会话失效」
+- **理由**：
+  1. 认证服务不应依赖权限服务，保持职责单一
+  2. 不同业务的权限规则不同（如用户只能踢自己、管理员可踢任何人）
+  3. 调用方已有鉴权逻辑（如 `@RequireRole("admin")`），无需重复校验
+- **代码**：
+  ```java
+  // 业务层：管理员踢人（已鉴权）
+  @RequireRole("admin")
+  public void kickUser(Long userId) {
+      authService.logout(userId);  // 已鉴权，直接调用
+  }
+  ```
+- **替代方案**：
+  - 实现层校验权限：需要注入权限服务，耦合度增加
+
+## ADR-055：F03-06 loginId 类型统一使用 Long，直接传递给 Sa-Token
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-06）
+- **决策**：`AuthenticationService` 接口使用 `Long` 类型 loginId，直接传递给 `StpUtil.login()`
+- **理由**：
+  1. Sa-Token 的 `StpUtil.login(Object id)` 支持 `Object` 类型，内部自动转换为 `String`
+  2. 业务层常用 `Long` 类型作为用户主键 ID
+  3. 无需手动类型转换，减少出错可能
+- **代码**：
+  ```java
+  // Sa-Token 源码验证
+  public static void login(Object id) {
+      login(id, DEFAULT_LOGIN_TYPE);
+  }
+  // 实现：直接传递 Long
+  StpUtil.login(loginId);  // Sa-Token 内部转为 String
+  ```
+- **替代方案**：
+  - 接口使用 `String`：业务层需要转换 `userId.toString()`，增加调用成本
+
+## ADR-056：F03-07 AutoConfiguration 使用主配置 + @Import 结构
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-07 Phase 2）
+- **决策**：`CartisanSecurityAutoConfiguration` 作为唯一入口，通过 `@Import` 导入 `SecurityInterceptorConfig`
+- **理由**：
+  1. `META-INF/spring/...AutoConfiguration.imports` 只声明一个入口，启用/排除简单
+  2. 主类只负责模块级条件和导入，职责单一
+  3. 内部配置类可独立扩展，符合单一职责原则
+  4. Spring Boot AutoConfiguration 最佳实践
+- **结构**：
+  ```java
+  @AutoConfiguration
+  @ConditionalOnWebApplication
+  @ConditionalOnClass(StpUtil.class)
+  @EnableConfigurationProperties(CartisanSecurityProperties.class)
+  @Import(SecurityInterceptorConfig.class)
+  public class CartisanSecurityAutoConfiguration {}
+  ```
+- **替代方案**：
+  - 单类包含所有配置：主类膨胀，难以维护
+  - 多个平级 AutoConfiguration：入口分散，排除时需记多个类名
+
+## ADR-057：F03-07 SecurityInterceptorConfig 注入已有 Bean 而非声明新 Bean
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-07 Phase 2）
+- **决策**：`SecurityInterceptorConfig` 通过构造器注入已有的 `SecurityInterceptor` Bean，不使用 `@Bean` 声明新 Bean
+- **理由**：
+  1. `SecurityInterceptor` 已有 `@Component` 注解，会被自动扫描
+  2. 重复声明会导致 Bean 冲突或重复注册
+  3. 注入方式保持依赖方向清晰：AutoConfiguration → 组件
+- **代码**：
+  ```java
+  @Configuration
+  @ConditionalOnBean(SecurityInterceptor.class)
+  public class SecurityInterceptorConfig implements WebMvcConfigurer {
+      private final SecurityInterceptor securityInterceptor;
+      private final CartisanSecurityProperties properties;
+
+      public SecurityInterceptorConfig(SecurityInterceptor securityInterceptor,
+                                       CartisanSecurityProperties properties) {
+          this.securityInterceptor = securityInterceptor;
+          this.properties = properties;
+      }
+  }
+  ```
+- **替代方案**：
+  - 在 Config 中用 `@Bean` 声明 SecurityInterceptor：与已有 `@Component` 冲突
+
+## ADR-058：F03-07 配置属性使用可变 List 确保绑定兼容
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-07 Phase 2）
+- **决策**：`CartisanSecurityProperties` 的 `pathPatterns` 和 `excludePathPatterns` 使用 `new ArrayList<>(List.of(...))` 初始化
+- **理由**：
+  1. `List.of()` 返回不可变列表
+  2. Spring Boot 配置绑定可能尝试修改列表（如逐项绑定 `path-patterns[0]=...`）
+  3. 不可变列表在某些绑定场景下会抛异常
+- **代码**：
+  ```java
+  private List<String> pathPatterns = new ArrayList<>(List.of("/**"));
+  private List<String> excludePathPatterns = new ArrayList<>(List.of("/error", "/actuator/**"));
+  ```
+- **替代方案**：
+  - 使用 `List.of()`：在某些配置绑定方式下可能失败
+
+## ADR-059：F03-07 拦截器默认应用于所有路径并排除系统路径
+
+- **日期**：2026-03-15
+- **状态**：已设计（F03-07 Phase 2）
+- **决策**：`path-patterns` 默认 `["/**"]`，`exclude-path-patterns` 默认 `["/error", "/actuator/**"]`
+- **理由**：
+  1. 默认 `/**` 不依赖具体路径约定（如 `/api/**`），通用性强
+  2. 拦截器内部按注解放行，无注解的请求不受影响
+  3. 排除 `/error` 和 `/actuator/**` 避免对系统路径做无意义拦截
+  4. 符合多数 Spring Boot 项目的使用习惯
+- **行为**：
+  | 场景 | 行为 |
+  |------|------|
+  | 无注解的 Controller | 拦截器检查后直接放行 |
+  | 有 `@RequireAuth` 的方法 | 调用 `StpUtil.checkLogin()` |
+  | `/error` 请求 | 不经过拦截器 |
+  | `/actuator/**` 请求 | 不经过拦截器 |
+- **替代方案**：
+  - 默认 `/api/**`：依赖路径约定，不符合约定的项目"看起来不生效"

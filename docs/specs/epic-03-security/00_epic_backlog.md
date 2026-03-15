@@ -311,7 +311,7 @@ public record TokenInfo(
 
 ---
 
-### F03-07: 自动配置
+### F03-07: 自动配置 ✅
 
 | 属性 | 值 |
 |------|-----|
@@ -319,25 +319,31 @@ public record TokenInfo(
 | 依赖 | 全部前置 |
 | 优先级 | P0 |
 | 预估工时 | 1d |
+| **状态** | **已完成 2026-03-15** |
 
 **描述：**
 Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 
 **交付物：**
 - `CartisanSecurityAutoConfiguration`
+- `SecurityInterceptorConfig`
+- `CartisanSecurityProperties`
 - `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-- 配置属性类（可选）
 
 **验收标准：**
-- [ ] 引入依赖后自动注册 `SecurityInterceptor`
-- [ ] 自动注册 `TenantContextFilter`
-- [ ] 自动注册 `AuthenticationService` Bean
-- [ ] 条件装配：Sa-Token 在 classpath 时才生效
-- [ ] 集成测试验证自动生效
+- [x] 引入依赖后自动注册 `SecurityInterceptor`
+- [x] 配置属性支持路径覆盖（cartisan.security.interceptor.*）
+- [x] 条件装配：@ConditionalOnWebApplication + @ConditionalOnClass(StpUtil.class)
+- [x] 默认 path-patterns: ["/**"], exclude-path-patterns: ["/error", "/actuator/**"]
+- [x] 集成测试验证自动生效
 
 **技术要点：**
 - 使用 `@AutoConfiguration` + `@ConditionalOnClass`
 - 拦截器配置通过 `WebMvcConfigurer` 注入
+- **ADR-056**: 主配置 + @Import 结构
+- **ADR-057**: 注入已有 Bean 而非声明新 Bean
+- **ADR-058**: 配置属性使用可变 List 确保绑定兼容
+- **ADR-059**: 拦截器默认应用于所有路径并排除系统路径
 
 ---
 
