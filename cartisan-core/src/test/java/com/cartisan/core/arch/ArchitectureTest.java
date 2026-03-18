@@ -175,7 +175,6 @@ class ArchitectureTest {
                 .that().resideInAPackage(STEREOTYPE_PACKAGE)
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(
-                        "org.springframework..",
                         "org.apache..",
                         "com.google..",
                         "com.fasterxml..",
@@ -184,7 +183,7 @@ class ArchitectureTest {
                         "reactor..",
                         "com.tngtech.."
                 )
-                .because("stereotype package should have zero external dependencies (JDK only)");
+                .because("stereotype package should not depend on third-party libraries except org.springframework.stereotype for @Component meta-annotation");
 
         rule.check(productionClasses);
     }
@@ -203,9 +202,10 @@ class ArchitectureTest {
                 .resideInAnyPackage(
                         "java..",
                         "javax..",
-                        "com.cartisan.core.stereotype.."
+                        "com.cartisan.core.stereotype..",
+                        "org.springframework.stereotype.."
                 )
-                .because("stereotype package should only depend on JDK standard library");
+                .because("stereotype package may depend on Spring stereotype annotations (@Component) for Spring Bean registration");
 
         rule.check(productionClasses);
     }

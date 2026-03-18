@@ -7,6 +7,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import org.springframework.stereotype.Component;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -117,6 +119,25 @@ class StereotypeAnnotationsTest {
         assertThat(elementTypes)
                 .as("@Adapter 应允许 TYPE 目标")
                 .containsExactly(ElementType.TYPE);
+    }
+
+    // ========== @Component 元注解验证 ==========
+
+    @ParameterizedTest(name = "{0} 应携带 @Component 元注解，以便 Spring 自动扫描为 Bean")
+    @MethodSource("springBeanStereotypeAnnotations")
+    @DisplayName("DomainService 和 Adapter 应携带 @Component 元注解")
+    void springBeanStereotypes_shouldHaveComponentMetaAnnotation(Class<?> annotation) {
+        Component component = annotation.getAnnotation(Component.class);
+        assertThat(component)
+                .as("注解 %s 应有 @Component 元注解，使 Spring 扫描为 Bean", annotation.getSimpleName())
+                .isNotNull();
+    }
+
+    static Stream<Arguments> springBeanStereotypeAnnotations() {
+        return Stream.of(
+                Arguments.of(Named.of("@DomainService", DomainService.class)),
+                Arguments.of(Named.of("@Adapter", Adapter.class))
+        );
     }
 
     // ========== 枚举完整性验证 ==========

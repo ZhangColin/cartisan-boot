@@ -5,9 +5,13 @@ plugins {
 }
 
 dependencies {
-    // 零外部依赖 - 仅使用 JDK 标准库
+    // Spring stereotype 注解（compileOnly，不打包到 jar，由使用方提供）
+    compileOnly(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
+    compileOnly("org.springframework:spring-context")
 
     // 测试依赖
+    testImplementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
+    testImplementation("org.springframework:spring-context")
     testImplementation("org.assertj:assertj-core:3.26.3")
     testImplementation("com.tngtech.archunit:archunit:1.3.0")
 }
