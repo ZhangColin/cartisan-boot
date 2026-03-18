@@ -4,9 +4,8 @@
  * <p>本模块为 cartisan-boot 项目提供统一的测试工具和基础设施：</p>
  * <ul>
  *   <li>ArchUnit 架构测试规则和配置</li>
- *   <li>Testcontainers 通用测试配置</li>
- *   <li>单元测试基类和工具方法</li>
- *   <li>集成测试支持</li>
+ *   <li>MockMvc 测试基类和断言辅助</li>
+ *   <li>测试数据构建工具</li>
  * </ul>
  *
  * <p>测试依赖：</p>

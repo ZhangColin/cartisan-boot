@@ -36,8 +36,6 @@ dependencies {
     }
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
-    // PostgreSQL JDBC 驱动（集成测试需要）
-    testImplementation("org.postgresql:postgresql")
 }
 
 tasks.withType<Test> {

@@ -7,8 +7,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * API 测试基类。
  *
- * <p>继承 {@link IntegrationTestBase}，叠加 MockMvc 能力，
- * 用于测试 Controller 层。</p>
+ * <p>提供 MockMvc 能力，用于测试 Controller 层。</p>
  *
  * <h3>使用示例</h3>
  * <pre>{@code
@@ -40,7 +39,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * @since 0.1.0
  */
 @AutoConfigureMockMvc
-public abstract class ApiTestBase extends IntegrationTestBase {
+public abstract class ApiTestBase {
 
     @Autowired
     protected MockMvc mvc;
