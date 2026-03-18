@@ -13,7 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 自动配置集成测试，验证所有组件正确装配。
  */
 @SpringBootTest(classes = {
-        SecurityInterceptor.class,
         SecurityInterceptorConfig.class,
         CurrentUserMethodArgumentResolver.class,
         CurrentUserArgumentResolverConfig.class,

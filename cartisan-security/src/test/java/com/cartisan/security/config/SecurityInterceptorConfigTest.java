@@ -3,10 +3,13 @@ package com.cartisan.security.config;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SecurityInterceptorConfigTest {
 
@@ -18,7 +21,9 @@ class SecurityInterceptorConfigTest {
     void setUp() {
         mockInterceptor = new SecurityInterceptor();
         properties = new CartisanSecurityProperties();
-        config = new SecurityInterceptorConfig(mockInterceptor, properties);
+        ObjectProvider<SecurityInterceptor> provider = mock(ObjectProvider.class);
+        when(provider.getObject()).thenReturn(mockInterceptor);
+        config = new SecurityInterceptorConfig(provider, properties);
     }
 
     @Test
@@ -33,7 +38,9 @@ class SecurityInterceptorConfigTest {
         properties.setExcludePathPatterns(List.of("/api/public/**"));
 
         // 当 + 那么
-        config = new SecurityInterceptorConfig(mockInterceptor, properties);
+        ObjectProvider<SecurityInterceptor> provider = mock(ObjectProvider.class);
+        when(provider.getObject()).thenReturn(mockInterceptor);
+        config = new SecurityInterceptorConfig(provider, properties);
 
         assertThat(config).isNotNull();
     }

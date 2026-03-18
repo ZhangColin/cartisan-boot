@@ -6,7 +6,6 @@ import com.cartisan.security.annotation.RequirePermission;
 import com.cartisan.security.annotation.RequireRole;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -26,7 +25,6 @@ import java.lang.reflect.Method;
  * 注解优先级：方法注解优先于类注解。
  * 鉴权顺序：@RequireAuth → @RequireRole → @RequirePermission（AND 逻辑）
  */
-@Component
 public class SecurityInterceptor implements HandlerInterceptor {
 
     @Override
