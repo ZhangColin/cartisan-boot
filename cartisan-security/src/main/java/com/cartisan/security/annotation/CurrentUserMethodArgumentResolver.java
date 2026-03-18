@@ -3,7 +3,6 @@ package com.cartisan.security.annotation;
 import com.cartisan.security.context.SecurityContext;
 import cn.dev33.satoken.stp.StpUtil;
 import org.springframework.core.MethodParameter;
-import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
@@ -22,7 +21,6 @@ import java.util.Optional;
  *
  * @since 0.3.0
  */
-@Component
 public class CurrentUserMethodArgumentResolver implements HandlerMethodArgumentResolver {
 
     @Override
