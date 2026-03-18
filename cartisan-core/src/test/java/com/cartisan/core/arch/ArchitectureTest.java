@@ -163,7 +163,7 @@ class ArchitectureTest {
     // ========== stereotype 包架构规则 ==========
 
     /**
-     * 规则 S-001：stereotype 包不依赖任何第三方库。
+     * 规则 S-001：stereotype 包不依赖第三方库（org.springframework.stereotype 除外，用于 @Component 元注解）。
      */
     @Test
     void stereotypePackage_shouldNotDependOnAnyThirdPartyLibrary() {
