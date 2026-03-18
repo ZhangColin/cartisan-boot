@@ -8,11 +8,8 @@
 
 **类声明（伪代码）：**
 ```java
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
-@Component("cartisanTenantContextFilter")
+// 无 @Component — 由 CartisanSecurityAutoConfiguration 以 FilterRegistrationBean 注册
 public final class TenantContextFilter implements Filter {
-    // 私有构造函数（Spring 通过 @Component 实例化）
-    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(TenantContextFilter.class);
 
     // 公共方法
@@ -29,10 +26,11 @@ public final class TenantContextFilter implements Filter {
 
 **设计要点：**
 - `final` 类，防止继承
-- `@Component` 注解，Spring 自动扫描注册
-- `@Order` 确保优先执行（在 SecurityInterceptor 之前）
-- Bean 名称显式指定为 `cartisanTenantContextFilter`，避免与其他 Filter 冲突
+- **无 `@Component`** — 由自动配置以 `FilterRegistrationBean`（order = HIGHEST_PRECEDENCE+10）注册
+- `@Order` 移至 `FilterRegistrationBean.setOrder()` 设置
 - 实现 `jakarta.servlet.Filter` 接口
+
+> **【2026-03-19 修订】** 移除 `@Component`。业务项目的组件扫描不覆盖 `com.cartisan.security.*`，Filter 必须由自动配置通过 `FilterRegistrationBean` 声明。
 
 ---
 
@@ -317,20 +315,20 @@ TenantContext.runWithTenant(tenantId, () -> {
 
 ## 技术要点
 
-### 1. 为什么使用 @Component 而非 @Configuration + @Bean
+### 1. 为什么使用 FilterRegistrationBean 而非 @Component
+
+> **【2026-03-19 修订】** 原决策已更新。
 
 | 方案 | 优点 | 缺点 |
 |------|------|------|
-| `@Component` | 简单，自动扫描注册 | 无法条件装配 |
-| `@Configuration + @Bean` | 支持条件装配 | 需要额外配置类 |
+| `@Component` | 简单 | **业务项目扫描不到 `com.cartisan.*`，Bean 不会创建** |
+| `FilterRegistrationBean` in AutoConfiguration | 自包含，条件装配，order 可控 | 需在自动配置中声明 |
 
-**决策：** 使用 `@Component` + `@Order`，简单直接。条件装配由 F03-07 AutoConfiguration 统一处理（可在此处添加 `@ConditionalOnClass` 等）。
+**决策：** 使用 `FilterRegistrationBean`，在 `CartisanSecurityAutoConfiguration` 中以 `@Bean @ConditionalOnMissingBean` 声明，`order = Ordered.HIGHEST_PRECEDENCE + 10`。
 
-### 2. 为什么 Bean 名称显式指定
+### 2. Bean 名称
 
-避免与其他可能存在的 `tenantContextFilter` Bean 冲突，使用模块前缀 `cartisanTenantContextFilter`。
-
-参考 SKILL.md TOOL-007：`@Component` 默认 bean 名称可能与自动配置冲突。
+由 `FilterRegistrationBean` 统一管理，不再需要显式指定 bean 名称。
 
 ### 3. 异常处理策略
 

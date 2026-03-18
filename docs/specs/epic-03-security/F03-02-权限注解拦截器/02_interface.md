@@ -56,7 +56,7 @@ public @interface RequirePermission {
 
 **核心方法签名**：
 ```java
-@Component
+// 无 @Component — 由 SecurityInterceptorConfig 以 @Bean @ConditionalOnMissingBean 声明
 public class SecurityInterceptor implements HandlerInterceptor {
 
     @Override
@@ -65,6 +65,8 @@ public class SecurityInterceptor implements HandlerInterceptor {
                      Object handler) throws Exception;
 }
 ```
+
+> **【2026-03-19 修订】** 移除 `@Component`。业务项目的组件扫描不覆盖 `com.cartisan.security.*`，Bean 必须由自动配置声明。
 
 **前置条件**：无
 

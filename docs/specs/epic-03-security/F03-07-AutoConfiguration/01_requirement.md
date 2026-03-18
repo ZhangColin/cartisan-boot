@@ -1,6 +1,7 @@
 # Feature: F03-07 自动配置 — 需求规格
 
 > **Phase**: Research → Plan → Execute → Review → **Done (2026-03-15)**
+> **修订**: 2026-03-19 — 追加 FR5/FR6/FR7，修正"不依赖组件扫描"缺陷
 > **依赖**: F03-01 至 F03-06（所有前置 Feature）
 > **复杂度**: M
 
@@ -25,6 +26,12 @@ cartisan-security 模块已完成核心组件实现（权限注解、拦截器�
 
 为实现「零配置引入」的目标，需要提供 Spring Boot AutoConfiguration 支持，使得业务项目只需添加 `cartisan-security` 依赖，所有组件自动生效。
 
+**【2026-03-19 修订】自动配置必须自包含，不依赖组件扫描**
+
+原始设计将 `TenantContextFilter`、`SaTokenAuthenticationService`、`SecurityExceptionHandler` 标记为"由 `@Component` 扫描注册"。这一假设在框架被业务项目引用时**完全失效**：业务项目的 `@SpringBootApplication` 只扫描自身包（如 `com.aieducenter`），不会扫描 `com.cartisan.security.*`。
+
+所有 Bean 必须通过自动配置的 `@Bean` 方法声明，不能依赖组件扫描。
+
 ---
 
 ## 目标
@@ -48,11 +55,10 @@ cartisan-security 模块已完成核心组件实现（权限注解、拦截器�
 
 ### 不包含（Out of Scope）
 
-- **Filter 自动注册**：`TenantContextFilter` 已有 `@Component`，会被自动扫描
-- **AuthenticationService 注册**：`SaTokenAuthenticationService` 已有 `@Component`
-- **SecurityExceptionHandler 注册**：已有 `@ControllerAdvice`
 - **CORS 配置**：不属于本次 Feature
 - **多认证实现切换**：当前仅支持 Sa-Token
+
+> **【修订】** 原"不包含"中的三项（TenantContextFilter、SaTokenAuthenticationService、SecurityExceptionHandler）已移入包含范围，见 FR5/FR6/FR7。
 
 ---
 
@@ -84,11 +90,36 @@ cartisan-security 模块已完成核心组件实现（权限注解、拦截器�
 提供 `SecurityInterceptorConfig` 类：
 
 - 实现 `WebMvcConfigurer`
-- **注入**已有的 `SecurityInterceptor` Bean（不声明新的 @Bean）
+- 以 `@Bean @ConditionalOnMissingBean` 声明 `SecurityInterceptor`（**不依赖 `@Component` 扫描**）
 - 从 `CartisanSecurityProperties` 读取路径配置
 - 在 `addInterceptors` 中注册拦截器
 
 ### FR4: AutoConfiguration.imports
+
+### FR5: TenantContextFilter 注册
+
+在 `CartisanSecurityAutoConfiguration` 中以 `FilterRegistrationBean` 声明 `TenantContextFilter`：
+
+- `@Bean @ConditionalOnMissingBean(TenantContextFilter.class)`
+- `order = Ordered.HIGHEST_PRECEDENCE + 10`
+- URL pattern `/*`
+- **`TenantContextFilter` 类本身移除 `@Component` 注解**
+
+### FR6: SaTokenAuthenticationService 注册
+
+在 `CartisanSecurityAutoConfiguration` 中声明：
+
+- `@Bean @ConditionalOnMissingBean(AuthenticationService.class)`
+- **`SaTokenAuthenticationService` 类本身移除 `@Service` 注解**
+- 允许业务项目提供自定义 `AuthenticationService` 实现覆盖默认行为
+
+### FR7: SecurityExceptionHandler 注册
+
+在 `CartisanSecurityAutoConfiguration` 中声明：
+
+- `@Bean @ConditionalOnMissingBean(SecurityExceptionHandler.class)`
+- `SecurityExceptionHandler` 保留 `@ControllerAdvice`（功能注解，Spring MVC 通过 Bean 上的注解识别）
+- **类本身不再依赖 `@Component` 或 `@ControllerAdvice` 的扫描触发**
 
 在 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中声明：
 

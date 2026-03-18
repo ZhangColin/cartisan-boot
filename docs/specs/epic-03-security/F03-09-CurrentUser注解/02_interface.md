@@ -151,11 +151,11 @@ public class CurrentUserArgumentResolverConfig implements WebMvcConfigurer {
     private final CurrentUserMethodArgumentResolver resolver;
 
     /**
-     * 构造器注入 Resolver Bean。
+     * 构造器注入 ObjectProvider（避免与自身 @Bean 方法产生循环依赖）。
      *
-     * @param resolver Resolver 实例（由 @Component 扫描创建）
+     * @param resolverProvider Resolver 的懒加载 Provider
      */
-    public CurrentUserArgumentResolverConfig(CurrentUserMethodArgumentResolver resolver);
+    public CurrentUserArgumentResolverConfig(ObjectProvider<CurrentUserMethodArgumentResolver> resolverProvider);
 
     /**
      * 注册 Resolver 到 MVC 容器。
@@ -172,7 +172,7 @@ public class CurrentUserArgumentResolverConfig implements WebMvcConfigurer {
 | 行为 | 说明 |
 |------|------|
 | 条件装配 | 仅当 `CurrentUserMethodArgumentResolver` 在 classpath 时生效 |
-| Bean 注入 | 通过构造器注入已有的 Resolver Bean（由 `@Component` 扫描） |
+| Bean 注入 | 通过 `ObjectProvider` 注入（避免循环依赖），`@Bean @ConditionalOnMissingBean` 声明 Resolver |
 | 注册顺序 | 添加到解析器链末尾（Spring 默认顺序） |
 
 ---
@@ -283,14 +283,16 @@ public class CartisanSecurityAutoConfiguration {
 
 ### 2. CurrentUserMethodArgumentResolver Bean 定义
 
-**方式**：添加 `@Component` 注解，由组件扫描自动发现
+**方式**：在 `CurrentUserArgumentResolverConfig` 以 `@Bean @ConditionalOnMissingBean` 声明，不依赖 `@Component` 扫描
 
 ```java
-@Component
+// 无 @Component — 由 CurrentUserArgumentResolverConfig 声明
 public class CurrentUserMethodArgumentResolver implements HandlerMethodArgumentResolver {
     // ...
 }
 ```
+
+> **【2026-03-19 修订】** 移除 `@Component`。业务项目扫描不到 `com.cartisan.security.*`，Bean 必须由自动配置声明。
 
 ### 3. 执行时序图
 
@@ -409,16 +411,19 @@ class CurrentUserIntegrationTest extends AbstractSecurityIntegrationTest {
 2. 条件装配更灵活：可独立控制是否启用
 3. 易于维护：未来添加更多 Resolver 时不会让 `SecurityInterceptorConfig` 臃肿
 
-### 决策 2：为什么使用 @Component 而非 @Bean 手动注册
+### 决策 2：为什么使用 @Bean 而非 @Component
+
+> **【2026-03-19 修订】** 原决策已反转。
 
 **问题**：Resolver Bean 应该通过 `@Component` 扫描还是 `@Bean` 手动注册？
 
-**方案**：使用 `@Component` 注解，由组件扫描自动发现。
+**方案**：在 `CurrentUserArgumentResolverConfig` 以 `@Bean @ConditionalOnMissingBean` 手动注册。
 
 **理由**：
-1. 与 `SecurityInterceptor` 的注册方式一致（参见 ADR-058：注入已有 Bean）
-2. 配置类通过构造器注入已有的 Bean，符合依赖注入原则
-3. 便于测试：可直接 `new` 创建实例进行单元测试
+1. 业务项目的 `@SpringBootApplication` 扫描自身包（如 `com.aieducenter`），不扫描 `com.cartisan.security.*`
+2. 使用 `@Component` 会导致 Bean 无法被创建，功能完全失效
+3. `@Bean @ConditionalOnMissingBean` 允许业务项目替换默认实现
+4. 便于测试：`CurrentUserArgumentResolverConfig` 使用 `ObjectProvider` 注入，避免循环依赖
 
 ### 决策 3：为什么不支持 @CurrentUser String username
 
