@@ -10,8 +10,6 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.Ordered;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
@@ -40,8 +38,7 @@ import java.io.IOException;
  *
  * @since 0.3.0
  */
-@Component("cartisanTenantContextFilter")
-public final class TenantContextFilter implements Filter, Ordered {
+public final class TenantContextFilter implements Filter {
 
     private static final Logger log = LoggerFactory.getLogger(TenantContextFilter.class);
 
@@ -75,11 +72,6 @@ public final class TenantContextFilter implements Filter, Ordered {
     @Override
     public void destroy() {
         // 无销毁逻辑
-    }
-
-    @Override
-    public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE + 10;
     }
 
     /**

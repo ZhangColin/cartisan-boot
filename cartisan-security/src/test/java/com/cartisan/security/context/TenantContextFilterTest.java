@@ -341,11 +341,11 @@ class TenantContextFilterTest {
     class OrderTests {
 
         @Test
-        @DisplayName("AC12: Filter 有 @Order 注解或实现 Ordered 接口")
-        void given_filterClass_when_checkOrder_then_implementsOrdered() {
-            // Given & When & Then
-            assertThat(filter).isInstanceOf(Ordered.class);
-            assertThat(filter.getOrder()).isEqualTo(Ordered.HIGHEST_PRECEDENCE + 10);
+        @DisplayName("AC12: Filter 的顺序由 FilterRegistrationBean 管理，值为 HIGHEST_PRECEDENCE+10")
+        void given_filterClass_when_checkOrder_then_orderManagedByRegistrationBean() {
+            // Order is now set via FilterRegistrationBean in CartisanSecurityAutoConfiguration.
+            // TenantContextFilter itself no longer implements Ordered.
+            assertThat(filter).isNotInstanceOf(Ordered.class);
         }
     }
 
