@@ -17,9 +17,9 @@ import java.time.LocalDateTime;
  * <p>实体继承此基类后，JPA Auditing 会自动填充审计字段：</p>
  * <ul>
  *   <li>{@code createdAt} — 首次保存时自动填充</li>
- *   <li>{@code lastModifiedDate} — 每次保存时自动更新</li>
+ *   <li>{@code updatedAt} — 每次保存时自动更新</li>
  *   <li>{@code createdBy} — 首次保存时从 {@code AuditorAware} 获取</li>
- *   <li>{@code lastModifiedBy} — 每次保存时从 {@code AuditorAware} 获取</li>
+ *   <li>{@code updatedBy} — 每次保存时从 {@code AuditorAware} 获取</li>
  * </ul>
  *
  * <h3>使用示例</h3>
@@ -48,8 +48,8 @@ public abstract class Auditable {
      * 最后修改时间，每次保存时自动更新。
      */
     @LastModifiedDate
-    @Column(name = "last_modified_date", nullable = false)
-    private LocalDateTime lastModifiedDate;
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     /**
      * 创建人，首次持久化时从 AuditorAware 获取。
@@ -66,22 +66,22 @@ public abstract class Auditable {
      * <p>若容器中不存在 AuditorAware Bean，此字段保持 null。</p>
      */
     @LastModifiedBy
-    @Column(name = "last_modified_by", length = 100)
-    private String lastModifiedBy;
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public LocalDateTime getLastModifiedDate() {
-        return lastModifiedDate;
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     public String getCreatedBy() {
         return createdBy;
     }
 
-    public String getLastModifiedBy() {
-        return lastModifiedBy;
+    public String getUpdatedBy() {
+        return updatedBy;
     }
 }

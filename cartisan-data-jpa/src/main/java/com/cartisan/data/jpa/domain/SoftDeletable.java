@@ -83,13 +83,13 @@ public abstract class SoftDeletable extends Auditable {
     }
 
     /**
-     * 设置软删除标记。
+     * 设置软删除标记（仅供子类调用）。
      *
      * <p>通常不需要手动调用，通过 {@code repository.delete(entity)} 触发。</p>
      *
      * @param deleted 删除标记
      */
-    public void setDeleted(boolean deleted) {
+    protected void setDeleted(boolean deleted) {
         this.deleted = deleted;
     }
 }

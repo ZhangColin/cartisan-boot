@@ -2,6 +2,7 @@ package com.cartisan.data.jpa.id;
 
 import java.time.Instant;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * TSID（Time-Sorted ID）生成器。
@@ -43,33 +44,35 @@ public final class TsidGenerator {
     /** 时间戳掩码：42 位 */
     private static final long TIMESTAMP_MASK = 0x3FFFFFFFFFFL;
 
-    /** 随机数源 */
-    private final Random random;
+    /**
+     * 固定随机数源，仅测试时使用。null 表示每次 generate() 时使用 ThreadLocalRandom.current()。
+     */
+    private final Random fixedRandom;
 
     /**
      * 私有构造函数。
      *
-     * @param random 随机数生成器
+     * @param fixedRandom 固定随机数生成器（测试用），null 表示使用 ThreadLocalRandom
      */
-    private TsidGenerator(Random random) {
-        this.random = random;
+    private TsidGenerator(Random fixedRandom) {
+        this.fixedRandom = fixedRandom;
     }
 
     /**
      * 创建默认的 TsidGenerator 实例。
      *
-     * <p>使用 {@link java.util.concurrent.ThreadLocalRandom} 作为随机数源。</p>
+     * <p>生成时每次调用 {@link ThreadLocalRandom#current()}，线程安全。</p>
      *
      * @return 新的 TsidGenerator 实例
      */
     public static TsidGenerator newInstance() {
-        return new TsidGenerator(java.util.concurrent.ThreadLocalRandom.current());
+        return new TsidGenerator(null);
     }
 
     /**
      * 创建指定随机数源的 TsidGenerator 实例（测试用）。
      *
-     * @param random 随机数生成器（用于测试时固定 seed）
+     * @param random 固定随机数生成器（用于测试时固定 seed）
      * @return 新的 TsidGenerator 实例
      */
     public static TsidGenerator withRandom(Random random) {
@@ -90,11 +93,12 @@ public final class TsidGenerator {
         // 2. 时间戳部分按 42 位掩码截断（避免溢出）
         long timestampPart = currentMillis & TIMESTAMP_MASK;
 
-        // 3. 生成 22 位随机数
-        int random = this.random.nextInt(MAX_RANDOM + 1);
+        // 3. 生成 22 位随机数：默认使用 ThreadLocalRandom（每次调用 current()，线程安全）
+        Random rng = (fixedRandom != null) ? fixedRandom : ThreadLocalRandom.current();
+        int randomPart = rng.nextInt(MAX_RANDOM + 1);
 
         // 4. 组合：时间戳左移 22 位 + 随机数
-        return (timestampPart << RANDOM_BITS) | random;
+        return (timestampPart << RANDOM_BITS) | randomPart;
     }
 
     /**

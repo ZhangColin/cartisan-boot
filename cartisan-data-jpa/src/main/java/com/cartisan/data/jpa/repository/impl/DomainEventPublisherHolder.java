@@ -1,6 +1,8 @@
 package com.cartisan.data.jpa.repository.impl;
 
 import com.cartisan.event.DomainEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -23,6 +25,8 @@ import java.util.Objects;
  * }</pre>
  */
 public final class DomainEventPublisherHolder {
+
+    private static final Logger log = LoggerFactory.getLogger(DomainEventPublisherHolder.class);
 
     private static volatile DomainEventPublisher publisher;
 

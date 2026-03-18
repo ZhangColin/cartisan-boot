@@ -126,68 +126,21 @@ public final class TenantContextFilter implements Filter, Ordered {
 
     /**
      * 从 Sa-Token Session 读取租户 ID。
-     * <p>
-     * 支持两种模式：
-     * <ol>
-     *   <li>正常模式：Sa-Token 上下文已初始化，直接通过 StpUtil 获取</li>
-     *   <li>测试模式：上下文未初始化，从请求头读取 token 后手动查询 Session</li>
-     * </ol>
      *
-     * @return 租户 ID，用户未登录、Session 无租户信息或 Sa-Token 未初始化时返回 null
+     * @return 租户 ID，用户未登录或 Session 无租户信息时返回 null
      */
     private Long parseTenantIdFromSession() {
         try {
-            // 优先尝试正常模式（Sa-Token 上下文已初始化）
-            if (StpUtil.isLogin()) {
-                Object sessionTenantId = StpUtil.getSession().get(TENANT_ID_SESSION_KEY);
-                if (sessionTenantId != null) {
-                    try {
-                        Long tenantId = Long.parseLong(sessionTenantId.toString());
-                        log.debug("Resolved tenantId: {} from session (context mode)", tenantId);
-                        return tenantId;
-                    } catch (NumberFormatException e) {
-                        log.warn("Invalid tenantId in session: {}", sessionTenantId);
-                    }
-                }
+            if (!StpUtil.isLogin()) {
                 return null;
             }
-        } catch (cn.dev33.satoken.exception.SaTokenContextException e) {
-            // 上下文未初始化，继续尝试测试模式
-            log.trace("SaToken context not initialized, trying token-based lookup");
-        }
-
-        // 测试模式：从当前请求读取 token 并手动查询 Session
-        // 这处理 MockMvc 测试场景，SaServletFilter 未执行的情况
-        try {
-            HttpServletRequest request = getCurrentRequest();
-            if (request == null) {
-                return null;
-            }
-
-            String token = extractSaToken(request);
-            if (token == null || token.isBlank()) {
-                return null;
-            }
-
-            // 通过 token 直接获取 loginId（不依赖已初始化的上下文）
-            Object loginId = StpUtil.getLoginIdByToken(token);
-            if (loginId == null) {
-                return null;
-            }
-
-            // 通过 loginId 获取 Session 并读取 tenantId
-            Object sessionTenantId = StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
+            Object sessionTenantId = StpUtil.getSession().get(TENANT_ID_SESSION_KEY);
             if (sessionTenantId == null) {
                 return null;
             }
-
             Long tenantId = Long.parseLong(sessionTenantId.toString());
-            log.debug("Resolved tenantId: {} from session (token mode)", tenantId);
+            log.debug("Resolved tenantId: {} from session", tenantId);
             return tenantId;
-
-        } catch (cn.dev33.satoken.exception.NotLoginException e) {
-            log.trace("Token invalid or session expired: {}", e.getMessage());
-            return null;
         } catch (NumberFormatException e) {
             log.warn("Invalid tenantId in session: {}", e.getMessage());
             return null;
@@ -195,51 +148,5 @@ public final class TenantContextFilter implements Filter, Ordered {
             log.warn("Unexpected error reading tenant from session: {}", e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * 获取当前 HTTP 请求。
-     * <p>
-     * 使用 RequestContextHolder 获取当前线程绑定的请求。
-     * </p>
-     *
-     * @return 当前请求，无法获取时返回 null
-     */
-    private HttpServletRequest getCurrentRequest() {
-        try {
-            org.springframework.web.context.request.RequestAttributes attrs =
-                org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
-            if (attrs instanceof org.springframework.web.context.request.ServletRequestAttributes sra) {
-                return sra.getRequest();
-            }
-        } catch (Exception e) {
-            log.trace("Unable to get current request from RequestContextHolder: {}", e.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * 从请求中提取 Sa-Token。
-     * <p>
-     * 按优先级从 header 或 parameter 中提取。
-     * </p>
-     *
-     * @param request HTTP 请求
-     * @return token 值，不存在时返回 null
-     */
-    private String extractSaToken(HttpServletRequest request) {
-        // 1. 从 header 读取
-        String token = request.getHeader("satoken");
-        if (token != null && !token.isBlank()) {
-            return token;
-        }
-
-        // 2. 从 parameter 读取
-        token = request.getParameter("satoken");
-        if (token != null && !token.isBlank()) {
-            return token;
-        }
-
-        return null;
     }
 }

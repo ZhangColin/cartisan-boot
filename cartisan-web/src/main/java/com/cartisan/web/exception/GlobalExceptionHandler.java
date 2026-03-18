@@ -103,25 +103,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.validationError(errors));
     }
 
-    // ========== 权限异常 ==========
-
-    /**
-     * 处理 IllegalArgumentException 作为权限拒绝示例。
-     * 实际项目中应使用 Spring Security 的 AccessDeniedException。
-     */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(IllegalArgumentException ex) {
-        if (ex.getMessage() != null && ex.getMessage().contains("Access denied")) {
-            log.warn("Access denied: {}", ex.getMessage());
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error(BaseCodeMessage.FORBIDDEN));
-        }
-        // 其他 IllegalArgumentException 作为通用 400 处理
-        log.warn("Bad request: {}", ex.getMessage());
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(400, ex.getMessage()));
-    }
-
     // ========== HTTP 方法/媒体类型异常 ==========
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

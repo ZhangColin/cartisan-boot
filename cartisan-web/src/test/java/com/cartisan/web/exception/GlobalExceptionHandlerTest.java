@@ -77,16 +77,6 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.errors").isArray());
     }
 
-    // ========== AC3: AccessDeniedException 返回 403 ==========
-
-    @Test
-    @DisplayName("给定 AccessDeniedException - 验证返回 403")
-    void given_accessDeniedException_when_handle_then_return_403() throws Exception {
-        mockMvc.perform(get("/test/access-denied"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(403));
-    }
-
     // ========== AC4: HttpRequestMethodNotSupportedException 返回 405 ==========
 
     @Test

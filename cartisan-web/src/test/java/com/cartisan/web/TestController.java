@@ -10,7 +10,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.file.AccessDeniedException;
 
 /**
  * 测试用 Controller，用于触发各种异常以验证 GlobalExceptionHandler。
@@ -38,11 +37,6 @@ public class TestController {
     @GetMapping("/validate-request-param")
     public void validateRequestParam(@RequestParam @Email String email) {
         // Spring 会先校验，校验失败抛出 ConstraintViolationException
-    }
-
-    @GetMapping("/access-denied")
-    public void throwAccessDenied() {
-        throw new IllegalArgumentException("Access denied");
     }
 
     @GetMapping("/missing-parameter")

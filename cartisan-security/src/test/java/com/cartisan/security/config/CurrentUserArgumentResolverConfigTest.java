@@ -3,11 +3,14 @@ package com.cartisan.security.config;
 import com.cartisan.security.annotation.CurrentUserMethodArgumentResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * CurrentUserArgumentResolverConfig 单元测试。
@@ -17,10 +20,13 @@ class CurrentUserArgumentResolverConfigTest {
     private CurrentUserMethodArgumentResolver mockResolver;
     private CurrentUserArgumentResolverConfig config;
 
+    @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
         mockResolver = new CurrentUserMethodArgumentResolver();
-        config = new CurrentUserArgumentResolverConfig(mockResolver);
+        ObjectProvider<CurrentUserMethodArgumentResolver> provider = mock(ObjectProvider.class);
+        when(provider.getObject()).thenReturn(mockResolver);
+        config = new CurrentUserArgumentResolverConfig(provider);
     }
 
     @Test

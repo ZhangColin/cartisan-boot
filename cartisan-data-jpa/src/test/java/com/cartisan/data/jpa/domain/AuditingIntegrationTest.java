@@ -62,20 +62,20 @@ class AuditingIntegrationTest {
 
         // Then: 审计字段被自动填充
         assertThat(saved.getCreatedAt()).isNotNull();
-        assertThat(saved.getLastModifiedDate()).isNotNull();
+        assertThat(saved.getUpdatedAt()).isNotNull();
         assertThat(saved.getCreatedBy()).isEqualTo("test-user");
-        assertThat(saved.getLastModifiedBy()).isEqualTo("test-user");
+        assertThat(saved.getUpdatedBy()).isEqualTo("test-user");
     }
 
     // ==================== AC2: 更新时时间/人字段自动更新 ====================
     @Test
     @Transactional
-    void given_existingEntity_when_update_then_lastModifiedFieldsUpdated() {
+    void given_existingEntity_when_update_then_updatedAtFieldsUpdated() {
         // Given: 创建并保存一个实体
         TestAuditableEntity entity = new TestAuditableEntity();
         entity.setName("Original Name");
         TestAuditableEntity saved = repository.saveAndFlush(entity);
-        LocalDateTime originalLastModifiedDate = saved.getLastModifiedDate();
+        LocalDateTime originalLastModifiedDate = saved.getUpdatedAt();
 
         // 切换审计人
         testAuditorAware.setCurrentAuditor("updater-user");
@@ -87,11 +87,11 @@ class AuditingIntegrationTest {
 
         TestAuditableEntity updated = repository.findById(saved.getId()).orElseThrow();
 
-        // Then: createdAt/createdBy 保持不变，lastModifiedDate/lastModifiedBy 被更新
+        // Then: createdAt/createdBy 保持不变，updatedAt/updatedBy 被更新
         assertThat(updated.getCreatedAt()).isEqualTo(saved.getCreatedAt());
         assertThat(updated.getCreatedBy()).isEqualTo("test-user");
-        assertThat(updated.getLastModifiedBy()).isEqualTo("updater-user");
-        assertThat(updated.getLastModifiedDate()).isAfter(originalLastModifiedDate);
+        assertThat(updated.getUpdatedBy()).isEqualTo("updater-user");
+        assertThat(updated.getUpdatedAt()).isAfter(originalLastModifiedDate);
     }
 
     // ==================== AC6-1: 新建实体审计字段初始为 null ====================
@@ -102,9 +102,9 @@ class AuditingIntegrationTest {
 
         // When & Then: 审计字段为 null
         assertThat(entity.getCreatedAt()).isNull();
-        assertThat(entity.getLastModifiedDate()).isNull();
+        assertThat(entity.getUpdatedAt()).isNull();
         assertThat(entity.getCreatedBy()).isNull();
-        assertThat(entity.getLastModifiedBy()).isNull();
+        assertThat(entity.getUpdatedBy()).isNull();
     }
 
     // ==================== AC6-4: AuditorAware 返回 null ====================
@@ -121,9 +121,9 @@ class AuditingIntegrationTest {
 
         // Then: 时间字段被填充，by 字段保持 null
         assertThat(saved.getCreatedAt()).isNotNull();
-        assertThat(saved.getLastModifiedDate()).isNotNull();
+        assertThat(saved.getUpdatedAt()).isNotNull();
         assertThat(saved.getCreatedBy()).isNull();
-        assertThat(saved.getLastModifiedBy()).isNull();
+        assertThat(saved.getUpdatedBy()).isNull();
     }
 
 }

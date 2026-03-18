@@ -3,6 +3,8 @@ package com.cartisan.data.jpa.repository.impl;
 import com.cartisan.core.domain.AbstractAggregateRoot;
 import com.cartisan.core.domain.AggregateRoot;
 import com.cartisan.core.domain.DomainEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 
@@ -21,6 +23,8 @@ import java.util.List;
  */
 public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializable>
         extends SimpleJpaRepository<T, ID> {
+
+    private static final Logger log = LoggerFactory.getLogger(BaseRepositoryImpl.class);
 
     /**
      * 创建 Repository 实例（由 Spring Data JPA 调用）。
@@ -61,11 +65,22 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
      * @param entity 可能包含事件的实体
      */
     private void publishDomainEvents(T entity) {
-        var publisher = DomainEventPublisherHolder.getPublisher();
-        if (entity instanceof AbstractAggregateRoot<?> aggregateRoot && publisher != null) {
-            List<DomainEvent> events = aggregateRoot.getDomainEvents();
-            events.forEach(publisher::publish);
-            aggregateRoot.clearDomainEvents();
+        if (!(entity instanceof AbstractAggregateRoot<?> aggregateRoot)) {
+            return;
         }
+        List<DomainEvent> events = aggregateRoot.getDomainEvents();
+        if (events.isEmpty()) {
+            return;
+        }
+        var publisher = DomainEventPublisherHolder.getPublisher();
+        if (publisher == null) {
+            log.warn("DomainEventPublisher not configured: {} domain event(s) on {} will be dropped. " +
+                     "Ensure cartisan-event is on the classpath and CartisanEventAutoConfiguration is active.",
+                     events.size(), entity.getClass().getSimpleName());
+            aggregateRoot.clearDomainEvents();
+            return;
+        }
+        events.forEach(publisher::publish);
+        aggregateRoot.clearDomainEvents();
     }
 }

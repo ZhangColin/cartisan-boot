@@ -45,9 +45,9 @@ class SoftDeletableTest {
 
         // When & Then: 验证继承了 Auditable 的审计字段
         assertThat(entity.getCreatedAt()).isNull();
-        assertThat(entity.getLastModifiedDate()).isNull();
+        assertThat(entity.getUpdatedAt()).isNull();
         assertThat(entity.getCreatedBy()).isNull();
-        assertThat(entity.getLastModifiedBy()).isNull();
+        assertThat(entity.getUpdatedBy()).isNull();
     }
 
     /**
