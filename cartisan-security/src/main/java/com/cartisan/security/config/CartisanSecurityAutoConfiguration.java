@@ -65,6 +65,18 @@ public class CartisanSecurityAutoConfiguration {
     }
 
     /**
+     * 注册 Sa-Token 异常处理器。
+     * <p>
+     * {@link SecurityExceptionHandler} 上的 {@code @ControllerAdvice} 由 Spring MVC
+     * 在 Bean 注册后自动识别，无需依赖组件扫描。
+     */
+    @Bean
+    @ConditionalOnMissingBean(SecurityExceptionHandler.class)
+    public SecurityExceptionHandler securityExceptionHandler() {
+        return new SecurityExceptionHandler();
+    }
+
+    /**
      * 注册默认 {@link AuthenticationService} 实现。
      * <p>
      * 若业务项目已提供自定义 {@link AuthenticationService}，则此方法不执行。
