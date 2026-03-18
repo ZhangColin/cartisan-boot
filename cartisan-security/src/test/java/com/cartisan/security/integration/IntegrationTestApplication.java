@@ -6,14 +6,11 @@ import org.springframework.context.annotation.Import;
 /**
  * 集成测试专用启动类。
  * <p>
- * 扫描 cartisan-security 模块的所有组件 + 测试用 Controller，
- * 确保拦截器、Filter、异常处理等完整加载。
+ * 仅扫描测试包，模拟真实业务项目使用方式（不扫描 com.cartisan.security.*）。
+ * 所有安全组件由 CartisanSecurityAutoConfiguration 自动配置声明。
  * </p>
  */
-@SpringBootApplication(scanBasePackages = {
-    "com.cartisan.security",              // 模块内所有组件
-    "com.cartisan.security.integration"   // 测试用 Controller
-})
+@SpringBootApplication(scanBasePackages = "com.cartisan.security.integration")
 @Import(SaTokenTestConfig.class)
 public class IntegrationTestApplication {
     // 无需额外配置，依赖 Spring Boot 自动装配
