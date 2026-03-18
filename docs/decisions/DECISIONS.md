@@ -1655,3 +1655,20 @@
   }
   ```
 - **影响**：与 cartisan-security 保持一致，确保编译和测试都能使用 ScopedValue
+
+## ADR-015：@CurrentUser Resolver 通过 StpUtil.checkLogin() 抛出 NotLoginException
+
+- **日期**：2026-03-18
+- **状态**：已实施
+- **决策**：`CurrentUserMethodArgumentResolver` 中未登录时调用 `StpUtil.checkLogin()` 抛出 `NotLoginException`
+- **理由**：
+  - 与 `SecurityInterceptor` 保持一致（第 48 行同样使用 `StpUtil.checkLogin()`）
+  - Sa-Token 的 `NotLoginException` 构造函数需要 3 个参数（loginType, token, message），直接构造复杂
+  - `StpUtil.checkLogin()` 是 Sa-Token 推荐的抛出异常方式，确保异常包含完整上下文
+  - 异常仍由 `SecurityExceptionHandler` 统一处理为 401 响应
+- **替代方案**：
+  - 直接 `throw new NotLoginException(null, null, null)` - 参数语义不清晰
+  - 在 `SecurityContext` 中添加 `requireLogin()` 方法 - 增加额外抽象层，价值有限
+- **影响**：
+  - `@CurrentUser Long userId` 参数未登录时抛出 `NotLoginException` → 401
+  - 与 `@RequireAuth` 注解行为一致

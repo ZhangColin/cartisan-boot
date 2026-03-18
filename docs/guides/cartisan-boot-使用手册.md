@@ -1,6 +1,6 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.4 | **日期**：2026-03-15
+> **版本**：v0.5 | **日期**：2026-03-18
 > **基于 Epic**：Epic 01 + Epic 02 + Epic 03 + Epic 04 - Core + Test + Web + Data-JPA + Event + Security + Data-Query
 
 ---
@@ -63,6 +63,7 @@
 | **多租户上下文** | `TenantContext` 获取租户 ID（Header > Session 优先级） |
 | **租户过滤器** | `TenantContextFilter` 解析租户 ID，兼容 Virtual Threads |
 | **认证服务** | `AuthenticationService` 接口 + Sa-Token 实现 |
+| **@CurrentUser 注解** | Controller 方法参数直接注入当前用户 ID |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ### 1.7 cartisan-data-query 模块
@@ -273,7 +274,22 @@
 | `cartisan.security.interceptor.path-patterns` | `List<String>` | `["/**"]` | 拦截器生效路径 |
 | `cartisan.security.interceptor.exclude-path-patterns` | `List<String>` | `["/error", "/actuator/**"]` | 排除路径 |
 
-### 2.22 PageQuery（com.cartisan.data.query.page）
+### 2.22 @CurrentUser 注解（com.cartisan.security.annotation）
+
+| 注解/类 | 目标/方法 | 说明 |
+|---------|----------|------|
+| `@CurrentUser` | PARAMETER | Controller 方法参数注解，注入当前用户 ID |
+| `CurrentUserMethodArgumentResolver` | `supportsParameter()` | 判断参数是否支持解析（有注解 + 类型为 Long 或 Optional&lt;Long&gt;） |
+| | `resolveArgument()` | 从 SecurityContext 获取用户 ID 并注入 |
+| `CurrentUserArgumentResolverConfig` | `addArgumentResolvers()` | 注册 Resolver 到 Spring MVC |
+
+**支持的参数类型**：
+- `@CurrentUser Long userId` — 必需登录，未登录抛 `NotLoginException`（401）
+- `@CurrentUser Optional<Long> userId` — 可选登录，未登录返回 `Optional.empty()`
+
+**执行时序**：Filter → Interceptor（@RequireAuth 检查）→ 参数解析（@CurrentUser）→ Controller
+
+### 2.23 PageQuery（com.cartisan.data.query.page）
 
 | 字段/方法 | 类型/返回值 | 说明 |
 |-----------|------------|------|
@@ -825,7 +841,67 @@ public class AuthController {
 }
 ```
 
-### 3.17 配置拦截器路径
+### 3.17 使用 @CurrentUser 注解
+
+```java
+// 必需登录场景
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    // 方式一：只用 @CurrentUser
+    @GetMapping("/profile")
+    public ApiResponse<UserProfile> getProfile(@CurrentUser Long userId) {
+        // 未登录会在参数解析时抛 NotLoginException → 401
+        return ApiResponse.ok(userService.getProfile(userId));
+    }
+
+    // 方式二：@RequireAuth + @CurrentUser（推荐，语义更明确）
+    @RequireAuth
+    @GetMapping("/profile")
+    public ApiResponse<UserProfile> getProfile(@CurrentUser Long userId) {
+        // 未登录会在拦截器阶段被拦截，不会到达参数解析
+        return ApiResponse.ok(userService.getProfile(userId));
+    }
+
+    @PutMapping("/profile")
+    public ApiResponse<Void> updateProfile(@CurrentUser Long userId,
+                                           @RequestBody UpdateProfileCommand cmd) {
+        userService.updateProfile(userId, cmd);
+        return ApiResponse.ok();
+    }
+}
+
+// 可选登录场景（允许匿名访问）
+@RestController
+@RequestMapping("/api/preferences")
+public class PreferencesController {
+
+    @GetMapping
+    public ApiResponse<Preferences> getPreferences(@CurrentUser Optional<Long> userId) {
+        if (userId.isPresent()) {
+            return ApiResponse.ok(preferencesService.getForUser(userId.get()));
+        }
+        return ApiResponse.ok(preferencesService.getDefault());
+    }
+
+    // 简化写法
+    @GetMapping("/widgets")
+    public ApiResponse<Widgets> getWidgets(@CurrentUser Optional<Long> userId) {
+        return ApiResponse.ok(widgetsService.getWidgets(userId.orElse(null)));
+    }
+}
+```
+
+**@CurrentUser 与 @RequireAuth 的区别**：
+
+| 注解 | 作用时机 | 适用场景 |
+|------|---------|---------|
+| `@RequireAuth` | 拦截器阶段 | 整个接口需要登录 |
+| `@CurrentUser Long userId` | 参数解析阶段 | 需要使用 userId，未登录抛异常 |
+| `@CurrentUser Optional<Long> userId` | 参数解析阶段 | 允许匿名访问，已登录可获取 userId |
+
+### 3.18 配置拦截器路径
 
 ```yaml
 # 仅保护 API 路径（默认是 /**）
@@ -851,7 +927,7 @@ cartisan:
         - "/actuator/**"
 ```
 
-### 3.18 使用 PageQuery
+### 3.19 使用 PageQuery
 
 ```java
 @RestController
@@ -883,7 +959,7 @@ public class UserController {
 }
 ```
 
-### 3.19 使用 jOOQ 自动配置
+### 3.20 使用 jOOQ 自动配置
 
 ```java
 // 引入依赖后，DSLContext 自动注入可用
@@ -919,7 +995,7 @@ public class UserService {
 }
 ```
 
-### 3.20 启用 SQL 日志
+### 3.21 启用 SQL 日志
 
 ```yaml
 # application.yml
@@ -929,7 +1005,7 @@ cartisan:
       sql-logging: true  # 启用 SQL 执行日志
 ```
 
-### 3.21 使用多租户查询
+### 3.22 使用多租户查询
 
 ```java
 import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
@@ -964,7 +1040,7 @@ public class UserService {
 }
 ```
 
-### 3.22 jOOQ 代码生成配置
+### 3.23 jOOQ 代码生成配置
 
 在业务项目 `build.gradle.kts` 中添加：
 
@@ -1085,6 +1161,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
 | **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
 | **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller，不能直接调用 `StpUtil.login()` |
 | **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
+| **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常，与 `SecurityInterceptor` 一致 |
 
 ### 4.9 jOOQ / Data-Query
 
@@ -1370,4 +1447,4 @@ compileOnly 依赖：
 
 ---
 
-**文档结束** | 更新日期：2026-03-15
+**文档结束** | 更新日期：2026-03-18
