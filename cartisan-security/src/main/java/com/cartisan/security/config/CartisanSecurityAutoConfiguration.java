@@ -2,6 +2,8 @@ package com.cartisan.security.config;
 
 import cn.dev33.satoken.filter.SaTokenContextFilterForJakartaServlet;
 import cn.dev33.satoken.stp.StpUtil;
+import com.cartisan.security.authentication.AuthenticationService;
+import com.cartisan.security.authentication.SaTokenAuthenticationService;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import com.cartisan.security.context.TenantContextFilter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -60,6 +62,17 @@ public class CartisanSecurityAutoConfiguration {
         registration.addUrlPatterns("/*");
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 5);
         return registration;
+    }
+
+    /**
+     * 注册默认 {@link AuthenticationService} 实现。
+     * <p>
+     * 若业务项目已提供自定义 {@link AuthenticationService}，则此方法不执行。
+     */
+    @Bean
+    @ConditionalOnMissingBean(AuthenticationService.class)
+    public AuthenticationService authenticationService() {
+        return new SaTokenAuthenticationService();
     }
 
     /**

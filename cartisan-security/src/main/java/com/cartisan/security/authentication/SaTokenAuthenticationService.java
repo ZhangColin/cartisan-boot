@@ -1,7 +1,6 @@
 package com.cartisan.security.authentication;
 
 import cn.dev33.satoken.stp.StpUtil;
-import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -14,7 +13,6 @@ import java.util.Objects;
  *
  * @since 0.3.0
  */
-@Service
 public class SaTokenAuthenticationService implements AuthenticationService {
 
     @Override
