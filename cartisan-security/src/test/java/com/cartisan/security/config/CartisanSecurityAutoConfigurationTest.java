@@ -1,5 +1,6 @@
 package com.cartisan.security.config;
 
+import com.cartisan.security.annotation.CurrentUserMethodArgumentResolver;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(classes = {
         SecurityInterceptor.class,
         SecurityInterceptorConfig.class,
+        CurrentUserMethodArgumentResolver.class,
+        CurrentUserArgumentResolverConfig.class,
         CartisanSecurityAutoConfiguration.class
 })
 class CartisanSecurityAutoConfigurationTest {
@@ -23,6 +26,9 @@ class CartisanSecurityAutoConfigurationTest {
 
     @Autowired(required = false)
     private SecurityInterceptor securityInterceptor;
+
+    @Autowired(required = false)
+    private CurrentUserMethodArgumentResolver currentUserMethodArgumentResolver;
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -42,6 +48,17 @@ class CartisanSecurityAutoConfigurationTest {
     @Test
     void given_context_when_getSecurityInterceptorConfig_then_exists() {
         SecurityInterceptorConfig config = applicationContext.getBean(SecurityInterceptorConfig.class);
+        assertThat(config).isNotNull();
+    }
+
+    @Test
+    void given_context_when_getCurrentUserMethodArgumentResolver_then_exists() {
+        assertThat(currentUserMethodArgumentResolver).isNotNull();
+    }
+
+    @Test
+    void given_context_when_getCurrentUserArgumentResolverConfig_then_exists() {
+        CurrentUserArgumentResolverConfig config = applicationContext.getBean(CurrentUserArgumentResolverConfig.class);
         assertThat(config).isNotNull();
     }
 }

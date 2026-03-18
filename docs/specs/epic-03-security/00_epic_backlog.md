@@ -15,6 +15,7 @@
 1. **认证授权薄抽象层**：业务代码使用 `@RequireAuth`/`@RequireRole`/`@RequirePermission` 注解和 `SecurityContext`，不直接依赖 Sa-Token
 2. **多租户基础设施**：`TenantContext` 支持从 Header 或 Token 解析租户 ID
 3. **可替换性**：底层 Sa-Token 实现封装在模块内部，将来可整体替换为 Spring Security
+4. **便捷参数注入**：`@CurrentUser` 注解支持在 Controller 方法中直接注入当前用户 ID
 
 **完成标准：**
 1. cartisan-security 模块可正常构建
@@ -36,6 +37,7 @@
 | **F03-06** | AuthenticationService | 接口 + Sa-Token 实现（login/logout/getTokenInfo） | M | F03-01 |
 | **F03-07** | 自动配置 | Spring Boot AutoConfiguration + 条件装配 | M | 全部前置 |
 | **F03-08** | 集成测试 | 端到端验证注解、Context、Filter | M | 全部前置 |
+| **F03-09** | @CurrentUser 注解 | Controller 方法参数直接注入当前用户 ID | S | F03-01, F03-03 |
 
 ---
 
@@ -45,11 +47,13 @@
 F03-01 (模块骨架)
     |
     +--> F03-02 (权限注解 + 拦截器) -----+
-    +--> F03-03 (SecurityContext) -------+
-    +--> F03-04 (TenantContext) --+      |
-    |       |   (F03-05 Filter)   |      |
-    |                           |      |
+    +--> F03-03 (SecurityContext) -----+ |
+    +--> F03-04 (TenantContext) --+      | |
+    |       |   (F03-05 Filter)   |      | |
+    |                           |      | |
     +--> F03-06 (AuthenticationService) -+
+    |                           |
+    +--> F03-09 (@CurrentUser 注�) ------+
     |
     +--> 全部依赖 --> F03-07 (自动配置)
                         |
@@ -59,6 +63,7 @@ F03-01 (模块骨架)
 **关键依赖说明：**
 - F03-02 / F03-03 / F03-04 / F03-06 **互不依赖**，可并行开发
 - F03-05 依赖 F03-04：Filter 需要操作 TenantContext
+- F03-09 依赖 F03-01 和 F03-03：需要模块骨架和 SecurityContext
 - F03-07 依赖全部前置：自动配置需要扫描并装配所有组件
 - F03-08 最后：验证所有功能的端到端集成
 
@@ -77,16 +82,17 @@ F03-01 (模块骨架)
 4. **F03-04**: TenantContext
 5. **F03-06**: AuthenticationService
 
-### 批次 3：Filter（第 3.5 天）
+### 批次 3：Filter 与参数注解（第 3.5-4 天）
 6. **F03-05**: TenantContextFilter（依赖 F03-04）
+7. **F03-09**: @CurrentUser 注解（依赖 F03-01, F03-03）
 
-### 批次 4：自动配置（第 4 天）
-7. **F03-07**: Spring Boot AutoConfiguration
+### 批次 4：自动配置（第 4.5 天）
+8. **F03-07**: Spring Boot AutoConfiguration
 
-### 批次 5：集成测试（第 5 天）
-8. **F03-08**: 端到端集成测试
+### 批次 5：集成测试（第 5-5.5 天）
+9. **F03-08**: 端到端集成测试
 
-**总计预估：5 个工作日**
+**总计预估：5.5 个工作日**
 
 ---
 
@@ -327,6 +333,7 @@ Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 **交付物：**
 - `CartisanSecurityAutoConfiguration`
 - `SecurityInterceptorConfig`
+- `CurrentUserMethodArgumentResolver`
 - `CartisanSecurityProperties`
 - `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
 
@@ -344,6 +351,62 @@ Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 - **ADR-057**: 注入已有 Bean 而非声明新 Bean
 - **ADR-058**: 配置属性使用可变 List 确保绑定兼容
 - **ADR-059**: 拦截器默认应用于所有路径并排除系统路径
+
+---
+
+### F03-09: @CurrentUser 注解
+
+| 属性 | 值 |
+|------|-----|
+| 复杂度 | S |
+| 依赖 | F03-01, F03-03 |
+| 优先级 | P1 |
+| 预估工时 | 0.5d |
+
+**描述：**
+方法参数注解，支持在 Controller 方法中直接注入当前登录用户的 ID，无需手动调用 `SecurityContext.getCurrentUserId()`。
+
+**交付物：**
+- `@CurrentUser` 注解（`@Target(PARAMETER)`）
+- `CurrentUserMethodArgumentResolver`（实现 `HandlerMethodArgumentResolver`）
+- 自动配置注册 Resolver
+
+**接口定义：**
+```java
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CurrentUser {
+}
+
+// 使用示例
+@GetMapping("/profile")
+public ApiResponse<UserProfile> getProfile(@CurrentUser Long userId) {
+    return ApiResponse.ok(userService.getProfile(userId));
+}
+
+// 支持 Optional
+@GetMapping("/preferences")
+public ApiResponse<Preferences> getPreferences(@CurrentUser Optional<Long> userId) {
+    if (userId.isPresent()) {
+        return ApiResponse.ok(preferencesService.getForUser(userId.get()));
+    }
+    return ApiResponse.ok(preferencesService.getDefault());
+}
+```
+
+**验收标准：**
+- [ ] `@CurrentUser Long userId` 注入成功
+- [ ] 未登录时访问 `Long userId` 返回 401
+- [ ] `@CurrentUser Optional<Long> userId` 支持可选登录，未登录时为 `Optional.empty()`
+- [ ] 单元测试覆盖：已登录、未登录、Optional 场景
+- [ ] 自动配置自动注册 Resolver
+
+**技术要点：**
+- 实现 `HandlerMethodArgumentResolver` 接口
+- `supportsParameter()`：检查参数是否有 `@CurrentUser` 注解，类型为 `Long` 或 `Optional<Long>`
+- `resolveArgument()`：从 `SecurityContext.getCurrentUserId()` 获取用户 ID
+- 对于 `Optional<Long>` 类型，未登录时返回 `Optional.empty()`
+- 对于 `Long` 类型，未登录时抛出 `NotLoginException`（被全局异常处理器转为 401）
 
 ---
 
@@ -367,6 +430,8 @@ Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 - [ ] 测试 `TenantContext`：Header 和 Token 两种来源
 - [ ] 测试 `TenantContextFilter`：请求结束后清理
 - [ ] 测试 `AuthenticationService`：登录/登出/Token 信息
+- [ ] 测试 `@CurrentUser Long userId`：已登录注入成功，未登录返回 401
+- [ ] 测试 `@CurrentUser Optional<Long> userId`：已登录注入成功，未登录为 empty
 
 **技术要点：**
 - 使用 `@SpringBootTest` + MockMvc
@@ -381,11 +446,15 @@ Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 - `@RequireAuth`：需要登录
 - `@RequireRole("admin")`：需要指定角色
 - `@RequirePermission("user:create")`：需要指定权限
+- `@CurrentUser`：Controller 方法参数注入当前用户 ID
 
 ### 2. 拦截器实现
 使用 Spring MVC `HandlerInterceptor`，从 `HandlerMethod` 读取注解参数，调用 `StpUtil.checkXxx()`。
 
-### 3. TenantContext 解析顺序
+### 3. 参数注解实现
+使用 Spring MVC `HandlerMethodArgumentResolver`，支持 `Long` 和 `Optional<Long>` 两种类型。
+
+### 4. TenantContext 解析顺序
 1. 优先读取 `X-Tenant-Id` Header
 2. 若 Header 不存在且已登录，从 Sa-Token Session 读取
 3. 都不存在则为 null
@@ -412,8 +481,8 @@ Spring Boot AutoConfiguration，实现零配置引入 cartisan-security。
 
 | 复杂度 | Feature 数 | 占比 |
 |--------|-----------|------|
-| S | 3 | 38% |
-| M | 5 | 62% |
+| S | 4 | 44% |
+| M | 5 | 56% |
 | L | 0 | 0% |
 
 ---

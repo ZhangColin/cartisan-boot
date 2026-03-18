@@ -1,6 +1,7 @@
 package com.cartisan.security.integration.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
+import com.cartisan.security.annotation.CurrentUser;
 import com.cartisan.security.annotation.RequireAuth;
 import com.cartisan.security.annotation.RequirePermission;
 import com.cartisan.security.annotation.RequireRole;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 测试用 Controller - 验证注解鉴权。
@@ -89,6 +91,40 @@ public class TestAuthController {
         Map<String, Object> result = new HashMap<>();
         result.put("userId", SecurityContext.getCurrentUserId());
         result.put("username", SecurityContext.getCurrentUsername());
+        return ApiResponse.ok(result);
+    }
+
+    // ========== @CurrentUser 测试端点 ==========
+
+    /**
+     * 测试 @CurrentUser Long userId - 必需登录。
+     */
+    @GetMapping("/current-user-id")
+    public ApiResponse<Map<String, Object>> getCurrentUserId(@CurrentUser Long userId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 测试 @CurrentUser Optional<Long> userId - 可选登录。
+     */
+    @GetMapping("/current-user-id-optional")
+    public ApiResponse<Map<String, Object>> getCurrentUserIdOptional(@CurrentUser Optional<Long> userId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId.orElse(null));
+        result.put("isPresent", userId.isPresent());
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 测试 @CurrentUser Long userId + @RequireAuth 组合。
+     */
+    @GetMapping("/current-user-id-auth")
+    @RequireAuth
+    public ApiResponse<Map<String, Object>> getCurrentUserIdWithAuth(@CurrentUser Long userId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
         return ApiResponse.ok(result);
     }
 }

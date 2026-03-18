@@ -33,7 +33,10 @@ import org.springframework.context.annotation.Import;
 @ConditionalOnWebApplication
 @ConditionalOnClass(StpUtil.class)
 @EnableConfigurationProperties(CartisanSecurityProperties.class)
-@Import(SecurityInterceptorConfig.class)
+@Import({
+    SecurityInterceptorConfig.class,
+    CurrentUserArgumentResolverConfig.class
+})
 public class CartisanSecurityAutoConfiguration {
     // 主类只负责模块级条件和导入，具体配置由 SecurityInterceptorConfig 处理
 }
