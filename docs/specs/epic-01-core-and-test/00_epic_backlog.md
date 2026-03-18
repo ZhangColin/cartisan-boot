@@ -222,31 +222,23 @@
 
 ---
 
-### F01-08: cartisan-test — Testcontainers 基类
+### ~~F01-08: cartisan-test — Testcontainers 基类~~ （已废弃）
 
 | 属性 | 值 |
 |------|-----|
-| 复杂度 | M |
-| 依赖 | F01-07 |
-| 优先级 | P0 |
-| 预估工时 | 1.5d |
+| 状态 | **已废弃（Removed）** |
+| 废弃日期 | 2026-03-19 |
 
-**描述：**
-提供预配置的 Testcontainers 基类，简化集成测试中的中间件环境准备。
+**废弃原因：**
+Testcontainers 与本地 Docker 环境存在兼容问题，维护成本高。框架层本身不需要集成测试——集成测试属于业务项目的责任，由业务项目自行选择方案（H2、外部服务等）。
 
-**验收标准：**
-- [ ] `PostgresTestContainer` 预配置 PostgreSQL 16 容器
-- [ ] `RedisTestContainer` 预配置 Redis 容器
-- [ ] `IntegrationTestBase` 启动必要容器并加载 Spring 上下文
-- [ ] 每个测试方法后自动清理数据
-- [ ] 容器端口动态分配，避免冲突
-- [ ] 单元测试验证容器正常启动和连接
+**已删除内容：**
+- `PostgresTestContainer`、`RedisTestContainer`、`IntegrationTestBase`
+- `cartisan-data-jpa` 中的 `AuditingIntegrationTest`（依赖真实数据库）
+- `cartisan-data-query` 中的 `JooqIntegrationTest`（依赖真实数据库）
+- `cartisan-test` 模块全部 Testcontainers 依赖
 
-**技术要点：**
-- 使用 `@Testcontainers` 和 `@Container` 注解
-- 容器生命周期与测试类同步
-- `@DynamicPropertySource` 注入连接属性
-- 支持 Virtual Threads（Testcontainers 1.20+ 兼容）
+**保留内容：** ArchUnit 规则、`ApiTestBase`、`FixtureBuilder` 等纯工具类不受影响。
 
 ---
 
@@ -255,7 +247,7 @@
 | 属性 | 值 |
 |------|-----|
 | 复杂度 | S |
-| 依赖 | F01-08 |
+| 依赖 | F01-07 |
 | 优先级 | P1 |
 | 预估工时 | 1d |
 
@@ -281,7 +273,7 @@
 | 属性 | 值 |
 |------|-----|
 | 复杂度 | S |
-| 依赖 | F01-08 |
+| 依赖 | F01-07 |
 | 优先级 | P1 |
 | 预估工时 | 0.5d |
 
@@ -341,11 +333,10 @@ F01-01 (项目骨架)
                     │
                     └──→ F01-07 (ArchUnit 规则集)
                             │
-                            ├──→ F01-08 (Testcontainers)
-                            │       │
-                            │       ├──→ F01-09 (API 测试基类)
-                            │       └──→ F01-10 (Fixture 工具)
+                            ├──→ ~~F01-08 (Testcontainers) [已废弃]~~
                             │
+                            ├──→ F01-09 (API 测试基类)
+                            ├──→ F01-10 (Fixture 工具)
                             └──→ F01-11 (SOP 对齐与文档完善)
 ```
 

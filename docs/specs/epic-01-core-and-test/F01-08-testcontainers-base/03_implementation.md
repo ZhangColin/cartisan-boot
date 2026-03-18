@@ -1,6 +1,6 @@
 # F01-08 Testcontainers 基类实施计划
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **状态：已废弃（Removed）** — 见 01_requirement.md 决策记录
 
 **目标:** 为 cartisan-test 模块添加 Testcontainers 预配置基类，业务项目继承即可获得 PostgreSQL + Redis 集成测试环境。
 

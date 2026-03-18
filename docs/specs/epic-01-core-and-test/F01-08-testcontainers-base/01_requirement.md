@@ -1,7 +1,23 @@
 # Feature: F01-08 — cartisan-test Testcontainers 基类
 
-> 版本：v0.1 | 日期：2026-03-13
-> 状态：Phase 1 完成
+> 版本：v0.2 | 日期：2026-03-19
+> 状态：**已废弃（Removed）**
+
+---
+
+> **决策记录（2026-03-19）**
+>
+> 本 Feature 已整体移除。理由：
+> - Testcontainers 与本地 Docker 环境存在兼容问题，维护成本高
+> - 框架层（cartisan-boot）本身不需要集成测试，只需验证纯逻辑
+> - 集成测试属于业务项目的责任，由业务项目自行选择方案（H2、外部服务等）
+>
+> **变更范围：**
+> - 删除：`PostgresTestContainer`、`RedisTestContainer`、`IntegrationTestBase`
+> - 删除：`cartisan-data-jpa` 中依赖真实数据库的 `AuditingIntegrationTest`
+> - 删除：`cartisan-data-query` 中的 `JooqIntegrationTest`
+> - 删除：`cartisan-test` 模块的所有 Testcontainers 依赖
+> - 保留：ArchUnit 规则、`ApiTestBase`、`FixtureBuilder` 等纯工具类
 
 ---
 
