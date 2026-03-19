@@ -47,6 +47,14 @@ class ModelProviderContractTest {
         );
     }
 
+    private ChatRequest streamingRequest() {
+        return new ChatRequest(
+            "fake-model-v1",
+            List.of(new ChatMessage(Role.USER, "Hi")),
+            null, null, true
+        );
+    }
+
     @Test
     void shouldReturnNonBlankId() {
         assertThat(provider.id()).isNotBlank();
@@ -61,8 +69,8 @@ class ModelProviderContractTest {
     void shouldReturnValidChatResponse() {
         ChatResponse response = provider.chat(sampleRequest());
 
-        assertThat(response.content()).isNotNull();
-        assertThat(response.model()).isNotNull();
+        assertThat(response.content()).isNotBlank();
+        assertThat(response.model()).isEqualTo(sampleRequest().model());
         assertThat(response.usage()).isNotNull();
     }
 
