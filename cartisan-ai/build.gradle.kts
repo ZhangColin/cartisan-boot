@@ -20,6 +20,7 @@ dependencies {
     }
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
+    testImplementation("org.wiremock.integrations:wiremock-spring-boot:3.2.0")
 }
 
 tasks.withType<Test> {

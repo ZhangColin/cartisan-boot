@@ -27,6 +27,7 @@ package com.cartisan.core.exception;
  *   <li>{@link #INVALID_PARAMETER} - 参数校验失败（支持占位符 {@code {0}}）</li>
  *   <li>{@link #RESOURCE_NOT_FOUND} - 资源不存在（支持占位符 {@code {0}}）</li>
  *   <li>{@link #DUPLICATE} - 重复冲突（支持占位符 {@code {0}}）</li>
+ *   <li>{@link #THIRD_PARTY_ERROR} - 第三方服务错误（支持占位符 {@code {0}}）</li>
  * </ul>
  *
  * @since 0.1.0
@@ -118,7 +119,13 @@ public enum BaseCodeMessage implements CodeMessage {
      * 资源重复 - 支持占位符 {@code {0}} 指定重复的资源。
      * <p>示例：{@code "Duplicate resource: username"}</p>
      */
-    DUPLICATE(409, "DUPLICATE", "Duplicate resource: {0}");
+    DUPLICATE(409, "DUPLICATE", "Duplicate resource: {0}"),
+
+    /**
+     * 第三方服务错误 - 支持占位符 {@code {0}} 指定错误详情。
+     * <p>示例：{@code "Third-party service error: OpenAI API returned 429"}</p>
+     */
+    THIRD_PARTY_ERROR(502, "THIRD_PARTY_ERROR", "Third-party service error: {0}");
 
     private final int httpStatus;
     private final String code;
