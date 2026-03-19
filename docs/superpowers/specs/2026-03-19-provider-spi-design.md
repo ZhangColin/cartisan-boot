@@ -70,7 +70,7 @@ public interface ModelUsageListener {
 
 **参数说明**：
 - `providerId`：来自 `ModelProvider.id()`
-- `model`：来自 `ChatRequest.model()`
+- `model`：来自 `ChatResponse.model()`（服务端确认的实际模型名，而非请求中的 `ChatRequest.model()`；在代理/路由场景下两者可能不同）
 - `usage`：本次调用消耗的 Token 明细
 
 ---
@@ -84,7 +84,7 @@ public interface ModelUsageListener {
 | `shouldReturnNonBlankId` | `id()` 返回非空字符串 |
 | `shouldReturnNonEmptySupportedModels` | `supportedModels()` 返回非空列表 |
 | `shouldReturnValidChatResponse` | `chat()` 返回的 `ChatResponse` 中 content/model/usage 均非 null |
-| `shouldReturnStreamWithFinishedEvent` | `chatStream()` 返回的事件序列，最后一个 `finished == true` 且携带 `usage` |
+| `shouldReturnStreamWithFinishedEvent` | `chatStream()` 返回的事件序列，最后一个事件满足：① `finished == true`；② `usage != null`（两个条件独立断言） |
 
 `ModelUsageListener` 是函数式接口，自身无逻辑，在 F05-04 集成测试中覆盖。
 
