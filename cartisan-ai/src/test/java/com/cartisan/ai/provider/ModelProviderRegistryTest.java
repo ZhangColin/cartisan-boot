@@ -112,4 +112,38 @@ class ModelProviderRegistryTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("gpt-4o");
     }
+
+    // ── Sync delegation tests ─────────────────────────────────────────────────
+
+    @Test
+    void shouldTriggerListenerOnChat() {
+        var listener = mock(ModelUsageListener.class);
+        var registry = new ModelProviderRegistry(List.of(openai), List.of(listener));
+
+        registry.chat("openai", sampleRequest("gpt-4o"));
+
+        verify(listener).onUsage("openai", "gpt-4o", new TokenUsage(10, 20, 30));
+    }
+
+    @Test
+    void shouldNotTriggerListener_whenProviderNotFound() {
+        var listener = mock(ModelUsageListener.class);
+        var registry = new ModelProviderRegistry(List.of(openai), List.of(listener));
+
+        assertThatThrownBy(() -> registry.chat("unknown", sampleRequest("gpt-4o")))
+                .isInstanceOf(DomainException.class);
+        verifyNoInteractions(listener);
+    }
+
+    @Test
+    void shouldNotPropagateListenerException() {
+        var badListener = mock(ModelUsageListener.class);
+        doThrow(new RuntimeException("billing down")).when(badListener)
+                .onUsage(any(), any(), any());
+        var registry = new ModelProviderRegistry(List.of(openai), List.of(badListener));
+
+        // chat() must succeed despite listener failure
+        ChatResponse response = registry.chat("openai", sampleRequest("gpt-4o"));
+        assertThat(response.content()).isEqualTo("response from openai");
+    }
 }

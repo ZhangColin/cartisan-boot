@@ -62,8 +62,10 @@ public class ModelProviderRegistry {
     }
 
     public ChatResponse chat(String providerId, ChatRequest request) {
-        // implemented in Task 2
-        throw new UnsupportedOperationException("not yet implemented");
+        ModelProvider provider = getProvider(providerId);
+        ChatResponse response = provider.chat(request);
+        notifyListeners(provider.id(), response.model(), response.usage());
+        return response;
     }
 
     public Flux<ChatStreamEvent> chatStream(String providerId, ChatRequest request) {
