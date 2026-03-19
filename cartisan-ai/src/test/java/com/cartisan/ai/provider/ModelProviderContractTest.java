@@ -76,11 +76,11 @@ class ModelProviderContractTest {
 
     @Test
     void shouldReturnStreamWithFinishedEvent() {
-        List<ChatStreamEvent> events = provider.chatStream(sampleRequest()).collectList().block();
+        List<ChatStreamEvent> events = provider.chatStream(streamingRequest()).collectList().block();
 
         assertThat(events).isNotEmpty();
 
-        ChatStreamEvent lastEvent = events.get(events.size() - 1);
+        ChatStreamEvent lastEvent = events.getLast();
         assertThat(lastEvent.finished()).isTrue();
         assertThat(lastEvent.usage()).isNotNull();
     }
