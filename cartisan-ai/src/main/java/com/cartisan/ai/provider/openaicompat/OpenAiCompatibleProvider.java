@@ -75,7 +75,7 @@ public abstract class OpenAiCompatibleProvider implements ModelProvider {
         });
     }
 
-    private OpenAiChatRequest toOpenAiRequest(ChatRequest request, boolean stream) {
+    protected OpenAiChatRequest toOpenAiRequest(ChatRequest request, boolean stream) {
         List<Map<String, String>> messages = request.messages().stream()
                 .map(m -> Map.of("role", m.role().name().toLowerCase(), "content", m.content()))
                 .toList();
@@ -84,7 +84,7 @@ public abstract class OpenAiCompatibleProvider implements ModelProvider {
                 request.maxTokens(), stream, streamOptions);
     }
 
-    private TokenUsage toTokenUsage(OpenAiStreamChunk.Usage u) {
+    protected TokenUsage toTokenUsage(OpenAiStreamChunk.Usage u) {
         return new TokenUsage(u.promptTokens(), u.completionTokens(), u.totalTokens());
     }
 }
