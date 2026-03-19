@@ -14,6 +14,7 @@ record OpenAiChatRequest(
         List<Map<String, String>> messages,
         Double temperature,
         Integer maxTokens,
+        // Primitive boolean: NON_NULL does not affect primitives, so `stream` is ALWAYS serialized (intentional).
         boolean stream,
         Map<String, Object> streamOptions
 ) {

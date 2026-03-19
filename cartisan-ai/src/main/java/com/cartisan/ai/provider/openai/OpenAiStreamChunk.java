@@ -18,6 +18,7 @@ record OpenAiStreamChunk(
     record StreamChoice(Delta delta, String finishReason) {
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record Delta(String content) {
     }
 

@@ -62,6 +62,7 @@ public class OpenAiClient {
                 // which activates on text/event-stream responses and returns empty stream.
                 // Each DataBuffer is processed individually to preserve true streaming (no join/buffering).
                 .bodyToFlux(DataBuffer.class)
+                .doOnDiscard(DataBuffer.class, DataBufferUtils::release)
                 .map(buf -> {
                     byte[] bytes = new byte[buf.readableByteCount()];
                     buf.read(bytes);
@@ -95,7 +96,7 @@ public class OpenAiClient {
                         OpenAiErrorResponse err = objectMapper.readValue(body, OpenAiErrorResponse.class);
                         throw new DomainException(BaseCodeMessage.THIRD_PARTY_ERROR, err.error().message());
                     } catch (IOException e) {
-                        throw new DomainException(BaseCodeMessage.THIRD_PARTY_ERROR, "Failed to parse error response");
+                        throw new DomainException(BaseCodeMessage.THIRD_PARTY_ERROR, e, "Failed to parse error response");
                     }
                 })
                 .body(OpenAiChatResponse.class);
