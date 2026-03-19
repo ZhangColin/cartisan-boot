@@ -10,6 +10,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 
 class ModelProviderRegistryTest {
 
@@ -145,5 +146,69 @@ class ModelProviderRegistryTest {
         // chat() must succeed despite listener failure
         ChatResponse response = registry.chat("openai", sampleRequest("gpt-4o"));
         assertThat(response.content()).isEqualTo("response from openai");
+    }
+
+    // ── Streaming delegation tests ────────────────────────────────────────────
+
+    @Test
+    void shouldTriggerListenerOnStream_exactlyOnce() {
+        var listener = mock(ModelUsageListener.class);
+        // Provider that emits two finished=true events (protocol violation)
+        var badProtocolProvider = new FakeProvider("openai", "gpt-4o") {
+            @Override
+            public Flux<ChatStreamEvent> chatStream(ChatRequest request) {
+                return Flux.just(
+                    new ChatStreamEvent("a", false, null),
+                    new ChatStreamEvent("", true, new TokenUsage(10, 20, 30)),
+                    new ChatStreamEvent("", true, new TokenUsage(99, 99, 99)) // duplicate finish
+                );
+            }
+        };
+        var registry = new ModelProviderRegistry(List.of(badProtocolProvider), List.of(listener));
+
+        registry.chatStream("openai", sampleRequest("gpt-4o")).collectList().block();
+
+        // Listener must fire exactly once with the FIRST finished event's usage
+        verify(listener, times(1)).onUsage("openai", "gpt-4o", new TokenUsage(10, 20, 30));
+    }
+
+    @Test
+    void shouldNotPropagateListenerException_onStream() {
+        var badListener = mock(ModelUsageListener.class);
+        doThrow(new RuntimeException("billing down")).when(badListener)
+                .onUsage(any(), any(), any());
+        var registry = new ModelProviderRegistry(List.of(openai), List.of(badListener));
+
+        // Flux must complete normally despite listener failure
+        List<ChatStreamEvent> events = registry.chatStream("openai", sampleRequest("gpt-4o"))
+                .collectList().block();
+        assertThat(events).hasSize(2);
+        assertThat(events.getLast().finished()).isTrue();
+    }
+
+    @Test
+    void shouldSkipListener_whenStreamFinishedEventHasNullUsage() {
+        var listener = mock(ModelUsageListener.class);
+        var nullUsageProvider = new FakeProvider("openai", "gpt-4o") {
+            @Override
+            public Flux<ChatStreamEvent> chatStream(ChatRequest request) {
+                return Flux.just(new ChatStreamEvent("", true, null)); // finished but no usage
+            }
+        };
+        var registry = new ModelProviderRegistry(List.of(nullUsageProvider), List.of(listener));
+
+        registry.chatStream("openai", sampleRequest("gpt-4o")).collectList().block();
+
+        verifyNoInteractions(listener);
+    }
+
+    @Test
+    void shouldNotTriggerListenerOnStream_whenProviderNotFound() {
+        var listener = mock(ModelUsageListener.class);
+        var registry = new ModelProviderRegistry(List.of(openai), List.of(listener));
+
+        assertThatThrownBy(() -> registry.chatStream("unknown", sampleRequest("gpt-4o")))
+                .isInstanceOf(DomainException.class);
+        verifyNoInteractions(listener);
     }
 }

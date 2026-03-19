@@ -5,6 +5,7 @@ import com.cartisan.core.exception.DomainException;
 import reactor.core.publisher.Flux;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,8 +70,18 @@ public class ModelProviderRegistry {
     }
 
     public Flux<ChatStreamEvent> chatStream(String providerId, ChatRequest request) {
-        // implemented in Task 3
-        throw new UnsupportedOperationException("not yet implemented");
+        ModelProvider provider = getProvider(providerId);
+        return Flux.defer(() -> {
+            AtomicBoolean triggered = new AtomicBoolean(false);
+            return provider.chatStream(request)
+                    .doOnNext(event -> {
+                        if (event.finished()
+                                && event.usage() != null
+                                && triggered.compareAndSet(false, true)) {
+                            notifyListeners(provider.id(), request.model(), event.usage());
+                        }
+                    });
+        });
     }
 
     // called by chat() (Task 2) and chatStream() (Task 3)
