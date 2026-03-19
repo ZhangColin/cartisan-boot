@@ -102,4 +102,56 @@ class OpenAiClientTest {
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("Internal server error");
     }
+
+    @Test
+    void shouldStreamChatEvents_whenOpenAiReturnsSSE(WireMockRuntimeInfo wmRuntimeInfo) {
+        stubFor(post(urlEqualTo("/chat/completions"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "text/event-stream")
+                        .withBody(
+                                "data: {\"id\":\"x\",\"choices\":[{\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}],\"usage\":null}\n" +
+                                "data: {\"id\":\"x\",\"choices\":[{\"delta\":{\"content\":\"!\"},\"finish_reason\":\"stop\"}],\"usage\":null}\n" +
+                                "data: {\"id\":\"x\",\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":5,\"total_tokens\":15}}\n" +
+                                "data: [DONE]\n"
+                        )));
+
+        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        List<OpenAiStreamChunk> chunks = client.chatStream(buildRequest()).collectList().block();
+
+        assertThat(chunks).hasSize(3);
+        assertThat(chunks.get(2).usage()).isNotNull();
+        assertThat(chunks.get(2).usage().promptTokens()).isEqualTo(10);
+        assertThat(chunks.get(2).usage().completionTokens()).isEqualTo(5);
+        assertThat(chunks.get(2).usage().totalTokens()).isEqualTo(15);
+    }
+
+    @Test
+    void shouldCompleteFlux_whenDoneSignalReceived(WireMockRuntimeInfo wmRuntimeInfo) {
+        stubFor(post(urlEqualTo("/chat/completions"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "text/event-stream")
+                        .withBody("data: [DONE]\n")));
+
+        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        List<OpenAiStreamChunk> chunks = client.chatStream(buildRequest()).collectList().block();
+
+        assertThat(chunks).isEmpty();
+    }
+
+    @Test
+    void shouldThrowDomainException_whenStreamErrorOccurs(WireMockRuntimeInfo wmRuntimeInfo) {
+        stubFor(post(urlEqualTo("/chat/completions"))
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(ERROR_BODY_401)));
+
+        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+
+        assertThatThrownBy(() -> client.chatStream(buildRequest()).collectList().block())
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Unauthorized");
+    }
 }
