@@ -15,6 +15,9 @@ dependencies {
     // AutoConfiguration 基础设施，内部使用
     implementation("org.springframework.boot:spring-boot-starter")
 
+    // Reactor Netty HTTP — WebClient 的 HTTP/1.1 connector 需要直接引用
+    implementation("io.projectreactor.netty:reactor-netty-http")
+
     // OpenAI DTO 序列化：@JsonNaming / @JsonIgnoreProperties / @JsonInclude
     implementation("com.fasterxml.jackson.core:jackson-databind")
 
