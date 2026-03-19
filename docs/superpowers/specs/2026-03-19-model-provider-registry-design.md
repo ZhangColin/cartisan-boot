@@ -75,17 +75,21 @@ com.cartisan.ai.provider.ModelProviderRegistry
 - `providerById`：`Map<String, ModelProvider>`，key 为 `provider.id()`
 - `providerByModel`：`Map<String, ModelProvider>`，key 为 `provider.supportedModels()` 展开的每个模型名
 
+**模型名冲突处理**：若两个 Provider 声明了相同的模型名，构造时抛出 `IllegalArgumentException`，fail-fast 暴露配置错误，不允许静默覆盖。
+
 **公开 API**：
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `listProviders()` | `List<ModelProvider>` | 返回所有已注册的 Provider |
+| `listProviders()` | `List<ModelProvider>` | 返回所有已注册的 Provider（`List.copyOf()` 快照，调用 `.add()` 抛 `UnsupportedOperationException`） |
 | `getProvider(String providerId)` | `ModelProvider` | 按 providerId 查找，找不到抛 `DomainException` |
 | `getProviderByModel(String modelName)` | `ModelProvider` | 按模型名查找，找不到抛 `DomainException` |
 | `chat(String providerId, ChatRequest request)` | `ChatResponse` | 代理同步调用，自动触发 Listener |
 | `chatStream(String providerId, ChatRequest request)` | `Flux<ChatStreamEvent>` | 代理流式调用，订阅时透明触发 Listener |
 
-**异常**：使用 `DomainException(BaseCodeMessage.RESOURCE_NOT_FOUND, providerId/modelName)`，不新增 `AiCodeMessage`。
+**异常**：使用 `DomainException(BaseCodeMessage.RESOURCE_NOT_FOUND, providerId)` 或 `DomainException(BaseCodeMessage.RESOURCE_NOT_FOUND, modelName)`，参数为原始 id/name 字符串（如 `"unknown"`），不新增 `AiCodeMessage`。
+
+**线程安全**：Registry 在构造后完全不可变，内部 Map 不会再修改，并发使用安全，无需额外同步。
 
 ---
 
@@ -102,6 +106,8 @@ getProvider(providerId) → provider.chat(request) → 触发所有 Listener →
 - `model`：来自 `response.model()`（服务端确认值）
 - `usage`：来自 `response.usage()`
 
+**usage 处理**：`ChatResponse` 构造器已通过 `Objects.requireNonNull` 保证 `usage` 非 null（参见 F05-02），同步路径无需 null 检查。
+
 ### 流式调用
 
 ```
@@ -110,10 +116,22 @@ getProvider(providerId) → provider.chatStream(request) → 包装 Flux（注�
 
 调用方消费 Flux 时，`doOnNext` 检测到 `event.finished() == true` 自动触发所有 Listener。
 
+**exactly-once 保证**：`AtomicBoolean` 在 `Flux.defer(...)` 内部创建（每次订阅独立一个），确保：① 即使 Provider 错误地发出多个 `finished == true` 事件，Listener 也只触发一次；② 同一 `Flux` 被多次订阅时，每次订阅各自独立触发 Listener，互不干扰。
+
+**Listener 异常隔离（流式路径）**：`doOnNext` 内对每个 Listener 调用用 try-catch 包住，异常只记录日志，不往上抛，不 poison Reactor 管道。
+
 触发参数：
 - `providerId`：来自 `provider.id()`
 - `model`：来自 `request.model()`（流式调用无 ChatResponse，使用请求中的模型名）
 - `usage`：来自终止事件的 `event.usage()`
+
+**已知限制**：流式路径的 `model` 取自请求而非服务端确认值，在代理/路由场景下可能与同步路径报告的 `model` 不一致。当前阶段接受此限制，`ChatStreamEvent` 未携带 model 字段，无法修复。
+
+**终止事件 usage 为 null 时**：跳过 Listener 触发，不抛异常（Provider 协议违规时的防御性处理）。
+
+**流异常 / 流中断**：若 Flux 以 `onError` 终止或订阅方提前取消，均不触发 Listener——这是预期行为，Listener 只在协议合规的正常终止时触发，无需额外处理。
+
+**Listener 触发前提**：`chat()` 和 `chatStream()` 均先通过 `getProvider(providerId)` 查找 Provider；查找失败时抛 `DomainException`，Listener 不会被触发。
 
 ---
 
@@ -123,14 +141,19 @@ getProvider(providerId) → provider.chatStream(request) → 包装 Flux（注�
 
 | 测试方法 | 验证点 |
 |----------|--------|
-| `shouldReturnAllProviders` | `listProviders()` 返回所有注入的 Provider |
+| `shouldReturnAllProviders` | `listProviders()` 返回所有注入的 Provider；调用 `.add()` 抛 `UnsupportedOperationException` |
+| `shouldReturnEmptyList_whenNoProviders` | 空 provider 列表构造时不抛异常，`listProviders()` 返回空列表（生产环境由 `@ConditionalOnBean` 保护，此测试仅验证单元级健壮性） |
 | `shouldFindProviderById` | `getProvider("openai")` 返回正确 Provider |
 | `shouldFindProviderByModel` | `getProviderByModel("gpt-4o")` 返回正确 Provider |
 | `shouldThrowWhenProviderNotFound` | `getProvider("unknown")` 抛 `DomainException`，code 为 `RESOURCE_NOT_FOUND` |
+| `shouldNotTriggerListener_whenProviderNotFound` | `chat("unknown", request)` 抛异常，Listener 不被调用 |
 | `shouldThrowWhenModelNotFound` | `getProviderByModel("unknown-model")` 抛 `DomainException` |
+| `shouldThrowOnDuplicateModelName` | 两个 Provider 声明相同模型名时，构造时抛 `IllegalArgumentException` |
 | `shouldTriggerListenerOnChat` | `chat()` 后 Listener 收到正确的 providerId / model / usage |
-| `shouldTriggerListenerOnStream` | 消费完 `chatStream()` 的 Flux 后，Listener 收到正确的 usage |
+| `shouldTriggerListenerOnStream_exactlyOnce` | 消费完 `chatStream()` 的 Flux 后，Listener 收到正确的 usage，且仅触发一次（即使 Provider 发出多个 `finished=true` 事件） |
 | `shouldNotPropagateListenerException` | Listener 抛异常时，`chat()` 仍正常返回结果 |
+| `shouldNotPropagateListenerException_onStream` | Listener 抛异常时，`chatStream()` 的 Flux 不被 poison，订阅正常完成 |
+| `shouldSkipListener_whenStreamFinishedEventHasNullUsage` | 终止事件 `usage == null` 时，Listener 不被调用，Flux 正常完成 |
 
 ---
 

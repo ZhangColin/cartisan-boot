@@ -1632,3 +1632,17 @@ return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
 **原因**：`isNumber()` 只验证类型，不验证值。如果 Session 解析逻辑有 bug（如返回默认值 0），测试仍会通过。
 
 **记忆口诀**：断言验证确切值，类型检查不够用。
+
+---
+
+## Spring Boot AutoConfiguration
+
+### 规则 AC-001：`@ConditionalOnBean` 在同一 `@Configuration` 类内的顺序陷阱
+
+**问题**：`@ConditionalOnBean(ModelProvider.class)` 要求目标 Bean 在条件求值时已注册。若 Provider Bean 与 Registry Bean 定义在同一 `@Configuration` 类中，Spring 不保证方法声明顺序即是 Bean 注册顺序，`@ConditionalOnBean` 可能在 Provider Bean 注册前就求值为 `false`，导致 Registry Bean 不被创建。
+
+**正确做法**：
+- 将 Provider Bean 与依赖它的 Registry Bean 分在**不同 `@Configuration` 类**中
+- 或在 Registry Bean 所在配置类上加 `@AutoConfigureAfter(OpenAiAutoConfiguration.class)` 等注解明确顺序
+
+**适用场景**：F05-09 `CartisanAiAutoConfiguration` 注册 `ModelProviderRegistry` 时需注意此规则。
