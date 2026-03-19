@@ -1,6 +1,10 @@
 package com.cartisan.ai.provider.openai;
 
 import com.cartisan.ai.model.*;
+import com.cartisan.ai.provider.openaicompat.OpenAiChatRequest;
+import com.cartisan.ai.provider.openaicompat.OpenAiChatResponse;
+import com.cartisan.ai.provider.openaicompat.OpenAiCompatibleClient;
+import com.cartisan.ai.provider.openaicompat.OpenAiStreamChunk;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,12 +20,12 @@ import static org.mockito.Mockito.when;
 
 class OpenAiProviderTest {
 
-    private OpenAiClient mockClient;
+    private OpenAiCompatibleClient mockClient;
     private OpenAiProvider provider;
 
     @BeforeEach
     void setUp() {
-        mockClient = mock(OpenAiClient.class);
+        mockClient = mock(OpenAiCompatibleClient.class);
         provider = new OpenAiProvider(mockClient, List.of("gpt-4o", "gpt-4o-mini"));
     }
 

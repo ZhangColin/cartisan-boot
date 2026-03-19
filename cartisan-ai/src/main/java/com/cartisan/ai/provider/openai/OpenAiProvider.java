@@ -2,6 +2,7 @@ package com.cartisan.ai.provider.openai;
 
 import com.cartisan.ai.provider.openaicompat.OpenAiChatRequest;
 import com.cartisan.ai.provider.openaicompat.OpenAiChatResponse;
+import com.cartisan.ai.provider.openaicompat.OpenAiCompatibleClient;
 import com.cartisan.ai.provider.openaicompat.OpenAiStreamChunk;
 import com.cartisan.ai.model.ChatRequest;
 import com.cartisan.ai.model.ChatResponse;
@@ -18,15 +19,15 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class OpenAiProvider implements ModelProvider {
 
-    private final OpenAiClient client;
+    private final OpenAiCompatibleClient client;
     private final List<String> supportedModels;
 
     public OpenAiProvider(OpenAiProperties properties) {
-        this.client = new OpenAiClient(properties.getBaseUrl(), properties.getApiKey());
+        this.client = new OpenAiCompatibleClient(properties.getBaseUrl(), properties.getApiKey());
         this.supportedModels = List.copyOf(properties.getModels());
     }
 
-    OpenAiProvider(OpenAiClient client, List<String> models) {
+    OpenAiProvider(OpenAiCompatibleClient client, List<String> models) {
         this.client = client;
         this.supportedModels = List.copyOf(models);
     }

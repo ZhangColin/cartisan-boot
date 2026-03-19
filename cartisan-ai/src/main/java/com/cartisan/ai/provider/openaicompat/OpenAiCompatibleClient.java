@@ -1,9 +1,5 @@
-package com.cartisan.ai.provider.openai;
+package com.cartisan.ai.provider.openaicompat;
 
-import com.cartisan.ai.provider.openaicompat.OpenAiChatRequest;
-import com.cartisan.ai.provider.openaicompat.OpenAiChatResponse;
-import com.cartisan.ai.provider.openaicompat.OpenAiErrorResponse;
-import com.cartisan.ai.provider.openaicompat.OpenAiStreamChunk;
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.DomainException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -23,14 +19,14 @@ import reactor.netty.http.HttpProtocol;
 import java.io.IOException;
 import java.net.http.HttpClient;
 
-public class OpenAiClient {
+public class OpenAiCompatibleClient {
 
     private static final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     private final RestClient restClient;
     private final WebClient webClient;
 
-    public OpenAiClient(String baseUrl, String apiKey) {
+    public OpenAiCompatibleClient(String baseUrl, String apiKey) {
 
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)

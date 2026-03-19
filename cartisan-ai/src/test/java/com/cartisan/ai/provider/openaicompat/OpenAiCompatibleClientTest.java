@@ -1,4 +1,4 @@
-package com.cartisan.ai.provider.openai;
+package com.cartisan.ai.provider.openaicompat;
 
 import com.cartisan.core.exception.DomainException;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @WireMockTest
-class OpenAiClientTest {
+class OpenAiCompatibleClientTest {
 
     private static final String ERROR_BODY_401 = """
             {"error":{"message":"Unauthorized","type":"auth_error","code":"invalid_api_key"}}
@@ -46,7 +46,7 @@ class OpenAiClientTest {
                                 {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"message":{"role":"assistant","content":"Hello!"}}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
                                 """)));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
         OpenAiChatResponse response = client.chat(buildRequest());
 
         assertThat(response.id()).isEqualTo("chatcmpl-1");
@@ -66,7 +66,7 @@ class OpenAiClientTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody(ERROR_BODY_401)));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
 
         assertThatThrownBy(() -> client.chat(buildRequest()))
                 .isInstanceOf(DomainException.class)
@@ -81,7 +81,7 @@ class OpenAiClientTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody(ERROR_BODY_429)));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
 
         assertThatThrownBy(() -> client.chat(buildRequest()))
                 .isInstanceOf(DomainException.class)
@@ -96,7 +96,7 @@ class OpenAiClientTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody(ERROR_BODY_500)));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
 
         assertThatThrownBy(() -> client.chat(buildRequest()))
                 .isInstanceOf(DomainException.class)
@@ -116,7 +116,7 @@ class OpenAiClientTest {
                                 "data: [DONE]\n"
                         )));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
         List<OpenAiStreamChunk> chunks = client.chatStream(buildRequest()).collectList().block();
 
         assertThat(chunks).hasSize(3);
@@ -134,7 +134,7 @@ class OpenAiClientTest {
                         .withHeader("Content-Type", "text/event-stream")
                         .withBody("data: [DONE]\n")));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
         List<OpenAiStreamChunk> chunks = client.chatStream(buildRequest()).collectList().block();
 
         assertThat(chunks).isEmpty();
@@ -148,7 +148,7 @@ class OpenAiClientTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody(ERROR_BODY_401)));
 
-        OpenAiClient client = new OpenAiClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
+        OpenAiCompatibleClient client = new OpenAiCompatibleClient("http://localhost:" + wmRuntimeInfo.getHttpPort(), "test-key");
 
         assertThatThrownBy(() -> client.chatStream(buildRequest()).collectList().block())
                 .isInstanceOf(DomainException.class)
