@@ -1,72 +1,41 @@
-# cartisan-boot — AI 协作上下文
+# cartisan-boot
 
-## 项目是什么
-
-cartisan-boot 是一个**业务无关的 Java 技术基础框架**，为所有 Spring Boot 项目提供统一的技术能力封装。基于 DDD、六边形架构设计，供 aieducenter-platform 等业务项目复用。
+业务无关的 Java 技术基础框架，基于 DDD 六边形架构，供业务项目复用。
 
 ## 技术栈
 
 - Java 21 / Spring Boot 3.4.x / Gradle Kotlin DSL
 - 持久化：Spring Data JPA（写）+ jOOQ（读）
-- 安全：Sa-Token（通过抽象层封装，可替换）
+- 安全：Sa-Token（抽象层封装，可替换）
 - 测试：JUnit 5 + AssertJ + Mockito + ArchUnit + Testcontainers
 
-## 关键文档
+## 架构约束
 
-- `docs/cartisan-boot-设计文档.md` — 项目完整蓝图（模块设计、收纳准则、Epic 拆分）
-- `docs/AI协作开发SOP.md` — AI 协作开发规范（Phase 0-5 流程）
-- `docs/decisions/DECISIONS.md` — 架构决策记录
-- `docs/specs/` — 各 Epic 的规格文档（Phase 1-3 产出）
+- 领域层（domain）零外部依赖，不引入 Spring/JPA/任何框架注解
+- 只有聚合根可以拥有 Repository
+- 所有金额使用 BigDecimal，禁止浮点数
+- 构造函数注入，禁止 @Autowired 字段注入
 
-## 模块结构
+## 编码规范
 
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| cartisan-core | 进行中 | DDD 基建，零外部依赖 |
-| cartisan-test | 进行中 | ArchUnit + Testcontainers |
-| cartisan-web | 待开发 | 统一响应、全局异常 |
-| cartisan-security | 待开发 | 认证抽象、多租户上下文 |
-| cartisan-data-jpa | 待开发 | JPA 封装 |
-| cartisan-data-query | 待开发 | jOOQ 封装 |
-| cartisan-event | 待开发 | 领域事件基础设施 |
-| cartisan-ai | 待开发 | 大模型调用封装 |
-| cartisan-storage | 待开发 | 文件存储封装 |
-| cartisan-payment | 待开发 | 支付对接封装 |
+- DTO 使用 Java Record，构造函数校验不变量
+- 测试命名：given_{条件}_when_{操作}_then_{预期结果}
+- 测试使用 AssertJ，禁止无意义断言（如 assertTrue(true)）
+- 踩坑经验见 docs/PITFALLS.md，遇到相关问题时查阅
 
-## AI 协作规范
+## 常用命令
 
-所有开发严格遵循 `docs/sop/AI协作开发SOP.md`：
-- Phase 0：Epic 分解（只产出文档，不写代码）
-- Phase 1-3：需求 → 接口设计 → 实现方案（只产出文档）
-- Phase 4：先写测试（红）→ 再写实现（绿）
-- Phase 5：Review + ArchUnit + PIT
+- 编译：`./gradlew compileJava`
+- 单元测试（无需 Docker）：`./gradlew :模块名:test`
+- 全量测试（需 Docker）：`./gradlew test`
+- 变异测试：`./gradlew :cartisan-core:pitest`（杀死率 >= 70%）
 
-**任务粒度：单次实现 50-150 行代码。超过则继续拆分。**
+## 开发流程
 
-## 开发环境要求
+使用 Superpowers 技能驱动开发，按需求规模分层：
 
-### Docker 环境（集成测试必需）
+- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
+- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
+- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
 
-本项目的 cartisan-test 模块使用 Testcontainers 进行集成测试，需要本地 Docker 环境。
-
-- **运行单元测试**（无需 Docker）：`./gradlew :cartisan-core:test`
-- **运行全部测试**（需要 Docker）：`./gradlew test`
-- **Docker 验证**：运行 `docker ps` 确认 Docker 可用
-
-如 Docker 未安装或未启动，cartisan-test 模块的测试会失败（报错：`Could not find a valid Docker environment`）。
-
-## 质量门禁
-
-### 测试命名规范
-
-遵循 `docs/skills/SKILL.md` 中的 **TEST-002** 规则：`given_{条件}_when_{操作}_then_{预期结果}`。
-
-### PIT 变异测试
-
-cartisan-core 模块已配置 PIT（Mutation Testing），Phase 5 审查时必须执行：
-
-```bash
-./gradlew :cartisan-core:pitest
-```
-
-**验收标准**：变异杀死率 ≥ 70%，报告位于 `build/reports/pitest/index.html`。
+阶段性完成后人工触发归档：提取有价值内容到 docs/guide/（功能清单、API 说明、使用示例、注意事项），然后清理过程文档。
