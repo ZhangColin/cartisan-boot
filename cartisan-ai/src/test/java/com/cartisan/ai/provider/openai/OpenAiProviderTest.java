@@ -174,10 +174,6 @@ class OpenAiProviderTest {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private void stubSyncResponse() {
-        when(mockClient.chat(any())).thenReturn(fakeOpenAiResponse());
-    }
-
     private OpenAiChatResponse fakeOpenAiResponse() {
         return new OpenAiChatResponse(
                 "chatcmpl-123",
