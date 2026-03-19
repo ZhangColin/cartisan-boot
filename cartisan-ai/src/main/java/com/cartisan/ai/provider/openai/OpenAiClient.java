@@ -1,5 +1,9 @@
 package com.cartisan.ai.provider.openai;
 
+import com.cartisan.ai.provider.openaicompat.OpenAiChatRequest;
+import com.cartisan.ai.provider.openaicompat.OpenAiChatResponse;
+import com.cartisan.ai.provider.openaicompat.OpenAiErrorResponse;
+import com.cartisan.ai.provider.openaicompat.OpenAiStreamChunk;
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.DomainException;
 import com.fasterxml.jackson.core.JsonProcessingException;

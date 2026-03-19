@@ -1,5 +1,8 @@
 package com.cartisan.ai.provider.openai;
 
+import com.cartisan.ai.provider.openaicompat.OpenAiChatRequest;
+import com.cartisan.ai.provider.openaicompat.OpenAiChatResponse;
+import com.cartisan.ai.provider.openaicompat.OpenAiStreamChunk;
 import com.cartisan.ai.model.ChatRequest;
 import com.cartisan.ai.model.ChatResponse;
 import com.cartisan.ai.model.ChatStreamEvent;

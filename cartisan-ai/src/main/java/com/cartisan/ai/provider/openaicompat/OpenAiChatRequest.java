@@ -1,4 +1,4 @@
-package com.cartisan.ai.provider.openai;
+package com.cartisan.ai.provider.openaicompat;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -9,7 +9,7 @@ import java.util.Map;
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-record OpenAiChatRequest(
+public record OpenAiChatRequest(
         String model,
         List<Map<String, String>> messages,
         Double temperature,
