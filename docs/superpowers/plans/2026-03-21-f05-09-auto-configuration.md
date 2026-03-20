@@ -56,7 +56,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 @Configuration
-@ConfigurationPropertiesScan("com.cartisan.ai.provider")
+@ConfigurationPropertiesScan("com.cartisan.ai")
 public class CartisanAiAutoConfiguration {
 
     @Bean
@@ -89,8 +89,10 @@ public class CartisanAiAutoConfiguration {
 
 **关键设计决策：**
 
-1. **`@ConfigurationPropertiesScan("com.cartisan.ai.provider")`**
-   - 自动扫描 `provider` 包下所有 `@ConfigurationProperties` 类
+1. **`@ConfigurationPropertiesScan("com.cartisan.ai")`**
+   - 自动扫描 `com.cartisan.ai` 下所有 `@ConfigurationProperties` 类
+   - 覆盖 `provider` 包（OpenAiProperties、DeepSeekProperties、AnthropicProperties）
+   - 覆盖 `sse` 包（SseProperties），确保 `SseHelper` 可用
    - 支持未来扩展（如 Gemini、Ollama），无需修改配置类
 
 2. **`@ConditionalOnProperty` 匹配 `apiKey`**
