@@ -79,4 +79,37 @@ class CartisanAiAutoConfigurationTest {
             assertThat(provider.id()).isEqualTo("anthropic");
         }
     }
+
+    @Nested
+    @TestPropertySource(properties = {
+        "cartisan.ai.openai.api-key=sk-test-openai",
+        "cartisan.ai.deepseek.api-key=sk-test-deepseek",
+        "cartisan.ai.anthropic.api-key=sk-test-anthropic"
+    })
+    class AllProvidersConfiguredTest {
+
+        @Autowired
+        private ApplicationContext context;
+
+        @Test
+        void shouldCreateAllProviders() {
+            assertThat(context.getBean(OpenAiProvider.class)).isNotNull();
+            assertThat(context.getBean(DeepSeekProvider.class)).isNotNull();
+            assertThat(context.getBean(AnthropicProvider.class)).isNotNull();
+        }
+
+        @Test
+        void shouldCreateRegistryWithAllProviders() {
+            ModelProviderRegistry registry = context.getBean(ModelProviderRegistry.class);
+            assertThat(registry.listProviders()).hasSize(3);
+        }
+
+        @Test
+        void shouldFindProvidersById() {
+            ModelProviderRegistry registry = context.getBean(ModelProviderRegistry.class);
+            assertThat(registry.getProvider("openai")).isNotNull();
+            assertThat(registry.getProvider("deepseek")).isNotNull();
+            assertThat(registry.getProvider("anthropic")).isNotNull();
+        }
+    }
 }

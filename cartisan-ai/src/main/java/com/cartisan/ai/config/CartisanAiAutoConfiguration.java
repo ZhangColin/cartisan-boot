@@ -1,6 +1,8 @@
 package com.cartisan.ai.config;
 
 import com.cartisan.ai.provider.ModelProvider;
+import com.cartisan.ai.provider.ModelProviderRegistry;
+import com.cartisan.ai.provider.ModelUsageListener;
 import com.cartisan.ai.provider.anthropic.AnthropicProperties;
 import com.cartisan.ai.provider.anthropic.AnthropicProvider;
 import com.cartisan.ai.provider.deepseek.DeepSeekProperties;
@@ -41,5 +43,13 @@ public class CartisanAiAutoConfiguration {
     @ConditionalOnProperty(prefix = "cartisan.ai.anthropic", name = "api-key")
     AnthropicProvider anthropicProvider(AnthropicProperties properties) {
         return new AnthropicProvider(properties);
+    }
+
+    @Bean
+    @ConditionalOnBean(ModelProvider.class)
+    ModelProviderRegistry modelProviderRegistry(
+            List<ModelProvider> providers,
+            List<ModelUsageListener> listeners) {
+        return new ModelProviderRegistry(providers, listeners);
     }
 }
