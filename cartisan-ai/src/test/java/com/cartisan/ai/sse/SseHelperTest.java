@@ -9,7 +9,10 @@ import reactor.core.publisher.Flux;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,6 +35,34 @@ class SseHelperTest {
         SseEmitter emitter = sseHelper.toSse(Flux.fromIterable(events));
 
         // Then: emitter created with correct timeout
+        assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
+    }
+
+    @Test
+    void shouldInvokeUsageCallback_whenStreamCompletes() throws InterruptedException {
+        // Given
+        SseProperties properties = new SseProperties();
+        SseHelper sseHelper = new SseHelper(properties);
+
+        TokenUsage usage = new TokenUsage(10, 20, 30);
+        Flux<ChatStreamEvent> events = Flux.just(
+            new ChatStreamEvent("Hello", false, null),
+            new ChatStreamEvent("!", true, usage)
+        );
+
+        AtomicReference<TokenUsage> capturedUsage = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+
+        // When
+        SseEmitter emitter = sseHelper.toSse(events, u -> {
+            capturedUsage.set(u);
+            latch.countDown();
+        });
+
+        // Then: 等待异步回调完成
+        boolean completed = latch.await(2, TimeUnit.SECONDS);
+        assertThat(completed).isTrue();
+        assertThat(capturedUsage.get()).isEqualTo(usage);
         assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
     }
 }
