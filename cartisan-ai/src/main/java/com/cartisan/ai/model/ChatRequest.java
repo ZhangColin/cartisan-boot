@@ -18,4 +18,8 @@ public record ChatRequest(
         }
         messages = List.copyOf(messages);
     }
+
+    public ChatRequest withStream(boolean stream) {
+        return new ChatRequest(model, messages, temperature, maxTokens, stream);
+    }
 }
