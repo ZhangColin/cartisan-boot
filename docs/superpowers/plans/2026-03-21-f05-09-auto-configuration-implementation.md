@@ -27,35 +27,19 @@ cartisan-ai/src/main/resources/
 
 ---
 
-## Task 1: 创建 config 包及 package-info.java
+## Task 1: 验证 config 包
 
 **Files:**
-- Create: `cartisan-ai/src/main/java/com/cartisan/ai/config/package-info.java`
+- Verify: `cartisan-ai/src/main/java/com/cartisan/ai/config/package-info.java`（已存在）
 
-- [ ] **Step 1: 创建 package-info.java**
+- [ ] **Step 1: 验证 package-info.java 已存在**
 
-```java
-/**
- * cartisan-ai 自动配置模块。
- *
- * <p>提供 Spring Boot 自动配置，零配置引入 AI Provider 能力。
- *
- * @since 0.1.0
- */
-package com.cartisan.ai.config;
-```
+Run: `cat cartisan-ai/src/main/java/com/cartisan/ai/config/package-info.java`
+Expected: 文件存在且内容为包文档
 
-- [ ] **Step 2: 编译验证**
+- [ ] **Step 2: 跳过此任务**
 
-Run: `./gradlew :cartisan-ai:compileJava`
-Expected: BUILD SUCCESSFUL
-
-- [ ] **Step 3: 提交**
-
-```bash
-git add cartisan-ai/src/main/java/com/cartisan/ai/config/package-info.java
-git commit -m "feat(cartisan-ai): add config package with package-info.java"
-```
+`config` 包已在 F05-01 模块骨架中创建，无需额外操作。
 
 ---
 
@@ -126,9 +110,13 @@ git commit -m "feat(cartisan-ai): register AutoConfiguration imports"
 
 **Files:**
 - Create: `cartisan-ai/src/test/java/com/cartisan/ai/config/CartisanAiAutoConfigurationTest.java`
-- Create: `cartisan-ai/src/test/resources/application-test.yml`
+- Create: `cartisan-ai/src/test/resources/application-test.yml`（目录不存在，需创建）
 
-- [ ] **Step 1: 创建测试配置文件**
+- [ ] **Step 1: 创建测试资源目录**
+
+Run: `mkdir -p cartisan-ai/src/test/resources`
+
+- [ ] **Step 2: 创建测试配置文件**
 
 Create: `cartisan-ai/src/test/resources/application-test.yml`
 
@@ -144,7 +132,7 @@ cartisan:
       api-key: ""
 ```
 
-- [ ] **Step 2: 创建测试类骨架**
+- [ ] **Step 3: 创建测试类骨架**
 
 ```java
 package com.cartisan.ai.config;
@@ -175,12 +163,12 @@ class CartisanAiAutoConfigurationTest {
 }
 ```
 
-- [ ] **Step 3: 运行测试验证框架**
+- [ ] **Step 4: 运行测试验证框架**
 
 Run: `./gradlew :cartisan-ai:test --tests CartisanAiAutoConfigurationTest`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [ ] **Step 5: 提交**
 
 ```bash
 git add cartisan-ai/src/test/java/com/cartisan/ai/config/CartisanAiAutoConfigurationTest.java
