@@ -40,4 +40,26 @@ class CartisanAiAutoConfigurationTest {
             assertThat(provider.id()).isEqualTo("openai");
         }
     }
+
+    @Nested
+    @TestPropertySource(properties = {
+        "cartisan.ai.deepseek.api-key=sk-test-deepseek"
+    })
+    class OnlyDeepSeekConfiguredTest {
+
+        @Autowired
+        private ApplicationContext context;
+
+        @Test
+        void shouldCreateDeepSeekProvider() {
+            DeepSeekProvider provider = context.getBean(DeepSeekProvider.class);
+            assertThat(provider).isNotNull();
+            assertThat(provider.id()).isEqualTo("deepseek");
+        }
+
+        @Test
+        void shouldNotCreateOpenAiProvider() {
+            assertThat(context.getBeanProvider(OpenAiProvider.class).getIfAvailable()).isNull();
+        }
+    }
 }

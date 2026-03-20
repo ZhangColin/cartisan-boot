@@ -2,6 +2,7 @@ package com.cartisan.ai.config;
 
 import com.cartisan.ai.provider.anthropic.AnthropicProperties;
 import com.cartisan.ai.provider.deepseek.DeepSeekProperties;
+import com.cartisan.ai.provider.deepseek.DeepSeekProvider;
 import com.cartisan.ai.provider.openai.OpenAiProperties;
 import com.cartisan.ai.provider.openai.OpenAiProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -23,5 +24,11 @@ public class CartisanAiAutoConfiguration {
     @ConditionalOnProperty(prefix = "cartisan.ai.openai", name = "api-key")
     OpenAiProvider openAiProvider(OpenAiProperties properties) {
         return new OpenAiProvider(properties);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "cartisan.ai.deepseek", name = "api-key")
+    DeepSeekProvider deepSeekProvider(DeepSeekProperties properties) {
+        return new DeepSeekProvider(properties);
     }
 }
