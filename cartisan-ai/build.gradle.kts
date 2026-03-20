@@ -12,6 +12,9 @@ dependencies {
     // 选 spring-webflux 而非 spring-boot-starter-webflux，避免引入 Netty 嵌入式服务器
     api("org.springframework:spring-webflux")
 
+    // SSE 支持：SseEmitter 位于 spring-webmvc
+    api("org.springframework:spring-webmvc")
+
     // AutoConfiguration 基础设施，内部使用
     implementation("org.springframework.boot:spring-boot-starter")
 
