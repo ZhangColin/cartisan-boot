@@ -62,4 +62,21 @@ class CartisanAiAutoConfigurationTest {
             assertThat(context.getBeanProvider(OpenAiProvider.class).getIfAvailable()).isNull();
         }
     }
+
+    @Nested
+    @TestPropertySource(properties = {
+        "cartisan.ai.anthropic.api-key=sk-test-anthropic"
+    })
+    class OnlyAnthropicConfiguredTest {
+
+        @Autowired
+        private ApplicationContext context;
+
+        @Test
+        void shouldCreateAnthropicProvider() {
+            AnthropicProvider provider = context.getBean(AnthropicProvider.class);
+            assertThat(provider).isNotNull();
+            assertThat(provider.id()).isEqualTo("anthropic");
+        }
+    }
 }
