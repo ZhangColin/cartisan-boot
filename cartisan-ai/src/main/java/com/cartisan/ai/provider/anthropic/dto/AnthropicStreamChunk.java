@@ -1,6 +1,5 @@
 package com.cartisan.ai.provider.anthropic.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
@@ -8,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
  * <p>支持的事件类型：message_start, content_block_start, content_block_delta,
  * content_block_stop, message_delta, message_stop, ping, error
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public record AnthropicStreamChunk(
         String type,
         JsonNode data

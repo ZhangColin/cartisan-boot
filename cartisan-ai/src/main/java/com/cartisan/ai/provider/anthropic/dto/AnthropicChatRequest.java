@@ -2,9 +2,6 @@ package com.cartisan.ai.provider.anthropic.dto;
 
 import com.cartisan.ai.model.ChatMessage;
 import com.cartisan.ai.model.Role;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import java.util.List;
 
@@ -13,8 +10,6 @@ import java.util.List;
  *
  * @see <a href="https://docs.anthropic.com/en/api/messages">Anthropic Messages API</a>
  */
-@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public record AnthropicChatRequest(
         String model,
         List<AnthropicMessage> messages,
