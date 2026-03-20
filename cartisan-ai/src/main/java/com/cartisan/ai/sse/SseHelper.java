@@ -4,7 +4,6 @@ import com.cartisan.ai.model.ChatStreamEvent;
 import com.cartisan.ai.model.TokenUsage;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
@@ -69,7 +68,7 @@ public class SseHelper {
         });
 
         // 订阅 Flux，发送事件
-        Disposable disposable = events.doOnNext(event -> {
+        events.doOnNext(event -> {
             try {
                 emitter.send(event);
                 // 累积 usage
@@ -92,7 +91,7 @@ public class SseHelper {
         })
         .doFinally(signalType -> {
             // 回调最后一个 usage
-            if (usageCallback != null) {
+            if (usageCallback != null && lastUsage.get() != null) {
                 usageCallback.accept(lastUsage.get());
             }
             if (completed.compareAndSet(false, true)) {
@@ -100,13 +99,6 @@ public class SseHelper {
             }
         })
         .subscribe();
-
-        // 确保 emitter 取消时也取消 Flux 订阅
-        emitter.onCompletion(() -> {
-            if (!disposable.isDisposed()) {
-                disposable.dispose();
-            }
-        });
 
         return emitter;
     }

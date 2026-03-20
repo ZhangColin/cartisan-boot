@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SseHelperTest {
 
@@ -64,5 +65,27 @@ class SseHelperTest {
         assertThat(completed).isTrue();
         assertThat(capturedUsage.get()).isEqualTo(usage);
         assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
+    }
+
+    @Test
+    void shouldCompleteWithError_whenFluxErrors() {
+        // Given
+        SseProperties properties = new SseProperties();
+        SseHelper sseHelper = new SseHelper(properties);
+
+        RuntimeException expectedError = new RuntimeException("Stream error");
+        Flux<ChatStreamEvent> events = Flux.error(expectedError);
+
+        // When
+        SseEmitter emitter = sseHelper.toSse(events);
+
+        // Then: emitter 创建成功且配置了正确的超时
+        assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
+
+        // 验证 emitter 处于错误完成状态：
+        // 尝试发送事件到已因错误完成的 emitter 会抛出异常
+        assertThatThrownBy(() -> emitter.send(SseEmitter.event().data("test")))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("already completed with error");
     }
 }
