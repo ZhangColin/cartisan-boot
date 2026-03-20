@@ -1,5 +1,7 @@
 package com.cartisan.ai.provider.anthropic.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
@@ -11,7 +13,7 @@ public record AnthropicChatResponse(
         String role,
         List<ContentBlock> content,
         String model,
-        String stopReason,
+        @JsonProperty("stop_reason") String stopReason,
         Usage usage
 ) {
     /**
@@ -28,6 +30,8 @@ public record AnthropicChatResponse(
     /**
      * Token 使用量。
      */
-    public record Usage(int inputTokens, int outputTokens) {
+    public record Usage(
+            @JsonProperty("input_tokens") int inputTokens,
+            @JsonProperty("output_tokens") int outputTokens) {
     }
 }

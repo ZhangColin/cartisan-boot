@@ -2,6 +2,7 @@ package com.cartisan.ai.provider.anthropic.dto;
 
 import com.cartisan.ai.model.ChatMessage;
 import com.cartisan.ai.model.Role;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 public record AnthropicChatRequest(
         String model,
         List<AnthropicMessage> messages,
-        int maxTokens,
+        @JsonProperty("max_tokens") int maxTokens,
         Double temperature,
         boolean stream
 ) {

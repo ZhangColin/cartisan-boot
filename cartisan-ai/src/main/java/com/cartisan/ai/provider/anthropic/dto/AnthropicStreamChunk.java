@@ -43,9 +43,14 @@ public record AnthropicStreamChunk(
         if (usageNode == null) {
             return null;
         }
+        // message_delta only contains output_tokens, input_tokens is in message_start
+        JsonNode outputTokensNode = usageNode.get("output_tokens");
+        if (outputTokensNode == null || !outputTokensNode.isInt()) {
+            return null;
+        }
         return new Usage(
-                usageNode.get("input_tokens").asInt(),
-                usageNode.get("output_tokens").asInt()
+                0, // input_tokens not available in message_delta
+                outputTokensNode.asInt()
         );
     }
 
