@@ -112,4 +112,23 @@ class CartisanAiAutoConfigurationTest {
             assertThat(registry.getProvider("anthropic")).isNotNull();
         }
     }
+
+    @Nested
+    class NoProviderConfiguredTest {
+
+        @Autowired
+        private ApplicationContext context;
+
+        @Test
+        void shouldNotCreateAnyProvider() {
+            assertThat(context.getBeanProvider(OpenAiProvider.class).getIfAvailable()).isNull();
+            assertThat(context.getBeanProvider(DeepSeekProvider.class).getIfAvailable()).isNull();
+            assertThat(context.getBeanProvider(AnthropicProvider.class).getIfAvailable()).isNull();
+        }
+
+        @Test
+        void shouldNotCreateRegistryWhenNoProviders() {
+            assertThat(context.getBeanProvider(ModelProviderRegistry.class).getIfAvailable()).isNull();
+        }
+    }
 }
