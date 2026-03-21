@@ -529,18 +529,6 @@ implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
 
 ---
 
-### PIT-003 (2026-03-13)：PIT 插件与 Gradle 9.0 不兼容 → 已解决
-
-**场景**：配置 `id("info.solidsoft.pitest") version "1.15.0"` 后构建失败。
-
-**错误**：`Could not get unknown property 'baseDir' for extension 'reporting'`
-
-**原因**：Gradle 9.0 移除了 `ReportingExtension.getBaseDir()`，PIT 1.15.0 仍在使用该 API。
-
-**解决**：升级到 **1.19.0-rc.3**（或 1.19.0-rc.1+），该版本已改用 `baseDirectory`，兼容 Gradle 9。见 TOOL-002。
-
----
-
 ### PIT-004 (2026-03-13)：异常构造器中 formatMessage 调用顺序问题
 
 **场景**：`CartisanException` 构造器中先调用 `super(formatMessage(codeMessage, args))`，再检查 `codeMessage` 是否为 null。
@@ -1128,37 +1116,6 @@ public void malformedJson(@RequestBody Object body) {
 **记忆口诀**：测 JSON 解析异常，@RequestBody 不要用 String。
 
 ---
-
-### PIT-021 (2026-03-14)：Testcontainers 与 Docker Engine 29 不兼容
-
-**场景**：Testcontainers 集成测试报错 "Could not find a valid Docker environment"，但 `docker ps` 命令正常工作。
-
-**原因**：Testcontainers 1.20.x 与 Docker Engine 29 / Docker Desktop 4.59+ 不兼容。
-
-**解决方案**：
-```toml
-# gradle/libs.versions.toml
-[versions]
-testcontainers = "1.21.4"  # 从 1.20.4 升级
-```
-
-```kotlin
-# cartisan-test/build.gradle.kts
-// 添加 PostgreSQL JDBC 驱动（Testcontainers 需要实际驱动连接数据库）
-runtimeOnly("org.postgresql:postgresql:42.7.4")
-```
-
-**验证**：
-```bash
-./gradlew :cartisan-test:test --info | grep "Container is started"
-# ✅ 成功：Container postgres:16-alpine started in PT0.6s
-# ❌ 失败：Could not find a valid Docker environment
-```
-
-**相关决策**：见 ADR-029。
-
-**记忆口诀**：Docker 报错但 CLI 正常？升级 Testcontainers 到 1.21.4+。
-
 
 ---
 

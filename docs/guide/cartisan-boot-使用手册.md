@@ -1,7 +1,7 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.5 | **日期**：2026-03-18
-> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 + Epic 04 - Core + Test + Web + Data-JPA + Event + Security + Data-Query
+> **版本**：v0.6 | **日期**：2026-03-21
+> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 + Epic 04 + Epic 05 - Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
 
@@ -73,6 +73,20 @@
 | **分页查询参数** | `PageQuery` 分页参数类（page、size、offset） |
 | **jOOQ 自动配置** | `DSLContext` Bean 自动配置（PostgreSQL 方言、SQL 日志） |
 | **多租户查询** | `JooqTenantSupport.eqTenantId()` 租户过滤条件生成 |
+| **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+### 1.8 cartisan-ai 模块
+
+| 能力 | 说明 |
+|------|------|
+| **统一对话模型** | `ChatMessage`、`ChatRequest`、`ChatResponse`、`TokenUsage`、`ChatStreamEvent` |
+| **Provider SPI** | `ModelProvider` 接口，支持同步调用和流式调用 |
+| **Provider Registry** | 按提供商 ID 或模型名称查找 Provider |
+| **OpenAI Provider** | 支持 OpenAI API（同步 + SSE 流式） |
+| **DeepSeek Provider** | 兼容 OpenAI 协议，支持 DeepSeek API |
+| **Anthropic Provider** | 支持 Anthropic Claude API（独立协议） |
+| **SSE 流式工具** | `SseHelper` 将 `Flux<ChatStreamEvent>` 转换为 `SseEmitter` |
+| **ModelUsageListener** | Token 使用量监听扩展点 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ---
@@ -325,6 +339,41 @@
 - 无租户上下文时：返回 `DSL.noCondition()`（不添加过滤）
 
 **依赖说明**：需要 `cartisan-security` 模块（可选依赖）
+
+### 2.25 AI 对话模型（com.cartisan.ai.model）
+
+| 类/Record | 字段/方法 | 说明 |
+|----------|----------|------|
+| `Role` | `SYSTEM / USER / ASSISTANT` | 消息角色枚举 |
+| `ChatMessage` | `role()`, `content()` | 单条对话消息 |
+| `ChatRequest` | `model`, `messages`, `temperature`, `maxTokens`, `stream` | 对话请求 |
+| | `withStream(boolean)` | 创建流式/非流式请求副本 |
+| `ChatResponse` | `content()`, `model()`, `usage()` | 对话响应 |
+| `TokenUsage` | `promptTokens()`, `completionTokens()`, `totalTokens()` | Token 使用统计 |
+| `ChatStreamEvent` | `delta()`, `finished()`, `usage()` | 流式事件 |
+
+### 2.26 ModelProvider SPI（com.cartisan.ai.provider）
+
+| 接口/类 | 方法 | 说明 |
+|---------|------|------|
+| `ModelProvider` | `id()` → `String` | 提供商标识（openai/anthropic/deepseek） |
+| | `supportedModels()` → `List<String>` | 支持的模型列表 |
+| | `chat(ChatRequest)` → `ChatResponse` | 同步调用 |
+| | `chatStream(ChatRequest)` → `Flux<ChatStreamEvent>` | 流式调用 |
+| `ModelProviderRegistry` | `getProvider(providerId)` → `ModelProvider` | 按 ID 查找 Provider |
+| | `getProviderByModel(modelName)` → `ModelProvider` | 按模型名查找 Provider |
+| | `listProviders()` → `List<ModelProvider>` | 列出所有 Provider |
+| | `chat(providerId, request)` → `ChatResponse` | 通过 Registry 调用 |
+| | `chatStream(providerId, request)` → `Flux<ChatStreamEvent>` | 通过 Registry 流式调用 |
+| `ModelUsageListener` | `onUsage(providerId, model, usage)` | Token 使用监听器（扩展点） |
+
+### 2.27 SSE 流式工具（com.cartisan.ai.sse）
+
+| 类 | 方法 | 说明 |
+|----|------|------|
+| `SseHelper` | `toSse(Flux<ChatStreamEvent>)` → `SseEmitter` | 转换为 SSE（无回调） |
+| | `toSse(Flux<ChatStreamEvent>, Consumer<TokenUsage>)` → `SseEmitter` | 转换为 SSE（usage 回调） |
+| `SseProperties` | `timeout`（默认 30 秒） | SSE 超时配置 |
 
 ---
 
@@ -1090,6 +1139,128 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
+### 3.24 使用 cartisan-ai 同步调用
+
+```java
+@Service
+public class AiService {
+    private final ModelProviderRegistry registry;
+
+    // 通过 Registry 调用（推荐，支持动态切换 Provider）
+    public String chat(String providerId, String userMessage) {
+        ChatRequest request = new ChatRequest(
+            "gpt-4o-mini",  // 或其他模型名
+            List.of(
+                new ChatMessage(Role.SYSTEM, "You are a helpful assistant."),
+                new ChatMessage(Role.USER, userMessage)
+            ),
+            0.7,    // temperature
+            null,   // maxTokens
+            false   // stream
+        );
+
+        ChatResponse response = registry.chat(providerId, request);
+        return response.content();
+    }
+
+    // 直接注入特定 Provider
+    public String chatWithOpenAi(String userMessage) {
+        // OpenAiProvider 会自动注入
+        ModelProvider provider = registry.getProvider("openai");
+        // ... 同上
+    }
+}
+```
+
+### 3.25 使用 cartisan-ai 流式调用（SSE）
+
+```java
+@RestController
+@RequestMapping("/api/ai")
+public class AiController {
+    private final ModelProviderRegistry registry;
+    private final SseHelper sseHelper;
+
+    // 返回 SSE 流
+    @GetMapping("/chat/stream")
+    public SseEmitter chatStream(
+            @RequestParam(defaultValue = "openai") String providerId,
+            @RequestParam String message) {
+
+        ChatRequest request = new ChatRequest(
+            "gpt-4o-mini",
+            List.of(new ChatMessage(Role.USER, message)),
+            null, null, true  // stream = true
+        );
+
+        Flux<ChatStreamEvent> events = registry.chatStream(providerId, request);
+
+        // 转换为 SSE，流结束时记录 Token 使用
+        return sseHelper.toSse(events, usage -> {
+            log.info("Token usage: prompt={}, completion={}",
+                usage.promptTokens(), usage.completionTokens());
+        });
+    }
+
+    // 或者返回 Flux（让客户端处理 Reactor 类型）
+    @GetMapping(value = "/chat/flux", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ChatStreamEvent> chatFlux(@RequestParam String message) {
+        ChatRequest request = new ChatRequest(
+            "gpt-4o-mini",
+            List.of(new ChatMessage(Role.USER, message)),
+            null, null, true
+        );
+
+        return registry.chatStream("openai", request);
+    }
+}
+```
+
+### 3.26 配置 cartisan-ai Provider
+
+```yaml
+# application.yml
+cartisan:
+  ai:
+    # OpenAI 配置
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: https://api.openai.com/v1  # 可选，支持代理/Azure
+    # DeepSeek 配置
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
+      base-url: https://api.deepseek.com/v1
+    # Anthropic 配置
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+      base-url: https://api.anthropic.com
+    # SSE 超时配置
+    sse:
+      timeout: 30s  # 默认 30 秒
+```
+
+**条件装配规则**：
+- 只有配置了对应 `api-key` 的 Provider 才会被创建
+- 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
+
+### 3.27 实现 ModelUsageListener
+
+```java
+@Component
+public class TokenUsageLogger implements ModelUsageListener {
+
+    private static final Logger log = LoggerFactory.getLogger(TokenUsageLogger.class);
+
+    @Override
+    public void onUsage(String providerId, String model, TokenUsage usage) {
+        log.info("AI Usage - Provider: {}, Model: {}, Prompt: {}, Completion: {}, Total: {}",
+            providerId, model, usage.promptTokens(), usage.completionTokens(), usage.totalTokens());
+
+        // 可以写入数据库、发送监控告警等
+    }
+}
+```
+
 ---
 
 ## 四、注意事项
@@ -1216,6 +1387,15 @@ dependencies {
     implementation(project(":cartisan-security"))  // 使用 JooqTenantSupport 时需要
 }
 ```
+
+### 4.10 AI / cartisan-ai
+
+| 规则 | 说明 |
+|------|------|
+| **AI-001** | `ChatRequest.withStream()` 创建副本，避免修改原请求 |
+| **AI-002** | `ModelProviderRegistry` 的 Listener 异常不中断流程，仅记录 WARN |
+| **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
+| **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
 
 ---
 
@@ -1423,6 +1603,23 @@ implementation 依赖：
 
 compileOnly 依赖：
 - cartisan-security（可选，用于 JooqTenantSupport）
+
+### 5.8 cartisan-ai
+
+```
+api 依赖：
+- cartisan-core
+- spring-webflux（Flux 类型出现在公开 SPI 中）
+
+implementation 依赖：
+- spring-boot-starter
+
+可选依赖（由使用方提供）：
+- spring-boot-starter-web（SseEmitter 需要）
+- spring-boot-starter-webflux（WebClient 需要）
+```
+
+---
 ```
 
 ---
