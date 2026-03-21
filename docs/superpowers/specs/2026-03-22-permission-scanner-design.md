@@ -42,7 +42,7 @@ public @interface RequirePermission {
 
     /**
      * 权限作用域，用于区分不同系统/范围
-     * 未填时为 null，表示全局权限
+     * 未填时（空字符串）扫描时转为 null，表示全局权限
      */
     String scope() default "";
 }
@@ -93,7 +93,7 @@ public interface PermissionScanner {
 - 注入 Spring 的 `RequestMappingHandlerMapping`，获取所有 `HandlerMethod`
 - 遍历每个 `HandlerMethod`，检查方法上的 `@RequirePermission` 注解
 - 提取注解属性，构造 `Permission` 对象
-- 处理 `name` 和 `scope` 的默认值
+- 处理默认值：空字符串 `name` → 使用 `code`；空字符串 `scope` → 转为 `null`
 
 **缓存策略**：
 - 启动时首次调用时触发扫描
