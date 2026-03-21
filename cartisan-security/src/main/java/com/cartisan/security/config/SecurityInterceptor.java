@@ -19,7 +19,7 @@ import java.lang.reflect.Method;
  * <ul>
  *   <li>{@link RequireAuth} - 要求用户登录</li>
  *   <li>{@link RequireRole} - 要求用户拥有指定角色之一（OR 逻辑）</li>
- *   <li>{@link RequirePermission} - 要求用户拥有指定权限之一（OR 逻辑）</li>
+ *   <li>{@link RequirePermission} - 要求用户拥有指定权限（单值）</li>
  * </ul>
  * <p>
  * 注解优先级：方法注解优先于类注解。
@@ -53,9 +53,9 @@ public class SecurityInterceptor implements HandlerInterceptor {
         }
 
         // @RequirePermission 检查
-        RequirePermission requirePermission = findAnnotation(method, beanType, RequirePermission.class);
+        RequirePermission requirePermission = method.getAnnotation(RequirePermission.class);
         if (requirePermission != null) {
-            StpUtil.checkPermissionOr(requirePermission.value());
+            StpUtil.checkPermission(requirePermission.value());
         }
 
         return true;

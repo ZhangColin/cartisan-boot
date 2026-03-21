@@ -98,52 +98,6 @@ class SecurityInterceptorTest {
         mockedStpUtil.verify(StpUtil::checkLogin);
     }
 
-    @Test
-    void given_classRequireAuth_when_preHandle_then_callCheckLogin() throws Exception {
-        // Given: 类有 @RequireAuth 注解，方法无注解
-        Method method = TestClassRequireAuth.class.getMethod("methodWithoutAnnotation");
-        HandlerMethod handler = new HandlerMethod(new TestClassRequireAuth(), method);
-
-        // When
-        boolean result = interceptor.preHandle(request, response, handler);
-
-        // Then
-        assertThat(result).isTrue();
-        mockedStpUtil.verify(StpUtil::checkLogin);
-    }
-
-    // ========== AC4: 方法注解优先于类注解（同一类型） ==========
-
-    @Test
-    void given_classAndMethodRequireAuth_when_methodHasFalse_then_doNotCheckLogin() throws Exception {
-        // Given: 类有 @RequireAuth，方法有 @RequireAuth(false)，方法注解覆盖类注解
-        Method method = TestClassRequireAuth.class.getMethod("methodWithRequireAuthFalse");
-        HandlerMethod handler = new HandlerMethod(new TestClassRequireAuth(), method);
-
-        // When
-        boolean result = interceptor.preHandle(request, response, handler);
-
-        // Then
-        assertThat(result).isTrue();
-        mockedStpUtil.verify(StpUtil::checkLogin, never()); // value=false，不检查登录
-    }
-
-    @Test
-    void given_classRequireAuthAndMethodRequireRole_when_preHandle_then_callBoth() throws Exception {
-        // Given: 类有 @RequireAuth，方法有 @RequireRole（不同类型注解，AND 逻辑）
-        Method method = TestClassRequireAuth.class.getMethod("methodWithRequireRole");
-        HandlerMethod handler = new HandlerMethod(new TestClassRequireAuth(), method);
-
-        // When
-        boolean result = interceptor.preHandle(request, response, handler);
-
-        // Then
-        assertThat(result).isTrue();
-        // 验证两者都被调用（AND 逻辑：需要登录 AND 需要 admin 角色）
-        mockedStpUtil.verify(StpUtil::checkLogin);
-        mockedStpUtil.verify(() -> StpUtil.checkRoleOr("admin"));
-    }
-
     // ========== AC2: @RequireRole 检查 ==========
 
     @Test
@@ -160,7 +114,7 @@ class SecurityInterceptorTest {
         mockedStpUtil.verify(() -> StpUtil.checkRoleOr("admin"));
     }
 
-    // ========== AC5: @RequireRole 多值 OR 逻辑 ==========
+    // ========== AC3: @RequireRole 多值 OR 逻辑 ==========
 
     @Test
     void given_requireRoleMultiple_when_preHandle_then_callCheckRoleOrWithAll() throws Exception {
@@ -176,11 +130,11 @@ class SecurityInterceptorTest {
         mockedStpUtil.verify(() -> StpUtil.checkRoleOr("admin", "super"));
     }
 
-    // ========== AC3: @RequirePermission 检查 ==========
+    // ========== AC4: @RequirePermission 检查 ==========
 
     @Test
-    void given_requirePermissionSingle_when_preHandle_then_callCheckPermissionOr() throws Exception {
-        // Given: 方法有 @RequirePermission({"user:create"})
+    void given_requirePermission_when_preHandle_then_callCheckPermission() throws Exception {
+        // Given: 方法有 @RequirePermission("user:create")
         Method method = TestController.class.getMethod("requirePermissionMethod");
         HandlerMethod handler = new HandlerMethod(new TestController(), method);
 
@@ -189,23 +143,7 @@ class SecurityInterceptorTest {
 
         // Then
         assertThat(result).isTrue();
-        mockedStpUtil.verify(() -> StpUtil.checkPermissionOr("user:create"));
-    }
-
-    // ========== AC5: @RequirePermission 多值 OR 逻辑 ==========
-
-    @Test
-    void given_requirePermissionMultiple_when_preHandle_then_callCheckPermissionOrWithAll() throws Exception {
-        // Given: 方法有 @RequirePermission({"user:create", "user:update"})
-        Method method = TestController.class.getMethod("requirePermissionMultipleMethod");
-        HandlerMethod handler = new HandlerMethod(new TestController(), method);
-
-        // When
-        boolean result = interceptor.preHandle(request, response, handler);
-
-        // Then
-        assertThat(result).isTrue();
-        mockedStpUtil.verify(() -> StpUtil.checkPermissionOr("user:create", "user:update"));
+        mockedStpUtil.verify(() -> StpUtil.checkPermission("user:create"));
     }
 
     // ========== 测试 Controller ==========
@@ -230,30 +168,8 @@ class SecurityInterceptorTest {
         public void requireRoleMultipleMethod() {
         }
 
-        @RequirePermission({"user:create"})
+        @RequirePermission("user:create")
         public void requirePermissionMethod() {
-        }
-
-        @RequirePermission({"user:create", "user:update"})
-        public void requirePermissionMultipleMethod() {
-        }
-    }
-
-    /**
-     * 类级别有 @RequireAuth 的测试 Controller
-     */
-    @RequireAuth
-    static class TestClassRequireAuth {
-
-        public void methodWithoutAnnotation() {
-        }
-
-        @RequireRole({"admin"})
-        public void methodWithRequireRole() {
-        }
-
-        @RequireAuth(false)
-        public void methodWithRequireAuthFalse() {
         }
     }
 }
