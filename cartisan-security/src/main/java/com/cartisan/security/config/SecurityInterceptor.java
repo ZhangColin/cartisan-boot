@@ -22,7 +22,8 @@ import java.lang.reflect.Method;
  *   <li>{@link RequirePermission} - 要求用户拥有指定权限（单值）</li>
  * </ul>
  * <p>
- * 注解优先级：方法注解优先于类注解。
+ * 注解优先级：方法注解优先于类注解（仅 @RequireAuth 和 @RequireRole）。
+ * @RequirePermission 仅支持方法级别注解。
  * 鉴权顺序：@RequireAuth → @RequireRole → @RequirePermission（AND 逻辑）
  */
 public class SecurityInterceptor implements HandlerInterceptor {
@@ -52,7 +53,7 @@ public class SecurityInterceptor implements HandlerInterceptor {
             StpUtil.checkRoleOr(requireRole.value());
         }
 
-        // @RequirePermission 检查
+        // @RequirePermission 检查（仅方法级别，不支持类注解）
         RequirePermission requirePermission = method.getAnnotation(RequirePermission.class);
         if (requirePermission != null) {
             StpUtil.checkPermission(requirePermission.value());

@@ -39,7 +39,7 @@ public @interface RequirePermission {
 
     /**
      * 权限显示名称，用于界面展示。
-     * <p>未填时使用 code 作为 name</p>
+     * <p>空字符串时使用 code 作为 name</p>
      *
      * @return 显示名称
      */
