@@ -6,8 +6,11 @@ import com.cartisan.security.authentication.AuthenticationService;
 import com.cartisan.security.authentication.SaTokenAuthenticationService;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import com.cartisan.security.context.TenantContextFilter;
+import com.cartisan.security.permission.DefaultPermissionScanner;
+import com.cartisan.security.permission.PermissionScanner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,6 +18,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * cartisan-security 自动配置主类。
@@ -85,6 +89,20 @@ public class CartisanSecurityAutoConfiguration {
     @ConditionalOnMissingBean(AuthenticationService.class)
     public AuthenticationService authenticationService() {
         return new SaTokenAuthenticationService();
+    }
+
+    /**
+     * 注册 {@link com.cartisan.security.permission.PermissionScanner} Bean。
+     * <p>
+     * 业务系统注入此 Bean 以扫描代码中的权限定义。
+     * </p>
+     */
+    @Bean
+    @ConditionalOnBean(RequestMappingHandlerMapping.class)
+    @ConditionalOnMissingBean(PermissionScanner.class)
+    public PermissionScanner permissionScanner(
+        RequestMappingHandlerMapping requestMappingHandlerMapping) {
+        return new DefaultPermissionScanner(requestMappingHandlerMapping);
     }
 
     /**
