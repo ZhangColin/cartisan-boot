@@ -57,6 +57,7 @@
 | 能力 | 说明 |
 |------|------|
 | **权限注解** | `@RequireAuth`、`@RequireRole`、`@RequirePermission` |
+| **权限扫描** | `PermissionScanner` 扫描代码中的权限注解，自动采集权限定义 |
 | **MVC 拦截器** | `SecurityInterceptor` 处理鉴权逻辑 |
 | **异常处理** | `SecurityExceptionHandler` 处理 Sa-Token 异常（401/403） |
 | **安全上下文** | `SecurityContext` 获取当前用户信息 |
@@ -234,7 +235,12 @@
 |------|------|------|
 | `@RequireAuth` | TYPE/METHOD | 需要登录 |
 | `@RequireRole` | TYPE/METHOD | 需要指定角色（OR 逻辑） |
-| `@RequirePermission` | TYPE/METHOD | 需要指定权限（OR 逻辑） |
+| `@RequirePermission` | METHOD | 需要指定权限（单值，支持 name 和 scope 属性） |
+
+**@RequirePermission 属性说明：**
+- `value`: 权限 code，格式 `{context}:{module}:{action}`
+- `name`: 权限显示名称（可选，空字符串时使用 code）
+- `scope`: 权限作用域（可选，空字符串时转为 null）
 
 ### 2.16 SecurityContext（com.cartisan.security.context）
 
@@ -303,7 +309,38 @@
 
 **执行时序**：Filter → Interceptor（@RequireAuth 检查）→ 参数解析（@CurrentUser）→ Controller
 
-### 2.23 PageQuery（com.cartisan.data.query.page）
+### 2.23 PermissionScanner（com.cartisan.security.permission）
+
+| 接口/类 | 方法 | 说明 |
+|---------|------|------|
+| `PermissionScanner` | `scanAll()` → `List<Permission>` | 扫描全部权限 |
+| | `scanByScope(String scope)` → `List<Permission>` | 按作用域扫描权限（null = 无作用域） |
+| `Permission` | `code()` → `String` | 权限 code |
+| | `name()` → `String` | 显示名称 |
+| | `scope()` → `String` | 作用域（可能为 null） |
+| `DefaultPermissionScanner` | - | 默认实现，自动注册为 Spring Bean |
+
+**使用示例：**
+
+```java
+@Service
+public class PermissionInitService {
+    private final PermissionScanner permissionScanner;
+
+    public void initPermissions() {
+        // 扫描指定作用域
+        List<Permission> adminPermissions = permissionScanner.scanByScope("admin");
+
+        // 扫描全部权限
+        List<Permission> allPermissions = permissionScanner.scanAll();
+
+        // 同步到权限管理表
+        permissionRepository.syncPermissions(allPermissions);
+    }
+}
+```
+
+### 2.24 PageQuery（com.cartisan.data.query.page）
 
 | 字段/方法 | 类型/返回值 | 说明 |
 |-----------|------------|------|
@@ -317,7 +354,7 @@
 - `size < 1` 时修正为 20
 - `size > 100` 时修正为 100
 
-### 2.23 DSLContext 自动配置（com.cartisan.data.query.config）
+### 2.25 DSLContext 自动配置（com.cartisan.data.query.config）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
@@ -328,7 +365,7 @@
 - 方言：固定为 `SQLDialect.POSTGRES`
 - Bean：可被用户自定义配置覆盖
 
-### 2.24 JooqTenantSupport（com.cartisan.data.query.support）
+### 2.26 JooqTenantSupport（com.cartisan.data.query.support）
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
@@ -340,7 +377,7 @@
 
 **依赖说明**：需要 `cartisan-security` 模块（可选依赖）
 
-### 2.25 AI 对话模型（com.cartisan.ai.model）
+### 2.27 AI 对话模型（com.cartisan.ai.model）
 
 | 类/Record | 字段/方法 | 说明 |
 |----------|----------|------|
@@ -352,7 +389,7 @@
 | `TokenUsage` | `promptTokens()`, `completionTokens()`, `totalTokens()` | Token 使用统计 |
 | `ChatStreamEvent` | `delta()`, `finished()`, `usage()` | 流式事件 |
 
-### 2.26 ModelProvider SPI（com.cartisan.ai.provider）
+### 2.28 ModelProvider SPI（com.cartisan.ai.provider）
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
@@ -367,7 +404,7 @@
 | | `chatStream(providerId, request)` → `Flux<ChatStreamEvent>` | 通过 Registry 流式调用 |
 | `ModelUsageListener` | `onUsage(providerId, model, usage)` | Token 使用监听器（扩展点） |
 
-### 2.27 SSE 流式工具（com.cartisan.ai.sse）
+### 2.29 SSE 流式工具（com.cartisan.ai.sse）
 
 | 类 | 方法 | 说明 |
 |----|------|------|
@@ -771,9 +808,17 @@ public class AdminController {
     @PostMapping("/users")
     public ApiResponse<Void> createUser() { ... }
 
-    @RequirePermission({"user:delete"})
-    @DeleteMapping("/users/{id}")
-    public ApiResponse<Void> deleteUser(@PathVariable Long id) { ... }
+    @RequirePermission(
+        value = "admin:user:read",
+        name = "平台管理 / 用户管理 / 查看",
+        scope = "admin"
+    )
+    @GetMapping("/users")
+    public ApiResponse<List<User>> listUsers() { ... }
+
+    @RequirePermission("admin:user:write")
+    @PostMapping("/users")
+    public ApiResponse<Void> createUser() { ... }
 }
 
 // 方法覆盖类注解
@@ -790,6 +835,11 @@ public class PublicController {
     public ApiResponse<String> ping() { ... }
 }
 ```
+
+**权限 Code 规范：** 采用 3 级结构 `{context}:{module}:{action}`
+- context: 限界上下文（如 admin）
+- module: 业务模块（如 user）
+- action: 操作（如 read/write/delete）
 
 ### 3.14 使用 SecurityContext
 
