@@ -127,4 +127,28 @@ public class TestAuthController {
         result.put("userId", userId);
         return ApiResponse.ok(result);
     }
+
+    // ========== Permission 元数据测试端点 ==========
+
+    /**
+     * 测试带 name 和 scope 的权限注解。
+     */
+    @GetMapping("/permission-with-metadata")
+    @RequirePermission(
+        value = "test:admin:user:read",
+        name = "测试 / 管理员 / 用户查看",
+        scope = "test"
+    )
+    public ApiResponse<String> permissionWithMetadata() {
+        return ApiResponse.ok("permission with metadata");
+    }
+
+    /**
+     * 测试仅 value 的权限注解。
+     */
+    @GetMapping("/permission-simple")
+    @RequirePermission("test:simple:action")
+    public ApiResponse<String> permissionSimple() {
+        return ApiResponse.ok("simple permission");
+    }
 }
