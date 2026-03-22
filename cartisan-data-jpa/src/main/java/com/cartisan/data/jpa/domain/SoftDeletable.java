@@ -11,12 +11,13 @@ import org.hibernate.annotations.SQLRestriction;
  * <ul>
  *   <li>{@code deleted} 字段标记是否已删除</li>
  *   <li>{@code @SQLRestriction} 在查询时自动过滤 {@code deleted = true} 的记录</li>
+ *   <li>调用 {@code repository.delete(entity)} 自动软删除（无需手动设置 {@code deleted}）</li>
  * </ul>
  *
  * <h3>软删除行为</h3>
  * <ul>
- *   <li>调用 {@code repository.delete(entity)} 会将 {@code deleted} 设为 {@code true}</li>
- *   <li>调用 {@code repository.deleteById(id)} 会将对应记录的 {@code deleted} 设为 {@code true}</li>
+ *   <li>调用 {@code repository.delete(entity)} 自动将 {@code deleted} 设为 {@code true}</li>
+ *   <li>调用 {@code repository.deleteById(id)} 自动将对应记录的 {@code deleted} 设为 {@code true}</li>
  *   <li>所有查询（如 {@code findAll()}）自动排除 {@code deleted = true} 的记录</li>
  * </ul>
  *
