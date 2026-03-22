@@ -1,7 +1,7 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.6 | **日期**：2026-03-21
-> **基于 Epic**：Epic 01 + Epic 02 + Epic 03 + Epic 04 + Epic 05 - Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
+> **版本**：v0.7 | **日期**：2026-03-22
+> **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
 
@@ -1349,6 +1349,7 @@ public class TokenUsageLogger implements ModelUsageListener {
 | **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
 | **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
 | **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
+| **DATA-006** | 自动软删除通过 `instanceof` 判断类型，软删除调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
 
 ### 4.3 Spring Boot / 自动配置
 
@@ -1669,6 +1670,7 @@ implementation 依赖：
 
 compileOnly 依赖：
 - cartisan-security（可选，用于 JooqTenantSupport）
+```
 
 ### 5.8 cartisan-ai
 
@@ -1686,28 +1688,19 @@ implementation 依赖：
 ```
 
 ---
-```
-
----
 
 ## 六、参考文档
 
-### 6.1 模块设计
+### 6.1 设计文档
 
 - [cartisan-boot-设计文档.md](../cartisan-boot-设计文档.md)
+
+### 6.2 开发指南
+
 - [AI协作开发SOP.md](../sop/AI协作开发SOP.md)
-
-### 6.2 Epic 规格
-
-- [Epic 01: Core + Test](../specs/epic-01-core-and-test/)
-- [Epic 02: Web + Data-JPA + Event](../specs/epic-02-web-data-jpa-event/)
-- [Epic 03: Security](../specs/epic-03-security/)
-- [Epic 04: Data-Query](../specs/epic-04-data-query/)
-
-### 6.3 配置指南
-
 - [jOOQ 代码生成配置指南](./jooq-code-generation.md)
+- [团队踩坑经验库 (PITFALLS.md)](../PITFALLS.md)
 
 ---
 
-**文档结束** | 更新日期：2026-03-18
+**文档结束** | 更新日期：2026-03-22

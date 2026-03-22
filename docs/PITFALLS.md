@@ -80,6 +80,58 @@ public abstract class DomainEvent {
 
 ---
 
+### 规则 DDD-004：值对象 JPA 映射分类处理
+
+**决策**：不使用单值值对象，直接使用基础类型 + 验证；复杂值对象使用 `@Embeddable`。
+
+**分类处理**：
+
+| 类型 | 处理方式 | 理由 |
+|------|---------|------|
+| **简单值**（Email、PhoneNumber） | `String` + 构造函数验证 | 验证简单，避免过度设计 |
+| **复杂值**（Address、Money） | `@Embeddable` + `@Embedded` | JPA 原生支持，值对象有意义 |
+
+**代码示例**：
+```java
+@Entity
+@Table(name = "users")
+public class User {
+
+    @Column(name = "email", length = 255)
+    private String email;
+
+    @Embedded
+    private Address address;  // 复杂值对象
+
+    // 构造函数中验证
+    public User(String email) {
+        Assertions.require(EmailUtil.isEmail(email), "邮箱格式无效");
+        this.email = email;
+    }
+}
+
+@Embeddable
+public class Address {
+    @Column(name = "province")
+    private String province;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "detail")
+    private String detail;
+}
+```
+
+**理由**：
+1. 简单值用 String + 验证，代码量少，易于理解
+2. 避免 AttributeConverter 的样板代码
+3. 复杂值对象继续使用 JPA 的 `@Embeddable`
+
+**记忆口诀**：简单值 String 验证，复杂值 Embeddable。
+
+---
+
 ## 工具配置
 
 ### 规则 TOOL-001：ArchUnit 检查生产代码时应排除测试依赖
@@ -218,8 +270,6 @@ Caused by: UnsupportedOperationException: Utility class
 ./gradlew :cartisan-test:test --info | grep "Container is started"
 # 应输出：Container postgres:16-alpine started in PT0.6s
 ```
-
-**相关决策**：见 ADR-029。
 
 ---
 
@@ -578,8 +628,6 @@ void shouldPreservePlaceholder_whenInsufficientArgs() {
     assertThat(exception.getMessage()).isEqualTo("Error type at {1}");
 }
 ```
-
-**相关规则**：见 ADR-010 边界行为说明。
 
 ---
 
@@ -1521,8 +1569,6 @@ mvc.perform(get("/test/protected").header("satoken", token))
 
 **记忆口诀**：MockMvc 测试用 Controller 登录，不要直接调 StpUtil。
 
-**相关**：见 ADR-060。
-
 ---
 
 ### 规则 TEST-005：集成测试辅助方法应提取到基类
@@ -1591,8 +1637,6 @@ String token = extractSaToken(request);
 Object loginId = StpUtil.getLoginIdByToken(token);
 return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
 ```
-
-**相关决策**：见 ADR-060。
 
 **记忆口诀**：MockMvc 缺 Filter 上下文，token 直接查 Session。
 
