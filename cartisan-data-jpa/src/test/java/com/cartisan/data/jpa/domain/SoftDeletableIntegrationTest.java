@@ -155,4 +155,37 @@ class SoftDeletableIntegrationTest {
         assertThat(found).hasSize(2);
         assertThat(found).allMatch(e -> !e.isDeleted());
     }
+
+    // ==================== 新增：自动软删除测试 ====================
+    @Test
+    void given_existingEntity_when_deleteAuto_then_markedAsDeleted() {
+        // Given: 创建实体
+        TestSoftDeletableEntity entity = new TestSoftDeletableEntity();
+        entity.setName("Auto Delete");
+        TestSoftDeletableEntity saved = repository.saveAndFlush(entity);
+
+        assertThat(repository.findAll()).hasSize(1);
+
+        // When: 使用 repository.delete() 自动软删除
+        repository.delete(saved);
+
+        // Then: 实体被标记为已删除，常规查询过滤
+        assertThat(repository.findAll()).isEmpty();
+    }
+
+    @Test
+    void given_existingEntity_when_deleteByIdAuto_then_markedAsDeleted() {
+        // Given: 创建实体
+        TestSoftDeletableEntity entity = new TestSoftDeletableEntity();
+        entity.setName("Auto Delete By Id");
+        TestSoftDeletableEntity saved = repository.saveAndFlush(entity);
+
+        assertThat(repository.findAll()).hasSize(1);
+
+        // When: 使用 repository.deleteById() 自动软删除
+        repository.deleteById(saved.getId());
+
+        // Then: 实体被标记为已删除
+        assertThat(repository.findAll()).isEmpty();
+    }
 }
