@@ -66,6 +66,9 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
      * <p>如果实体实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable}，
      * 则调用 {@code markAsDeleted()} 并保存，否则执行物理删除。</p>
      *
+     * <p>也支持通过反射调用 {@code markAsDeleted()} 方法，以支持继承自
+     * {@link AbstractAggregateRoot} 的软删除实体。</p>
+     *
      * @param entity 要删除的实体，不能为 null
      */
     @Override
@@ -73,6 +76,9 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         if (entity instanceof com.cartisan.data.jpa.domain.SoftDeletable softDeletable) {
             softDeletable.markAsDeleted();
             save(entity);  // 复用 save() 的事件发布逻辑
+        } else if (hasMarkAsDeletedMethod(entity)) {
+            markAsDeletedViaReflection(entity);
+            save(entity);
         } else {
             super.delete(entity);  // 非软删除实体，物理删除
         }
@@ -190,5 +196,34 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         java.util.List<T> entities = new java.util.ArrayList<>();
         ids.forEach(id -> findById(id).ifPresent(entities::add));
         deleteAll(entities);
+    }
+
+    /**
+     * 检查实体是否有 markAsDeleted() 方法。
+     *
+     * @param entity 要检查的实体
+     * @return true 如果实体有 markAsDeleted() 方法
+     */
+    private boolean hasMarkAsDeletedMethod(T entity) {
+        try {
+            entity.getClass().getMethod("markAsDeleted");
+            return true;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 通过反射调用实体的 markAsDeleted() 方法。
+     *
+     * @param entity 要标记为删除的实体
+     */
+    private void markAsDeletedViaReflection(T entity) {
+        try {
+            java.lang.reflect.Method method = entity.getClass().getMethod("markAsDeleted");
+            method.invoke(entity);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to mark entity as deleted", e);
+        }
     }
 }
