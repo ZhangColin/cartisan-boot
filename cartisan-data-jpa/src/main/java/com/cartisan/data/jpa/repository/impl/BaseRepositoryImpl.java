@@ -100,7 +100,8 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     /**
      * 批量删除实体，软删除实体自动标记为已删除。
      *
-     * <p>实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable} 的实体执行软删除，其他实体执行物理删除。</p>
+     * <p>实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable} 的实体或
+     * 带有 {@code markAsDeleted()} 方法的实体执行软删除，其他实体执行物理删除。</p>
      *
      * @param entities 要删除的实体集合，不能为 null
      */
@@ -110,7 +111,7 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         java.util.List<T> physicalDelete = new java.util.ArrayList<>();
 
         entities.forEach(e -> {
-            if (e instanceof com.cartisan.data.jpa.domain.SoftDeletable) {
+            if (e instanceof com.cartisan.data.jpa.domain.SoftDeletable || hasMarkAsDeletedMethod(e)) {
                 softDeletable.add(e);
             } else {
                 physicalDelete.add(e);
@@ -118,7 +119,13 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         });
 
         // 软删除：标记并保存
-        softDeletable.forEach(e -> ((com.cartisan.data.jpa.domain.SoftDeletable) e).markAsDeleted());
+        softDeletable.forEach(e -> {
+            if (e instanceof com.cartisan.data.jpa.domain.SoftDeletable entity) {
+                entity.markAsDeleted();
+            } else {
+                markAsDeletedViaReflection(e);
+            }
+        });
         if (!softDeletable.isEmpty()) {
             saveAll(softDeletable);
         }
