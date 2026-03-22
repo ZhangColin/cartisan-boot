@@ -58,6 +58,24 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     }
 
     /**
+     * 删除实体，软删除实体自动标记为已删除。
+     *
+     * <p>如果实体实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable}，
+     * 则调用 {@code markAsDeleted()} 并保存，否则执行物理删除。</p>
+     *
+     * @param entity 要删除的实体，不能为 null
+     */
+    @Override
+    public void delete(T entity) {
+        if (entity instanceof com.cartisan.data.jpa.domain.SoftDeletable softDeletable) {
+            softDeletable.markAsDeleted();
+            save(entity);  // 复用 save() 的事件发布逻辑
+        } else {
+            super.delete(entity);  // 非软删除实体，物理删除
+        }
+    }
+
+    /**
      * 发布聚合根上的领域事件。
      *
      * <p>仅当实体是 {@link AbstractAggregateRoot} 的实例时发布事件。</p>
