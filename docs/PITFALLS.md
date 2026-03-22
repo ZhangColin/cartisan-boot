@@ -1281,6 +1281,34 @@ List<Product> findActiveByName(@Param("name") String name);
 
 ---
 
+### 规则 DATA-006：自动软删除通过 instanceof 判断类型
+
+**问题**：`BaseRepositoryImpl` 需要判断实体是否支持软删除。
+
+**正确做法**：
+```java
+// ✅ 使用 instanceof 模式匹配
+@Override
+public void delete(T entity) {
+    if (entity instanceof SoftDeletable softDeletable) {
+        softDeletable.markAsDeleted();
+        save(entity);  // 复用 save() 的事件发布逻辑
+    } else {
+        super.delete(entity);  // 非软删除实体，物理删除
+    }
+}
+```
+
+**行为**：
+- 软删除实体：调用 `markAsDeleted()` + `save()`（复用事件发布）
+- 非软删除实体：调用 `super.delete()` 物理删除
+- `deleteById()` 先 `findById()`，再委托给 `delete()`
+- `deleteAll(Iterable)` 分组处理，软删除 UPDATE，其他 DELETE
+
+**记忆口诀**：软删除 instanceof 判断，markAsDeleted + save；物理删除 super.delete。
+
+---
+
 ## Spring Boot / 自动配置
 
 ### 规则 BOOT-001：使用 JpaRepositoryFactoryEntryCustomizer 自动配置 repositoryBaseClass

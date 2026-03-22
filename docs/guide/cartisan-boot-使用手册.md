@@ -204,7 +204,7 @@
 
 ### 2.12 审计与软删除（com.cartisan.data.jpa.domain）
 
-| 类 | 字段/注解 | 说明 |
+| 类 | 字段/注解/方法 | 说明 |
 |----|----------|------|
 | `Auditable` | `@CreatedDate createdAt` | 创建时间（自动填充） |
 | | `@LastModifiedDate lastModifiedDate` | 修改时间（自动更新） |
@@ -212,6 +212,22 @@
 | | `@LastModifiedBy lastModifiedBy` | 修改人（需 AuditorAware） |
 | `SoftDeletable` | `boolean deleted` | 软删除标记 |
 | | `@SQLRestriction("deleted = false")` | 查询自动过滤 |
+| | `markAsDeleted()` | 标记为已删除（领域方法），供 Repository.delete() 调用 |
+
+**自动软删除支持**：
+
+| 方法 | 行为 |
+|------|------|
+| `BaseRepositoryImpl.delete(T)` | 软删除实体自动调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
+| `BaseRepositoryImpl.deleteById(ID)` | 先查找实体，再调用 `delete()` |
+| `BaseRepositoryImpl.deleteAll(Iterable)` | 混合处理：软删除实体 UPDATE，其他 DELETE |
+| `BaseRepositoryImpl.deleteAll()` | 软删除实体批量 UPDATE，其他物理删除 |
+| `BaseRepositoryImpl.deleteAllById()` | 批量按 ID 删除 |
+
+**重要设计取舍**：
+- 软删除复用 `save()` 的事件发布逻辑
+- 通过 `JpaRepositoryFactoryEntryCustomizer` 全局配置，业务端无需手动指定 `repositoryBaseClass`
+- JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件（见 DATA-005）
 
 ### 2.13 TSID 生成器（com.cartisan.data.jpa.id）
 
