@@ -89,6 +89,38 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     }
 
     /**
+     * 批量删除实体，软删除实体自动标记为已删除。
+     *
+     * <p>实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable} 的实体执行软删除，其他实体执行物理删除。</p>
+     *
+     * @param entities 要删除的实体集合，不能为 null
+     */
+    @Override
+    public void deleteAll(Iterable<? extends T> entities) {
+        java.util.List<T> softDeletable = new java.util.ArrayList<>();
+        java.util.List<T> physicalDelete = new java.util.ArrayList<>();
+
+        entities.forEach(e -> {
+            if (e instanceof com.cartisan.data.jpa.domain.SoftDeletable) {
+                softDeletable.add(e);
+            } else {
+                physicalDelete.add(e);
+            }
+        });
+
+        // 软删除：标记并保存
+        softDeletable.forEach(e -> ((com.cartisan.data.jpa.domain.SoftDeletable) e).markAsDeleted());
+        if (!softDeletable.isEmpty()) {
+            saveAll(softDeletable);
+        }
+
+        // 物理删除
+        if (!physicalDelete.isEmpty()) {
+            super.deleteAll(physicalDelete);
+        }
+    }
+
+    /**
      * 发布聚合根上的领域事件。
      *
      * <p>仅当实体是 {@link AbstractAggregateRoot} 的实例时发布事件。</p>
