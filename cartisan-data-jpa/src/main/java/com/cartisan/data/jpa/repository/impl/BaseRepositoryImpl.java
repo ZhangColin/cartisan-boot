@@ -26,6 +26,8 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
 
     private static final Logger log = LoggerFactory.getLogger(BaseRepositoryImpl.class);
 
+    private final EntityManager entityManager;
+
     /**
      * 创建 Repository 实例（由 Spring Data JPA 调用）。
      *
@@ -36,6 +38,7 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
             JpaEntityInformation<T, ?> entityInformation,
             EntityManager entityManager) {
         super(entityInformation, entityManager);
+        this.entityManager = entityManager;
     }
 
     /**
@@ -145,5 +148,47 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         }
         events.forEach(publisher::publish);
         aggregateRoot.clearDomainEvents();
+    }
+
+    /**
+     * 判断当前 Repository 的实体类型是否支持软删除。
+     *
+     * @return true 如果实体类型是 SoftDeletable 的子类
+     */
+    private boolean isSoftDeletableEntityType() {
+        return com.cartisan.data.jpa.domain.SoftDeletable.class.isAssignableFrom(getDomainClass());
+    }
+
+    /**
+     * 删除所有实体。
+     *
+     * <p>如果实体类型支持软删除，则批量更新所有记录的 deleted 标记，
+     * 否则执行物理删除。</p>
+     */
+    @Override
+    public void deleteAll() {
+        if (isSoftDeletableEntityType()) {
+            // 软删除：批量更新所有记录
+            jakarta.persistence.Query query = entityManager.createQuery(
+                "UPDATE " + getDomainClass().getSimpleName() + " e SET e.deleted = true"
+            );
+            query.executeUpdate();
+        } else {
+            super.deleteAll();
+        }
+    }
+
+    /**
+     * 根据 ID 批量删除实体。
+     *
+     * <p>先查找所有实体，然后调用 {@link #deleteAll(Iterable)}。</p>
+     *
+     * @param ids 实体 ID 集合，不能为 null
+     */
+    @Override
+    public void deleteAllById(Iterable<? extends ID> ids) {
+        java.util.List<T> entities = new java.util.ArrayList<>();
+        ids.forEach(id -> findById(id).ifPresent(entities::add));
+        deleteAll(entities);
     }
 }
