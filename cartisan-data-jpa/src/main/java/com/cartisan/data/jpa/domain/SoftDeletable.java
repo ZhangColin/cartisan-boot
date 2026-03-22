@@ -65,6 +65,17 @@ public abstract class SoftDeletable extends Auditable {
     private boolean deleted = false;
 
     /**
+     * 标记为已删除（领域方法）。
+     *
+     * <p>供 Repository.delete() 调用，业务端通常不需要直接调用。</p>
+     *
+     * @since 0.3.0
+     */
+    public void markAsDeleted() {
+        this.deleted = true;
+    }
+
+    /**
      * 判断是否已软删除。
      *
      * @return true 表示已删除，false 表示未删除
