@@ -76,6 +76,19 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     }
 
     /**
+     * 根据 ID 删除实体，软删除实体自动标记为已删除。
+     *
+     * <p>先通过 ID 查找实体，然后调用 {@link #delete(Object)}。</p>
+     *
+     * @param id 实体 ID，不能为 null
+     * @throws IllegalArgumentException 如果 id 为 null
+     */
+    @Override
+    public void deleteById(ID id) {
+        findById(id).ifPresent(this::delete);
+    }
+
+    /**
      * 发布聚合根上的领域事件。
      *
      * <p>仅当实体是 {@link AbstractAggregateRoot} 的实例时发布事件。</p>
