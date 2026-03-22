@@ -26,8 +26,6 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
 
     private static final Logger log = LoggerFactory.getLogger(BaseRepositoryImpl.class);
 
-    private final EntityManager entityManager;
-
     /**
      * 创建 Repository 实例（由 Spring Data JPA 调用）。
      *
@@ -38,7 +36,6 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
             JpaEntityInformation<T, ?> entityInformation,
             EntityManager entityManager) {
         super(entityInformation, entityManager);
-        this.entityManager = entityManager;
     }
 
     /**
@@ -169,7 +166,7 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     public void deleteAll() {
         if (isSoftDeletableEntityType()) {
             // 软删除：批量更新所有记录
-            jakarta.persistence.Query query = entityManager.createQuery(
+            jakarta.persistence.Query query = getEntityManager().createQuery(
                 "UPDATE " + getDomainClass().getSimpleName() + " e SET e.deleted = true"
             );
             query.executeUpdate();
