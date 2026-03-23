@@ -7,7 +7,9 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -60,6 +62,61 @@ public final class ConditionSpecifications {
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid query condition: " + e.getMessage(), e);
             }
+        };
+    }
+
+    /**
+     * 根据带 @Condition 注解的查询 DTO 创建 Specification。
+     *
+     * <p>通过反射扫描查询 DTO 的所有字段（包括父类字段），提取带有 @Condition 注解的字段，
+     * 构建对应的 JPA Predicate 并用 AND 组合。</p>
+     *
+     * <p>特性：</p>
+     * <ul>
+     *   <li>支持递归获取父类字段</li>
+     *   <li>自动跳过 null 值和空字符串</li>
+     *   <li>支持自定义实体属性名（propName）</li>
+     *   <li>多个条件用 AND 连接</li>
+     * </ul>
+     *
+     * @param queryCondition 查询条件对象，字段需标注 @Condition 注解
+     * @param <T> 实体类型
+     * @return JPA Specification 对象
+     */
+    public static <T> Specification<T> fromAnnotation(Object queryCondition) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 递归获取所有字段（包括父类）
+            List<Field> fields = getAllFields(queryCondition.getClass());
+
+            for (Field field : fields) {
+                Condition condition = field.getAnnotation(Condition.class);
+                if (condition == null) {
+                    continue;
+                }
+
+                field.setAccessible(true);
+                Object value;
+                try {
+                    value = field.get(queryCondition);
+                } catch (IllegalAccessException e) {
+                    continue;
+                }
+
+                // 跳过 null 和空字符串
+                if (value == null || (value instanceof String str && str.isEmpty())) {
+                    continue;
+                }
+
+                // 获取实体属性名（优先使用注解中的 propName，否则使用字段名）
+                String propName = condition.propName().isEmpty() ? field.getName() : condition.propName();
+
+                Path<Object> path = root.get(propName);
+                predicates.add(buildPredicate(path, condition.type(), value, cb));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
 
@@ -129,5 +186,23 @@ public final class ConditionSpecifications {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new IllegalArgumentException("Field '" + fieldName + "' not found in " + obj.getClass().getName(), e);
         }
+    }
+
+    /**
+     * 递归获取类及其父类的所有字段。
+     *
+     * @param clazz 类
+     * @return 所有字段列表
+     */
+    private static List<Field> getAllFields(Class<?> clazz) {
+        List<Field> fields = new ArrayList<>();
+        Class<?> currentClass = clazz;
+
+        while (currentClass != null && currentClass != Object.class) {
+            fields.addAll(Arrays.asList(currentClass.getDeclaredFields()));
+            currentClass = currentClass.getSuperclass();
+        }
+
+        return fields;
     }
 }
