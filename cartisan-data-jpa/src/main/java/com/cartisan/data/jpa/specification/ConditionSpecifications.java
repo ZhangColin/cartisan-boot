@@ -24,6 +24,7 @@ import java.util.List;
  *   <li>大小比较：GREATER_EQUAL, GREATER, LESS_EQUAL, LESS</li>
  *   <li>模糊查询：INNER_LIKE, LEFT_LIKE, RIGHT_LIKE</li>
  *   <li>集合与区间查询：IN, BETWEEN</li>
+ *   <li>多字段模糊搜索：blurry（多字段 OR 连接的 INNER_LIKE）</li>
  * </ul>
  *
  * @since 0.3.0
@@ -110,11 +111,16 @@ public final class ConditionSpecifications {
                     continue;
                 }
 
-                // 获取实体属性名（优先使用注解中的 propName，否则使用字段名）
-                String propName = condition.propName().isEmpty() ? field.getName() : condition.propName();
-
-                Path<Object> path = buildPath(root, propName);
-                predicates.add(buildPredicate(path, condition.type(), value, cb));
+                // 处理多字段模糊搜索 (blurry)
+                String blurry = condition.blurry();
+                if (!blurry.isEmpty()) {
+                    predicates.add(buildBlurryPredicate(root, blurry, value, cb));
+                } else {
+                    // 获取实体属性名（优先使用注解中的 propName，否则使用字段名）
+                    String propName = condition.propName().isEmpty() ? field.getName() : condition.propName();
+                    Path<Object> path = buildPath(root, propName);
+                    predicates.add(buildPredicate(path, condition.type(), value, cb));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -168,6 +174,39 @@ public final class ConditionSpecifications {
                 }
             }
         };
+    }
+
+    /**
+     * 构建多字段模糊搜索 Predicate。
+     *
+     * <p>根据逗号分隔的字段名列表，为每个字段生成 INNER_LIKE Predicate，
+     * 并使用 OR 连接所有 Predicate。</p>
+     *
+     * @param root 查询根对象
+     * @param blurryFields 逗号分隔的字段名列表
+     * @param value 查询值
+     * @param cb CriteriaBuilder
+     * @return OR 连接的 Predicate
+     */
+    @SuppressWarnings("unchecked")
+    private static Predicate buildBlurryPredicate(Root<?> root, String blurryFields, Object value, CriteriaBuilder cb) {
+        String[] fields = blurryFields.split(",");
+        List<Predicate> blurryPredicates = new ArrayList<>();
+
+        for (String field : fields) {
+            String fieldName = field.trim();
+            if (!fieldName.isEmpty()) {
+                Path<Object> path = buildPath(root, fieldName);
+                blurryPredicates.add(cb.like(path.as(String.class), "%" + value + "%"));
+            }
+        }
+
+        if (blurryPredicates.isEmpty()) {
+            return cb.conjunction();
+        }
+
+        // 使用 OR 连接所有 Predicate
+        return cb.or(blurryPredicates.toArray(new Predicate[0]));
     }
 
     /**

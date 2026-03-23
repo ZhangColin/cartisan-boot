@@ -12,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -294,6 +295,147 @@ class ConditionSpecificationsTest {
         void shouldHandleSingleLevelPath() {
             // given
             TestQueryWithNestedPath query = new TestQueryWithNestedPath(null, 25);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+    }
+
+    // ==================== 多字段模糊搜索 (blurry) 测试 ====================
+
+    @Nested
+    @DisplayName("Blurry Multi-Field Search Tests")
+    class BlurryMultiFieldSearchTests {
+
+        record ArticleQuery(
+                @Condition(blurry = "title,content") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should handle blurry search")
+        void shouldHandleBlurrySearch() {
+            // given
+            ArticleQuery query = new ArticleQuery("test");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should combine blurry fields with OR predicate")
+        void shouldCombineBlurryFieldsWithOrPredicate() {
+            // given
+            ArticleQuery query = new ArticleQuery("keyword");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> titlePath = mock(Path.class);
+            Path<Object> contentPath = mock(Path.class);
+
+            // 模拟 root.get() 调用
+            when(root.get("title")).thenReturn(titlePath);
+            when(root.get("content")).thenReturn(contentPath);
+
+            Predicate titleLike = mock(Predicate.class);
+            Predicate contentLike = mock(Predicate.class);
+            Predicate orPredicate = mock(Predicate.class);
+            Predicate andPredicate = mock(Predicate.class);
+
+            // 模拟 cb.like() 调用
+            when(cb.like(titlePath.as(String.class), "%keyword%")).thenReturn(titleLike);
+            when(cb.like(contentPath.as(String.class), "%keyword%")).thenReturn(contentLike);
+
+            // 模拟 cb.or() 调用
+            when(cb.or(any(Predicate[].class))).thenReturn(orPredicate);
+
+            // 模拟 cb.and() 调用（外层会包裹 and）
+            when(cb.and(any(Predicate[].class))).thenReturn(andPredicate);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证结果不为空
+            assertThat(result).isNotNull();
+
+            // 验证 OR 被调用了（说明多字段模糊搜索生效）
+            verify(cb).or(any(Predicate[].class));
+        }
+
+        record ArticleQueryWithThreeFields(
+                @Condition(blurry = "title,subtitle,content") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should handle blurry with three fields")
+        void shouldHandleBlurryWithThreeFields() {
+            // given
+            ArticleQueryWithThreeFields query = new ArticleQueryWithThreeFields("search");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        record ArticleQueryWithOtherConditions(
+                @Condition(type = ConditionType.EQUAL) Integer status,
+                @Condition(blurry = "title,content") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should combine blurry with regular conditions")
+        void shouldCombineBlurryWithRegularConditions() {
+            // given
+            ArticleQueryWithOtherConditions query = new ArticleQueryWithOtherConditions(1, "test");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        record ArticleQueryWithEmptyKeyword(
+                @Condition(blurry = "title,content") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should skip blurry when keyword is null or empty")
+        void shouldSkipBlurryWhenKeywordIsEmpty() {
+            // given
+            ArticleQueryWithEmptyKeyword query = new ArticleQueryWithEmptyKeyword(null);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        record ArticleQueryWithSingleField(
+                @Condition(blurry = "title") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should handle blurry with single field")
+        void shouldHandleBlurryWithSingleField() {
+            // given
+            ArticleQueryWithSingleField query = new ArticleQueryWithSingleField("single");
 
             // when
             Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
