@@ -1,5 +1,7 @@
 package com.cartisan.security.authentication;
 
+import java.util.Optional;
+
 /**
  * 认证服务接口。
  * <p>
@@ -95,4 +97,13 @@ public interface AuthenticationService {
      * @return Token 信息，未登录返回 {@code null}
      */
     TokenInfo getTokenInfo();
+
+    /**
+     * 获取当前用户 ID。
+     *
+     * @return 用户 ID，未登录返回 {@link Optional#empty()}
+     */
+    default Optional<Long> getCurrentUserId() {
+        return Optional.ofNullable(getTokenInfo()).map(TokenInfo::loginId);
+    }
 }
