@@ -14,6 +14,9 @@ dependencies {
     // Spring Validation - provides Bean Validation, @Valid, @Validated
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // MapStruct - 类型安全的对象映射
+    implementation("org.mapstruct:mapstruct")
+
     // Testing - provides MockMvc, @SpringBootTest, @AutoConfigureMockMvc
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
@@ -25,6 +28,12 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor(platform(project(":cartisan-dependencies")))
     annotationProcessor("org.projectlombok:lombok")
+
+    // MapStruct 注解处理器（必须在 Lombok 之后）
+    annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
+
+    // Lombok + MapStruct 集成（必须在 mapstruct-processor 之后）
+    annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 }
 
 tasks.withType<Test> {
