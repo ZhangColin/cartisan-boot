@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -60,10 +61,15 @@ public class RequestContextFilter extends OncePerRequestFilter implements Ordere
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
+        String requestId = null;
         try {
-            String requestId = extractRequestId(request);
+            requestId = extractRequestId(request);
             String clientIp = extractClientIp(request);
             RequestContext.init(requestId, clientIp);
+            // 将 requestId 放入 MDC，便于日志追踪
+            MDC.put("requestId", requestId);
+            // 将 requestId 添加到响应头
+            response.setHeader(HEADER_REQUEST_ID, requestId);
         } catch (Exception e) {
             // 容错：初始化失败时使用 null，请求继续
             log.warn("RequestContext init failed, continuing with null values", e);
@@ -78,8 +84,9 @@ public class RequestContextFilter extends OncePerRequestFilter implements Ordere
         try {
             filterChain.doFilter(request, response);
         } finally {
-            // 无论成功还是异常，都清理 ThreadLocal
+            // 无论成功还是异常，都清理 ThreadLocal 和 MDC
             RequestContext.clear();
+            MDC.clear();
         }
     }
 

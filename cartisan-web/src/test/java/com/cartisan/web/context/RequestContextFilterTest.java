@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,6 +41,7 @@ class RequestContextFilterTest {
     @AfterEach
     void tearDown() {
         RequestContext.clear();
+        MDC.clear();
         capturedRequestId = null;
         capturedClientIp = null;
     }
@@ -257,6 +259,76 @@ class RequestContextFilterTest {
         org.mockito.Mockito.doAnswer(invocation -> {
             capturedRequestId = RequestContext.getRequestId();
             capturedClientIp = RequestContext.getClientIp();
+            return null;
+        }).when(filterChain).doFilter(any(), any());
+    }
+
+    // ========== MDC 集成测试 ==========
+
+    @Test
+    void shouldPutRequestIdToMDC() throws Exception {
+        // Given: 有 X-Request-Id Header
+        when(request.getHeader("X-Request-Id")).thenReturn("mdc-test-123");
+        when(request.getHeader("X-Forwarded-For")).thenReturn(null);
+        when(request.getHeader("X-Real-IP")).thenReturn(null);
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        // When: 执行 Filter，在 chain 执行期间捕获 MDC 值
+        setupCaptureMDCInChain();
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: MDC 中包含 requestId
+        assertThat(capturedMDCRequestId).isEqualTo("mdc-test-123");
+    }
+
+    @Test
+    void shouldClearMDCAfterRequest() throws Exception {
+        // Given: 正常请求
+        when(request.getHeader("X-Request-Id")).thenReturn("mdc-test-456");
+        when(request.getHeader("X-Forwarded-For")).thenReturn(null);
+        when(request.getHeader("X-Real-IP")).thenReturn(null);
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        // When: 执行 Filter
+        setupCaptureMDCInChain();
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: chain 执行期间 MDC 有值，之后被清理
+        assertThat(capturedMDCRequestId).isEqualTo("mdc-test-456");
+        // Filter 返回后，MDC 已被清理
+        assertThat(MDC.get("requestId")).isNull();
+    }
+
+    @Test
+    void shouldAddRequestIdToResponseHeader() throws Exception {
+        // Given: 没有 X-Request-Id Header（会生成 UUID）
+        when(request.getHeader("X-Request-Id")).thenReturn(null);
+        when(request.getHeader("X-Forwarded-For")).thenReturn(null);
+        when(request.getHeader("X-Real-IP")).thenReturn(null);
+        when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+
+        // When: 执行 Filter，捕获生成的 requestId
+        String[] generatedRequestId = new String[1];
+        org.mockito.Mockito.doAnswer(invocation -> {
+            generatedRequestId[0] = RequestContext.getRequestId();
+            return null;
+        }).when(filterChain).doFilter(any(), any());
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        // Then: 响应头包含 X-Request-Id
+        org.mockito.Mockito.verify(response).setHeader("X-Request-Id", generatedRequestId[0]);
+    }
+
+    // 用于捕获 MDC 值的变量
+    private String capturedMDCRequestId;
+
+    /**
+     * 设置 FilterChain 在执行时捕获 MDC 的值。
+     */
+    private void setupCaptureMDCInChain() throws Exception {
+        org.mockito.Mockito.doAnswer(invocation -> {
+            capturedMDCRequestId = MDC.get("requestId");
             return null;
         }).when(filterChain).doFilter(any(), any());
     }
