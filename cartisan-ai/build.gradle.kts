@@ -31,6 +31,11 @@ dependencies {
     testImplementation("org.assertj:assertj-core")
     testImplementation("org.wiremock.integrations:wiremock-spring-boot:3.2.0")
     testImplementation("io.projectreactor:reactor-test")
+
+    // Lombok（编译时生效，不传递给使用者）
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor(platform(project(":cartisan-dependencies")))
+    annotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.withType<Test> {

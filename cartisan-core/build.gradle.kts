@@ -5,15 +5,22 @@ plugins {
 }
 
 dependencies {
+    // Platform - versions managed by cartisan-dependencies
+    compileOnly(platform(project(":cartisan-dependencies")))
+
     // Spring stereotype 注解（compileOnly，不打包到 jar，由使用方提供）
-    compileOnly(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
     compileOnly("org.springframework:spring-context")
 
     // 测试依赖
-    testImplementation(platform("org.springframework.boot:spring-boot-dependencies:3.4.0"))
+    testImplementation(platform(project(":cartisan-dependencies")))
     testImplementation("org.springframework:spring-context")
     testImplementation("org.assertj:assertj-core:3.26.3")
     testImplementation("com.tngtech.archunit:archunit:1.3.0")
+
+    // Lombok（编译时生效，不传递给使用者）
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor(platform(project(":cartisan-dependencies")))
+    annotationProcessor("org.projectlombok:lombok")
 }
 
 // ========== JavaDoc 校验配置 (F01-06) ==========

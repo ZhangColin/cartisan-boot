@@ -26,6 +26,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     // 测试需要 HandlerMethod 等类
     testImplementation("org.springframework.boot:spring-boot-starter-web")
+
+    // Lombok（编译时生效，不传递给使用者）
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor(platform(project(":cartisan-dependencies")))
+    annotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.withType<Test> {

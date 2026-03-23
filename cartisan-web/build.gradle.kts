@@ -20,6 +20,11 @@ dependencies {
     }
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.assertj:assertj-core")
+
+    // Lombok（编译时生效，不传递给使用者）
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor(platform(project(":cartisan-dependencies")))
+    annotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.withType<Test> {

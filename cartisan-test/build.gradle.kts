@@ -33,6 +33,10 @@ dependencies {
 
     // Jackson（JSON 序列化，ApiTestAssertions 需要）
     implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    // Lombok（编译时生效，不传递给使用者）
+    compileOnly("org.projectlombok:lombok:1.18.34")
+    annotationProcessor("org.projectlombok:lombok:1.18.34")
 }
 
 tasks.withType<Test> {
