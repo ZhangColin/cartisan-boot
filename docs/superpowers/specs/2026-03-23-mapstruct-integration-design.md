@@ -21,9 +21,9 @@
 
 | 项 | 选择 |
 |---|------|
-| MapStruct 版本 | 1.6.0 |
+| MapStruct 版本 | 1.6.3 |
 | 组件模型 | Spring（支持依赖注入） |
-| Lombok 集成 | 是（使用 lombok-mapstruct-binding） |
+| Lombok 集成 | 是（使用 lombok-mapstruct-binding 0.2.0） |
 
 ---
 
@@ -33,14 +33,17 @@
 
 ```
 cartisan-dependencies
-    └── api(mapstruct)           # 版本管理
-    └── api(lombok-mapstruct-binding)
+    └── api(mapstruct:1.6.3)           # 版本管理
+    └── api(lombok-mapstruct-binding:0.2.0)
 
 cartisan-web
-    ├── annotationProcessor(mapstruct-processor)
-    ├── annotationProcessor(lombok-mapstruct-binding)
-    └── DomainMapper            # 基础接口
+    ├── annotationProcessor(lombok)                    # 1️⃣ 先处理 Lombok
+    ├── annotationProcessor(mapstruct-processor)       # 2️⃣ 再处理 MapStruct
+    ├── annotationProcessor(lombok-mapstruct-binding)  # 3️⃣ 最后处理集成
+    └── DomainMapper                                  # 基础接口
 ```
+
+**注解处理器顺序说明**：Lombok 必须先于 MapStruct 处理，这样 MapStruct 才能看到 Lombok 生成的代码（如 Builder）。
 
 ### 2.2 包结构
 
@@ -102,26 +105,20 @@ public abstract class DomainMapperTest<S, T, M extends DomainMapper<S, T>> {
 
     @Test
     void shouldMapSourceToTarget() {
-        // Given
         S source = createSource();
         M mapper = getMapper();
 
-        // When
         T target = mapper.toResponse(source);
 
-        // Then
         assertMapped(target);
     }
 
     @Test
     void shouldReturnNull_whenSourceIsNull() {
-        // Given
         M mapper = getMapper();
 
-        // When
         T target = mapper.toResponse(null);
 
-        // Then
         assertThat(target).isNull();
     }
 }
@@ -153,6 +150,9 @@ import com.example.domain.User;
 import com.example.web.response.UserResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.util.List;
+import java.util.stream.Stream;
 
 @Mapper  // 继承 DomainMapper 的配置
 public interface UserMapper extends DomainMapper<User, UserResponse> {
@@ -229,6 +229,9 @@ public interface UserMapper extends DomainMapper<User, UserResponse> {
 ### 6.2 自定义 null 处理（业务项目按需）
 
 ```java
+import org.mapstruct.Mapping;
+import org.mapstruct.Named;
+
 @Mapper
 public interface UserMapper extends DomainMapper<User, UserResponse> {
 
@@ -263,13 +266,14 @@ public interface UserMapper extends DomainMapper<User, UserResponse> {
 
 ### 7.1 cartisan-dependencies
 
-- [ ] 添加 `mapstruct:1.6.0` 到 BOM
-- [ ] 添加 `lombok-mapstruct-binding:1.0.0` 到 BOM
+- [ ] 添加 `mapstruct:1.6.3` 到 BOM
+- [ ] 添加 `lombok-mapstruct-binding:0.2.0` 到 BOM
 
 ### 7.2 cartisan-web
 
-- [ ] 添加 `mapstruct-processor` 到 annotationProcessor
-- [ ] 添加 `lombok-mapstruct-binding` 到 annotationProcessor
+- [ ] 添加 `lombok` 到 annotationProcessor（已有，确保顺序）
+- [ ] 添加 `mapstruct-processor` 到 annotationProcessor（lombok 之后）
+- [ ] 添加 `lombok-mapstruct-binding` 到 annotationProcessor（最后）
 - [ ] 创建 `DomainMapper.java`
 - [ ] 创建 `DomainMapperTest.java`
 
