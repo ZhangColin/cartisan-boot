@@ -14,6 +14,12 @@ dependencies {
 
     // Lombok - 框架内置，减少样板代码
     api("org.projectlombok:lombok:1.18.34")
+
+    // MapStruct - 类型安全的对象映射
+    api("org.mapstruct:mapstruct:1.6.3")
+
+    // Lombok + MapStruct 集成
+    api("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 }
 
 javaPlatform {
