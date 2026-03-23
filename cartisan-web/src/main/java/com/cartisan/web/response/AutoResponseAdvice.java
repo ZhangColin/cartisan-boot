@@ -1,5 +1,6 @@
 package com.cartisan.web.response;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
@@ -22,9 +23,20 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 public class AutoResponseAdvice implements ResponseBodyAdvice<Object> {
 
     private final AutoResponseConfiguration configuration;
+    private final ObjectMapper objectMapper;
 
-    public AutoResponseAdvice(AutoResponseConfiguration configuration) {
+    /**
+     * 需要排除的路径前缀。
+     */
+    private static final String[] EXCLUDE_PATHS = {
+            "/swagger-ui",
+            "/v3/api-docs",
+            "/actuator"
+    };
+
+    public AutoResponseAdvice(AutoResponseConfiguration configuration, ObjectMapper objectMapper) {
         this.configuration = configuration;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -40,7 +52,48 @@ public class AutoResponseAdvice implements ResponseBodyAdvice<Object> {
                                  Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                  ServerHttpRequest request,
                                  ServerHttpResponse response) {
-        // TODO: 实现响应包装逻辑（后续任务）
-        return body;
+        // 排除特定路径
+        String path = request.getURI().getPath();
+        if (shouldExclude(path)) {
+            return body;
+        }
+
+        // 避免重复包装 ApiResponse
+        if (body instanceof ApiResponse) {
+            return body;
+        }
+
+        // 包装为 ApiResponse
+        ApiResponse<Object> apiResponse = ApiResponse.ok(body);
+
+        // String 返回类型需要特殊处理，否则会被再次序列化
+        // 需要检查返回类型而不是 body 实例类型，因为 body 可能是 null
+        if (returnType.getParameterType().equals(String.class)) {
+            try {
+                return objectMapper.writeValueAsString(apiResponse);
+            } catch (Exception e) {
+                return body;
+            }
+        }
+
+        return apiResponse;
+    }
+
+    /**
+     * 判断路径是否应该被排除。
+     *
+     * @param path 请求路径
+     * @return true 表示排除，false 表示不排除
+     */
+    private boolean shouldExclude(String path) {
+        if (path == null) {
+            return false;
+        }
+        for (String excludePath : EXCLUDE_PATHS) {
+            if (path.startsWith(excludePath)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
