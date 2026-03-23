@@ -106,4 +106,33 @@ public interface AuthenticationService {
     default Optional<Long> getCurrentUserId() {
         return Optional.ofNullable(getTokenInfo()).map(TokenInfo::loginId);
     }
+
+    /**
+     * 踢出指定用户（强制下线）。
+     * <p>
+     * 踢出后，用户的 Token 将失效，需要重新登录。
+     * </p>
+     *
+     * @param loginId 用户标识
+     * @since 0.3.0
+     */
+    default void kickout(Long loginId) {
+        // 框架实现由 SaTokenAuthenticationService 提供
+        throw new UnsupportedOperationException("Kickout not implemented");
+    }
+
+    /**
+     * 根据用户名踢出用户。
+     * <p>
+     * 默认实现抛出 {@link UnsupportedOperationException}。
+     * 业务层需要覆盖此方法，提供 username → loginId 映射。
+     * </p>
+     *
+     * @param username 用户名
+     * @since 0.3.0
+     */
+    default void kickoutByUsername(String username) {
+        throw new UnsupportedOperationException(
+            "Kickout by username not implemented. Override this method in your service.");
+    }
 }
