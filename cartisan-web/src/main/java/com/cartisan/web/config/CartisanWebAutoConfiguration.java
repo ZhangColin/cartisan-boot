@@ -2,6 +2,7 @@ package com.cartisan.web.config;
 
 import com.cartisan.web.context.RequestContextFilter;
 import com.cartisan.web.exception.GlobalExceptionHandler;
+import com.cartisan.web.filter.RequestLogFilter;
 import com.cartisan.web.resubmit.PreventResubmit;
 import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.core.Ordered;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -19,6 +21,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * <p>注册 Web 层核心组件：
  * <ul>
  *   <li>{@link RequestContextFilter} — 请求上下文初始化</li>
+ *   <li>{@link RequestLogFilter} — 请求日志记录</li>
  *   <li>{@link GlobalExceptionHandler} — 全局异常处理</li>
  *   <li>{@link ResubmitAspect} — 防重复提交切面（当 Redis 可用时）</li>
  * </ul>
@@ -50,6 +53,19 @@ public class CartisanWebAutoConfiguration {
     @Bean("cartisanRequestContextFilter")
     public RequestContextFilter requestContextFilter() {
         return new RequestContextFilter();
+    }
+
+    /**
+     * 注册请求日志记录 Filter。
+     *
+     * <p>依赖 {@link RequestContextFilter}，需要在请求上下文初始化之后执行。
+     * 设置 Order 值为 {@code Ordered.HIGHEST_PRECEDENCE + 1}，确保在 RequestContextFilter 之后。</p>
+     *
+     * @return RequestLogFilter 实例
+     */
+    @Bean
+    public RequestLogFilter requestLogFilter() {
+        return new RequestLogFilter();
     }
 
     /**

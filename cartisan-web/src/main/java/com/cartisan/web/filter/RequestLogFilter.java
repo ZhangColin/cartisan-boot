@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -42,9 +43,12 @@ import java.util.Set;
  * <p>前置条件：RequestContext 已初始化（由 RequestContextFilter 完成）</p>
  * <p>后置条件：请求被正常处理，日志被记录</p>
  */
-public class RequestLogFilter extends OncePerRequestFilter {
+public class RequestLogFilter extends OncePerRequestFilter implements Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(RequestLogFilter.class);
+
+    /** 执行顺序：在 RequestContextFilter 之后 */
+    private static final int ORDER = Ordered.HIGHEST_PRECEDENCE + 1;
 
     /**
      * 排除路径前缀集合。
@@ -59,6 +63,11 @@ public class RequestLogFilter extends OncePerRequestFilter {
         "/druid",
         "/actuator"
     );
+
+    @Override
+    public int getOrder() {
+        return ORDER;
+    }
 
     @Override
     protected void doFilterInternal(
