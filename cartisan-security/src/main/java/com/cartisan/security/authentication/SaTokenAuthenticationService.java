@@ -64,4 +64,10 @@ public class SaTokenAuthenticationService implements AuthenticationService {
 
         return new TokenInfo(token, loginId, expireTime);
     }
+
+    @Override
+    public void kickout(Long loginId) {
+        Objects.requireNonNull(loginId, "loginId");
+        StpUtil.kickout(loginId);
+    }
 }
