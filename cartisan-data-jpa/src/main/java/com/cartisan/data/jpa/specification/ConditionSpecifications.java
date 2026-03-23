@@ -144,10 +144,10 @@ public final class ConditionSpecifications {
             case NOT_EQUAL -> cb.notEqual(path, value);
 
             // ==================== 大小比较 ====================
-            case GREATER_EQUAL -> cb.greaterThanOrEqualTo(path.as(Comparable.class), (Comparable) value);
-            case GREATER -> cb.greaterThan(path.as(Comparable.class), (Comparable) value);
-            case LESS_EQUAL -> cb.lessThanOrEqualTo(path.as(Comparable.class), (Comparable) value);
-            case LESS -> cb.lessThan(path.as(Comparable.class), (Comparable) value);
+            case GREATER_EQUAL -> cb.greaterThanOrEqualTo(path.as((Class) value.getClass()), (Comparable) value);
+            case GREATER -> cb.greaterThan(path.as((Class) value.getClass()), (Comparable) value);
+            case LESS_EQUAL -> cb.lessThanOrEqualTo(path.as((Class) value.getClass()), (Comparable) value);
+            case LESS -> cb.lessThan(path.as((Class) value.getClass()), (Comparable) value);
 
             // ==================== 模糊查询 ====================
             case INNER_LIKE -> cb.like(path.as(String.class), "%" + value + "%");
@@ -166,9 +166,11 @@ public final class ConditionSpecifications {
             }
             case BETWEEN -> {
                 if (value instanceof List<?> list && list.size() == 2) {
-                    yield cb.between(path.as(Comparable.class), (Comparable) list.get(0), (Comparable) list.get(1));
+                    Class<?> elementType = list.get(0).getClass();
+                    yield cb.between(path.as((Class) elementType), (Comparable) list.get(0), (Comparable) list.get(1));
                 } else if (value instanceof Object[] array && array.length == 2) {
-                    yield cb.between(path.as(Comparable.class), (Comparable) array[0], (Comparable) array[1]);
+                    Class<?> elementType = array[0].getClass();
+                    yield cb.between(path.as((Class) elementType), (Comparable) array[0], (Comparable) array[1]);
                 } else {
                     yield cb.disjunction(); // 无效的 BETWEEN 条件
                 }
