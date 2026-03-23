@@ -57,8 +57,8 @@ class DomainMapperIntegrationTest {
     }
 
     @Test
-    @DisplayName("应该支持传统 POJO 映射")
-    void shouldSupportTraditionalPOMapping() {
+    @DisplayName("应该支持 Lombok Builder 映射")
+    void shouldSupportLombokBuilderMapping() {
         BuilderMapper mapper = Mappers.getMapper(BuilderMapper.class);
 
         SimpleEntity entity = new SimpleEntity(1L, "张三", "zhang@example.com");
