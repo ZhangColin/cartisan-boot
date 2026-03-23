@@ -26,6 +26,7 @@ dependencies {
 
     // Lombok（编译时生效，不传递给使用者）
     compileOnly("org.projectlombok:lombok")
+    testCompileOnly("org.projectlombok:lombok")
     annotationProcessor(platform(project(":cartisan-dependencies")))
     annotationProcessor("org.projectlombok:lombok")
 
@@ -34,6 +35,12 @@ dependencies {
 
     // Lombok + MapStruct 集成（必须在 mapstruct-processor 之后）
     annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
+
+    // Test annotation processors（测试源码也需要注解处理器）
+    testAnnotationProcessor(platform(project(":cartisan-dependencies")))
+    testAnnotationProcessor("org.projectlombok:lombok")
+    testAnnotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
+    testAnnotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 }
 
 tasks.withType<Test> {
