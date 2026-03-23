@@ -6,9 +6,9 @@ import org.mapstruct.Mapper;
 /**
  * 测试用 Mapper，用于验证 Lombok Builder 映射。
  *
- * <p>不指定 componentModel，MapStruct 会生成 {@code INSTANCE} 字段。
+ * <p>使用 {@code componentModel = "default"} 让 MapStruct 生成 {@code INSTANCE} 字段。
  */
-@Mapper
+@Mapper(componentModel = "default")
 public interface BuilderMapper extends DomainMapper<SimpleEntity, BuilderDto> {
 
     BuilderDto toBuilderDto(SimpleEntity entity);
