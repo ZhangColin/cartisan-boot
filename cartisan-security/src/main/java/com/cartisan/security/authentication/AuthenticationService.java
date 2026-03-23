@@ -68,6 +68,20 @@ public interface AuthenticationService {
     TokenInfo login(Long loginId);
 
     /**
+     * 创建登录会话（自定义超时）。
+     * <p>
+     * 用于"记住我"等场景，如 7 天免登录。
+     * </p>
+     *
+     * @param loginId        用户标识
+     * @param timeoutSeconds 超时秒数（> 0）
+     * @return Token 信息
+     * @throws NullPointerException     loginId 为 null
+     * @throws IllegalArgumentException timeoutSeconds <= 0
+     */
+    TokenInfo login(Long loginId, long timeoutSeconds);
+
+    /**
      * 销毁当前登录会话。
      * <p>
      * 未登录时静默处理，不抛异常。

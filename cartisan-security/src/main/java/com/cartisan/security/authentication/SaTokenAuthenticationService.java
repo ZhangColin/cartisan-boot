@@ -31,6 +31,22 @@ public class SaTokenAuthenticationService implements AuthenticationService {
     }
 
     @Override
+    public TokenInfo login(Long loginId, long timeoutSeconds) {
+        Objects.requireNonNull(loginId, "loginId");
+
+        if (timeoutSeconds <= 0) {
+            throw new IllegalArgumentException("timeoutSeconds must be positive: " + timeoutSeconds);
+        }
+
+        StpUtil.login(loginId, timeoutSeconds);
+
+        String token = StpUtil.getTokenValue();
+        Instant expireTime = Instant.now().plusSeconds(timeoutSeconds);
+
+        return new TokenInfo(token, loginId, expireTime);
+    }
+
+    @Override
     public void logout() {
         StpUtil.logout();
     }

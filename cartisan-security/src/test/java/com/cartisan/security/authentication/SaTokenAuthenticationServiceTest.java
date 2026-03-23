@@ -85,6 +85,90 @@ class SaTokenAuthenticationServiceTest {
     }
 
     @Nested
+    @DisplayName("login with custom timeout")
+    class LoginWithTimeoutTests {
+
+        @Test
+        @DisplayName("login(loginId, timeout) 创建会话并返回 TokenInfo")
+        void given_validLoginIdAndTimeout_when_loginWithTimeout_then_returnTokenInfo() {
+            try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
+                // Given
+                Long loginId = 123L;
+                String token = "test-token-custom-timeout";
+                long timeoutSeconds = 86400L; // 1天
+
+                // Mock StpUtil
+                stpUtilMock.when(() -> StpUtil.login(loginId, timeoutSeconds)).then(invocation -> null);
+                stpUtilMock.when(StpUtil::getTokenValue).thenReturn(token);
+                stpUtilMock.when(StpUtil::getTokenTimeout).thenReturn(timeoutSeconds);
+
+                // When
+                TokenInfo result = authService.login(loginId, timeoutSeconds);
+
+                // Then
+                assertThat(result).isNotNull();
+                assertThat(result.token()).isEqualTo(token);
+                assertThat(result.loginId()).isEqualTo(loginId);
+                assertThat(result.expireTime()).isAfter(Instant.now());
+                assertThat(result.expireTime()).isBefore(Instant.now().plusSeconds(timeoutSeconds + 10));
+
+                // Verify login was called with timeout
+                stpUtilMock.verify(() -> StpUtil.login(loginId, timeoutSeconds));
+            }
+        }
+
+        @Test
+        @DisplayName("loginId 为 null 时抛出 NullPointerException")
+        void given_nullLoginId_when_loginWithTimeout_then_throwNullPointerException() {
+            try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
+                // When & Then
+                assertThatThrownBy(() -> authService.login(null, 3600))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("loginId");
+            }
+        }
+
+        @Test
+        @DisplayName("timeoutSeconds <= 0 时抛出 IllegalArgumentException")
+        void given_zeroOrNegativeTimeout_when_loginWithTimeout_then_throwIllegalArgumentException() {
+            try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
+                // When & Then - zero
+                assertThatThrownBy(() -> authService.login(123L, 0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("timeoutSeconds must be positive");
+
+                // When & Then - negative
+                assertThatThrownBy(() -> authService.login(123L, -100))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("timeoutSeconds must be positive");
+            }
+        }
+
+        @Test
+        @DisplayName("expireTime 计算正确（1天后）")
+        void given_oneDayTimeout_when_loginWithTimeout_then_expireTimeIsCorrect() {
+            try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
+                // Given
+                Long loginId = 123L;
+                String token = "test-token";
+                long timeoutSeconds = 86400L; // 1天
+                Instant beforeLogin = Instant.now();
+
+                stpUtilMock.when(() -> StpUtil.login(loginId, timeoutSeconds)).then(invocation -> null);
+                stpUtilMock.when(StpUtil::getTokenValue).thenReturn(token);
+
+                // When
+                TokenInfo result = authService.login(loginId, timeoutSeconds);
+
+                // Then
+                Instant afterLogin = Instant.now();
+                assertThat(result.expireTime()).isAfter(beforeLogin.plusSeconds(timeoutSeconds - 10));
+                assertThat(result.expireTime()).isBefore(afterLogin.plusSeconds(timeoutSeconds + 10));
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("logout")
     class LogoutTests {
 
