@@ -11,6 +11,9 @@ dependencies {
 
     // Sa-Token（F03-01）- 直接用 api() 声明带版本约束
     api("cn.dev33:sa-token-spring-boot3-starter:1.45.0")
+
+    // Lombok - 框架内置，减少样板代码
+    api("org.projectlombok:lombok:1.18.34")
 }
 
 javaPlatform {
