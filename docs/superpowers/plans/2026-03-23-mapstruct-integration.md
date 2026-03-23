@@ -332,7 +332,40 @@ public record SimpleDto(
 }
 ```
 
-- [ ] **Step 4: 创建测试用 Mapper**
+- [ ] **Step 4: 创建 Lombok Builder DTO（验证 @Builder 集成）**
+
+创建文件 `cartisan-web/src/test/java/com/cartisan/web/mapper/fixtures/BuilderDto.java`:
+
+```java
+package com.cartisan.web.mapper.fixtures;
+
+import lombok.Builder;
+
+/**
+ * 测试用的 Lombok Builder DTO。
+ * 用于验证 lombok-mapstruct-binding 集成。
+ */
+@Builder
+public class BuilderDto {
+    private final Long id;
+    private final String name;
+    private final String email;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+}
+```
+
+- [ ] **Step 5: 创建测试用 Mapper**
 
 创建文件 `cartisan-web/src/test/java/com/cartisan/web/mapper/fixtures/TestMapper.java`:
 
@@ -346,8 +379,11 @@ import java.util.List;
 
 /**
  * 测试用 Mapper，用于验证 MapStruct 生成代码。
+ *
+ * <p>注意：使用 {@code componentModel = "default"} 而非继承的 {@code "spring"}，
+ * 这样 MapStruct 会生成 {@code INSTANCE} 字段，方便测试时直接获取实例。
  */
-@Mapper
+@Mapper(componentModel = "default")
 public interface TestMapper extends DomainMapper<SimpleEntity, SimpleDto> {
 
     SimpleDto toResponse(SimpleEntity entity);
@@ -356,13 +392,30 @@ public interface TestMapper extends DomainMapper<SimpleEntity, SimpleDto> {
 }
 ```
 
-- [ ] **Step 5: 创建集成测试**
+- [ ] **Step 5.5: 创建 BuilderMapper（验证 Lombok @Builder 集成）**
+
+在同一文件 `cartisan-web/src/test/java/com/cartisan/web/mapper/fixtures/TestMapper.java` 中添加：
+
+```java
+/**
+ * 测试用 Mapper，用于验证 Lombok @Builder 集成。
+ */
+@Mapper(componentModel = "default")
+public interface BuilderMapper extends DomainMapper<SimpleEntity, BuilderDto> {
+
+    BuilderDto toBuilderDto(SimpleEntity entity);
+}
+```
+
+- [ ] **Step 6: 创建集成测试**
 
 创建文件 `cartisan-web/src/test/java/com/cartisan/web/mapper/DomainMapperIntegrationTest.java`:
 
 ```java
 package com.cartisan.web.mapper;
 
+import com.cartisan.web.mapper.fixtures.BuilderDto;
+import com.cartisan.web.mapper.fixtures.BuilderMapper;
 import com.cartisan.web.mapper.fixtures.SimpleDto;
 import com.cartisan.web.mapper.fixtures.SimpleEntity;
 import com.cartisan.web.mapper.fixtures.TestMapper;
@@ -415,6 +468,19 @@ class DomainMapperIntegrationTest {
 
         assertThat(dto).isNull();
     }
+
+    @Test
+    @DisplayName("应该支持 Lombok Builder 映射")
+    void shouldSupportLombokBuilderMapping() {
+        BuilderMapper mapper = BuilderMapper.INSTANCE;
+
+        SimpleEntity entity = new SimpleEntity(1L, "张三", "zhang@example.com");
+        BuilderDto dto = mapper.toBuilderDto(entity);
+
+        assertThat(dto.getId()).isEqualTo(1L);
+        assertThat(dto.getName()).isEqualTo("张三");
+        assertThat(dto.getEmail()).isEqualTo("zhang@example.com");
+    }
 }
 ```
 
@@ -434,13 +500,13 @@ class DomainMapperIntegrationTest {
 ls -la cartisan-web/build/generated/sources/annotationProcessor/java/main/com/cartisan/web/mapper/fixtures/
 ```
 
-预期: 存在 `TestMapperImpl.java`
+预期: 存在 `TestMapperImpl.java` 和 `BuilderMapperImpl.java`
 
-- [ ] **Step 8: 提交**
+- [ ] **Step 9: 提交**
 
 ```bash
 git add cartisan-web/src/test/java/com/cartisan/web/mapper/
-git commit -m "test(web): add DomainMapper integration test"
+git commit -m "test(web): add DomainMapper integration test with Lombok Builder support"
 ```
 
 ---
@@ -652,14 +718,18 @@ git commit -m "docs: add MapStruct mapping usage guide"
 # 2. 运行 cartisan-web 测试
 ./gradlew :cartisan-web:test
 
-# 3. 验证生成的实现类
+# 3. 完整构建（验证模块间兼容性）
+./gradlew build -x test
+
+# 4. 验证生成的实现类
 ls -la cartisan-web/build/generated/sources/annotationProcessor/java/main/com/cartisan/web/mapper/fixtures/
 ```
 
 **预期结果**:
 - 所有编译成功
 - 所有测试通过
-- `TestMapperImpl.java` 存在
+- 完整构建成功（无模块间依赖问题）
+- `TestMapperImpl.java` 和 `BuilderMapperImpl.java` 存在
 
 ---
 
