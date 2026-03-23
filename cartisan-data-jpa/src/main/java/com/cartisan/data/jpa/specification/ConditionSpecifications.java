@@ -4,6 +4,7 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.lang.reflect.Field;
@@ -57,7 +58,7 @@ public final class ConditionSpecifications {
                     return cb.conjunction();
                 }
 
-                Path<Object> path = root.get(fieldName);
+                Path<Object> path = buildPath(root, fieldName);
                 return buildPredicate(path, type, value, cb);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Invalid query condition: " + e.getMessage(), e);
@@ -112,7 +113,7 @@ public final class ConditionSpecifications {
                 // 获取实体属性名（优先使用注解中的 propName，否则使用字段名）
                 String propName = condition.propName().isEmpty() ? field.getName() : condition.propName();
 
-                Path<Object> path = root.get(propName);
+                Path<Object> path = buildPath(root, propName);
                 predicates.add(buildPredicate(path, condition.type(), value, cb));
             }
 
@@ -167,6 +168,33 @@ public final class ConditionSpecifications {
                 }
             }
         };
+    }
+
+    /**
+     * 构建嵌套属性路径。
+     *
+     * <p>支持使用 "." 分隔的嵌套属性路径，如 "user.profile.name"。
+     * 对于嵌套路径，使用 JPA Criteria API 的 Path 链式调用。</p>
+     *
+     * @param root 查询根对象
+     * @param propertyName 属性名，支持嵌套路径（如 "user.profile.name"）
+     * @param <T> 属性类型
+     * @return JPA Path 对象
+     */
+    @SuppressWarnings("unchecked")
+    private static <T> Path<T> buildPath(Root<?> root, String propertyName) {
+        if (!propertyName.contains(".")) {
+            return root.get(propertyName);
+        }
+
+        String[] parts = propertyName.split("\\.");
+        Path<?> path = root.get(parts[0]);
+
+        for (int i = 1; i < parts.length; i++) {
+            path = path.get(parts[i]);
+        }
+
+        return (Path<T>) path;
     }
 
     /**

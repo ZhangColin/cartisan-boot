@@ -234,4 +234,72 @@ class ConditionSpecificationsTest {
             assertThat(specification).isNotNull();
         }
     }
+
+    // ==================== 嵌套属性路径测试 ====================
+
+    @Nested
+    @DisplayName("Nested Property Path Tests")
+    class NestedPropertyPathTests {
+
+        record TestQueryWithNestedPath(
+                @Condition(propName = "user.profile.name", type = ConditionType.EQUAL) String name,
+                @Condition(propName = "user.age", type = ConditionType.EQUAL) Integer age
+        ) {}
+
+        @Test
+        @DisplayName("should handle nested property path")
+        void shouldHandleNestedPropertyPath() {
+            // given
+            TestQueryWithNestedPath query = new TestQueryWithNestedPath("John", 18);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should handle multiple level nesting")
+        void shouldHandleMultipleLevelNesting() {
+            // given
+            TestQueryWithNestedPath query = new TestQueryWithNestedPath("Jane", null);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        record TestQueryWithDeepNesting(
+                @Condition(propName = "user.profile.settings.theme", type = ConditionType.EQUAL) String theme
+        ) {}
+
+        @Test
+        @DisplayName("should handle deep nesting (3 levels)")
+        void shouldHandleDeepNesting() {
+            // given
+            TestQueryWithDeepNesting query = new TestQueryWithDeepNesting("dark");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should handle single level path (no nesting)")
+        void shouldHandleSingleLevelPath() {
+            // given
+            TestQueryWithNestedPath query = new TestQueryWithNestedPath(null, 25);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+    }
 }
