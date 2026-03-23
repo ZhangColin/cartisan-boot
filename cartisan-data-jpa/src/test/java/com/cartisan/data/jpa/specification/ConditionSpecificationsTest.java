@@ -5,6 +5,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -180,5 +181,57 @@ class ConditionSpecificationsTest {
 
         // then
         assertThat(specification).isNotNull();
+    }
+
+    // ==================== 注解反射解析测试 ====================
+
+    @Nested
+    @DisplayName("Annotation Reflection Parsing Tests")
+    class AnnotationReflectionParsingTests {
+
+        record TestQuery(
+                @Condition(type = ConditionType.EQUAL) String name,
+                @Condition(type = ConditionType.INNER_LIKE) String title,
+                @Condition(propName = "status", type = ConditionType.EQUAL) Integer statusCode
+        ) {}
+
+        @Test
+        @DisplayName("should read Condition annotation and generate Specification")
+        void shouldReadConditionAnnotation() {
+            // given
+            TestQuery query = new TestQuery("John", "Manager", 1);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should handle custom propName")
+        void shouldHandleCustomPropName() {
+            // given
+            TestQuery query = new TestQuery(null, null, 1);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should skip null and empty values")
+        void shouldSkipNullAndEmptyValues() {
+            // given
+            TestQuery query = new TestQuery(null, "", 1);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+        }
     }
 }
