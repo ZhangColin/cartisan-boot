@@ -14,6 +14,9 @@ dependencies {
     // Spring Validation - provides Bean Validation, @Valid, @Validated
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
+    // Spring Data Redis - provides StringRedisTemplate for distributed lock
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
     // MapStruct - 类型安全的对象映射
     implementation("org.mapstruct:mapstruct")
 
