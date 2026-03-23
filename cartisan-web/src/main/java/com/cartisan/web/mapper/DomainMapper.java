@@ -4,6 +4,10 @@ import org.mapstruct.Mapper;
 import org.mapstruct.NullValueCheckStrategy;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 /**
  * MapStruct 基础 Mapper 接口。
  *
@@ -18,10 +22,16 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
  *     nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.SET_TO_DEFAULT
  * )
  * public interface UserMapper extends DomainMapper<User, UserResponse> {
- *     UserResponse toResponse(User user);
- *     List<UserResponse> toResponseList(List<User> users);
+ *     // convert 方法由 MapStruct 自动生成实现
  * }
  * }</pre>
+ *
+ * <p>本接口提供了：
+ * <ul>
+ *   <li>{@link #convert(Object)} - 单个对象转换（抽象方法，由子类/MapStruct 实现）</li>
+ *   <li>{@link #convertList(List)} - 批量转换 List（默认方法）</li>
+ *   <li>{@link #convertSet(Set)} - 批量转换 Set（默认方法）</li>
+ * </ul>
  *
  * @param <S> 源类型
  * @param <T> 目标类型
@@ -32,5 +42,48 @@ public interface DomainMapper<S, T> {
     // - componentModel = "spring": 启用 Spring 依赖注入
     // - nullValueCheckStrategy = ALWAYS: 总是检查 null 值
     // - nullValuePropertyMappingStrategy = SET_TO_DEFAULT: 设置默认值
-    // 映射方法由业务项目根据需要定义
+
+    /**
+     * 转换单个对象。
+     *
+     * <p>此方法由子接口定义，MapStruct 会自动生成实现。
+     *
+     * @param source 源对象
+     * @return 转换后的目标对象
+     */
+    T convert(S source);
+
+    /**
+     * 批量转换 List。
+     *
+     * <p>默认方法会调用 {@link #convert(Object)} 方法进行单个元素转换。
+     *
+     * @param sources 源对象列表，可以为 null
+     * @return 转换后的目标对象列表，如果输入为 null 或空则返回空列表
+     */
+    default List<T> convertList(List<S> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return List.of();
+        }
+        return sources.stream()
+                .map(this::convert)
+                .toList();
+    }
+
+    /**
+     * 批量转换 Set。
+     *
+     * <p>默认方法会调用 {@link #convert(Object)} 方法进行单个元素转换。
+     *
+     * @param sources 源对象集合，可以为 null
+     * @return 转换后的目标对象集合，如果输入为 null 或空则返回空集合
+     */
+    default Set<T> convertSet(Set<S> sources) {
+        if (sources == null || sources.isEmpty()) {
+            return Set.of();
+        }
+        return sources.stream()
+                .map(this::convert)
+                .collect(Collectors.toSet());
+    }
 }

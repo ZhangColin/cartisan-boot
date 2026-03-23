@@ -3,8 +3,6 @@ package com.cartisan.web.mapper.fixtures;
 import com.cartisan.web.mapper.DomainMapper;
 import org.mapstruct.Mapper;
 
-import java.util.List;
-
 /**
  * 测试用 Mapper，用于验证 MapStruct 生成代码。
  *
@@ -13,8 +11,5 @@ import java.util.List;
  */
 @Mapper(componentModel = "default")
 public interface TestMapper extends DomainMapper<SimpleEntity, SimpleDto> {
-
-    SimpleDto toResponse(SimpleEntity entity);
-
-    List<SimpleDto> toResponseList(List<SimpleEntity> entities);
+    // convert 方法由 MapStruct 自动生成实现，继承自 DomainMapper
 }
