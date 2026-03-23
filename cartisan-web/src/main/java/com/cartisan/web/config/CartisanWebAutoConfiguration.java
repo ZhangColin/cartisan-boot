@@ -2,9 +2,16 @@ package com.cartisan.web.config;
 
 import com.cartisan.web.context.RequestContextFilter;
 import com.cartisan.web.exception.GlobalExceptionHandler;
+import com.cartisan.web.resubmit.PreventResubmit;
+import com.cartisan.web.resubmit.ResubmitAspect;
+import com.cartisan.web.resubmit.ResubmitLock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * cartisan-web 模块的 Spring Boot 自动配置。
@@ -13,6 +20,7 @@ import org.springframework.context.annotation.Bean;
  * <ul>
  *   <li>{@link RequestContextFilter} — 请求上下文初始化</li>
  *   <li>{@link GlobalExceptionHandler} — 全局异常处理</li>
+ *   <li>{@link ResubmitAspect} — 防重复提交切面（当 Redis 可用时）</li>
  * </ul>
  *
  * <p><strong>引入即用</strong>：添加 cartisan-web 依赖后，无需 {@code @ComponentScan}，
@@ -55,5 +63,35 @@ public class CartisanWebAutoConfiguration {
     @Bean
     public GlobalExceptionHandler globalExceptionHandler() {
         return new GlobalExceptionHandler();
+    }
+
+    /**
+     * 注册防重复提交锁。
+     *
+     * <p>仅在 Redis 可用时注册。</p>
+     *
+     * @param redisTemplate Redis 模板
+     * @return ResubmitLock 实例
+     */
+    @Bean
+    @ConditionalOnClass(PreventResubmit.class)
+    @ConditionalOnMissingBean
+    public ResubmitLock resubmitLock(StringRedisTemplate redisTemplate) {
+        return new ResubmitLock(redisTemplate);
+    }
+
+    /**
+     * 注册防重复提交切面。
+     *
+     * <p>仅在 ResubmitLock 可用时注册。</p>
+     *
+     * @param resubmitLock 防重复提交锁
+     * @return ResubmitAspect 实例
+     */
+    @Bean
+    @ConditionalOnClass(PreventResubmit.class)
+    @ConditionalOnMissingBean
+    public ResubmitAspect resubmitAspect(ResubmitLock resubmitLock) {
+        return new ResubmitAspect(resubmitLock);
     }
 }

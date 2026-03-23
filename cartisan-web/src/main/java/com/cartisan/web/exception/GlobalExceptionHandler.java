@@ -2,6 +2,7 @@ package com.cartisan.web.exception;
 
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.CartisanException;
+import com.cartisan.web.resubmit.ResubmitException;
 import com.cartisan.web.response.ApiResponse;
 import com.cartisan.web.response.FieldError;
 import jakarta.validation.ConstraintViolation;
@@ -54,6 +55,13 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(status)
                 .body(ApiResponse.error(ex.getCodeMessage()));
+    }
+
+    @ExceptionHandler(ResubmitException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResubmitException(ResubmitException ex) {
+        log.warn("Resubmit blocked: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(400, ex.getMessage()));
     }
 
     // ========== 校验异常 ==========

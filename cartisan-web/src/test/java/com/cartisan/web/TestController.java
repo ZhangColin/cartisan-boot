@@ -3,6 +3,7 @@ package com.cartisan.web;
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.CartisanException;
 import com.cartisan.core.exception.DomainException;
+import com.cartisan.web.response.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Email;
@@ -77,4 +78,24 @@ public class TestController {
             @Email String email,
             @Size(min = 8, max = 20) String password
     ) {}
+
+    // ========== 防重复提交测试端点 ==========
+
+    @PostMapping("/resubmit")
+    @com.cartisan.web.resubmit.PreventResubmit(delaySeconds = 10, prefix = "createUser")
+    public ApiResponse<String> resubmit(@RequestBody TestRequest request) {
+        return ApiResponse.ok("Request processed");
+    }
+
+    @PostMapping("/resubmit-short-delay")
+    @com.cartisan.web.resubmit.PreventResubmit(delaySeconds = 1, prefix = "shortDelay")
+    public ApiResponse<String> resubmitWithShortDelay(@RequestBody TestRequest request) {
+        return ApiResponse.ok("Request processed");
+    }
+
+    @PostMapping("/resubmit-no-prefix")
+    @com.cartisan.web.resubmit.PreventResubmit(delaySeconds = 5)
+    public ApiResponse<String> resubmitWithoutPrefix(@RequestBody TestRequest request) {
+        return ApiResponse.ok("Request processed");
+    }
 }

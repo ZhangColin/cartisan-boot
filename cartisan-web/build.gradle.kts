@@ -11,11 +11,17 @@ dependencies {
     // Spring Web - provides @ControllerAdvice, @ExceptionHandler, ResponseEntity
     implementation("org.springframework.boot:spring-boot-starter-web")
 
+    // Spring AOP - provides @Aspect, @Around, ProceedingJoinPoint
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+
     // Spring Validation - provides Bean Validation, @Valid, @Validated
     implementation("org.springframework.boot:spring-boot-starter-validation")
 
     // Spring Data Redis - provides StringRedisTemplate for distributed lock
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+
+    // Fastjson2 - JSON serialization
+    implementation("com.alibaba.fastjson2:fastjson2:2.0.53")
 
     // MapStruct - 类型安全的对象映射
     implementation("org.mapstruct:mapstruct")
