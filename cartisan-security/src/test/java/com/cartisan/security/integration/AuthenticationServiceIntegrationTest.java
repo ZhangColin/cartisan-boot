@@ -74,4 +74,32 @@ class AuthenticationServiceIntegrationTest extends AbstractSecurityIntegrationTe
                         .header("satoken", invalidToken))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("自定义超时登录成功返回有效 token")
+    void given_loginIdAndTimeout_when_loginWithTimeout_then_returnToken() throws Exception {
+        // When: 调用自定义超时登录端点（7天）
+        // Then: 返回有效 token
+        mvc.perform(MockMvcRequestBuilders.get("/test/auth/login/888/timeout/604800"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").exists())
+                .andExpect(jsonPath("$.data.token").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("自定义超时登录后可访问需要认证的接口")
+    void given_loggedInWithCustomTimeout_when_requestWithToken_then_success() throws Exception {
+        // Given: 使用自定义超时登录获取 token（1小时）
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login/999/timeout/3600"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        // When: 使用 token 访问受保护接口
+        // Then: 请求成功
+        mvc.perform(MockMvcRequestBuilders.get("/test/auth/current-user")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(999));
+    }
 }

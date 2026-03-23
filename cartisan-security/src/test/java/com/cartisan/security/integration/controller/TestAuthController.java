@@ -42,6 +42,18 @@ public class TestAuthController {
     }
 
     /**
+     * 测试登录并设置超时的端点。
+     */
+    @GetMapping("/login/{userId}/timeout/{timeoutSeconds}")
+    public ApiResponse<Map<String, String>> loginWithTimeout(@PathVariable Long userId, @PathVariable Long timeoutSeconds) {
+        StpUtil.login(userId, timeoutSeconds);
+        String token = StpUtil.getTokenValue();
+        Map<String, String> result = new HashMap<>();
+        result.put("token", token);
+        return ApiResponse.ok(result);
+    }
+
+    /**
      * 测试登录并设置角色的端点。
      */
     @GetMapping("/login/{userId}/role/{role}")
