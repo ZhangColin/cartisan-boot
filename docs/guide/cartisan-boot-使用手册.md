@@ -214,10 +214,10 @@
 
 | 类/接口 | 字段/注解/方法 | 说明 |
 |----|----------|------|
-| `Auditable` | `@CreatedDate createdAt` | 创建时间（自动填充） |
-| | `@LastModifiedDate lastModifiedDate` | 修改时间（自动更新） |
-| | `@CreatedBy createdBy` | 创建人（需 AuditorAware） |
-| | `@LastModifiedBy lastModifiedBy` | 修改人（需 AuditorAware） |
+| `Auditable` | `@CreatedDate createdAt` | 创建时间（LocalDateTime，自动填充） |
+| | `@LastModifiedDate lastModifiedDate` | 修改时间（LocalDateTime，自动更新） |
+| | `@CreatedBy createdBy` | 创建人ID（Long，需 AuditorAware） |
+| | `@LastModifiedBy lastModifiedBy` | 修改人ID（Long，需 AuditorAware） |
 | `AuditableSoftDeletable` | 继承 `Auditable`，实现 `SoftDeletable` | 可审计且可软删除实体基类 |
 | | `boolean deleted` | 软删除标记 |
 | | `@SQLRestriction("deleted = false")` | 查询自动过滤 |
