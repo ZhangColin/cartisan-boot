@@ -175,4 +175,44 @@ class TreeNodeBuilderTest {
         }
         return result;
     }
+
+    @Test
+    @DisplayName("给定 null 节点列表 - 调用 build - 返回空列表")
+    void shouldReturnEmptyList_whenNodesIsNull() {
+        // Given
+        List<TreeNode<Long>> nullNodes = null;
+
+        // When
+        List<TreeNode<Long>> tree = TreeNodeBuilder.build(
+                nullNodes,
+                id -> String.valueOf(id),
+                parentId -> String.valueOf(parentId),
+                0L
+        );
+
+        // Then
+        assertThat(tree).isEmpty();
+    }
+
+    @Test
+    @DisplayName("给定单节点树 - 调用 build - 返回单根节点")
+    void shouldBuildSingleRootNode() {
+        // Given
+        List<TreeNode<Long>> nodes = List.of(
+            new TreeNode<>(1L, "Root", 0L)
+        );
+
+        // When
+        List<TreeNode<Long>> tree = TreeNodeBuilder.build(
+            nodes,
+            id -> String.valueOf(id),
+            parentId -> String.valueOf(parentId),
+            0L
+        );
+
+        // Then
+        assertThat(tree).hasSize(1);
+        assertThat(tree.get(0).id()).isEqualTo(1L);
+        assertThat(tree.get(0).children()).isEmpty();
+    }
 }
