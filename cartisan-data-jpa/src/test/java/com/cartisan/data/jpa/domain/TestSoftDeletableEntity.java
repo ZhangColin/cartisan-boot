@@ -10,7 +10,7 @@ import org.hibernate.annotations.SQLRestriction;
  */
 @Entity(name = "test_soft_deletable_entity")
 @SQLRestriction("deleted = false")
-public class TestSoftDeletableEntity extends SoftDeletable {
+public class TestSoftDeletableEntity extends AbstractSoftDeletable {
 
     @Id
     @GeneratedValue

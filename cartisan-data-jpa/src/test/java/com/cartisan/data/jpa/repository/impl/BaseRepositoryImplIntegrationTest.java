@@ -237,20 +237,26 @@ class BaseRepositoryImplIntegrationTest {
         // Then: 所有实体被标记为已删除
         assertThat(softDeletableRepository.findAll()).isEmpty();
 
-        // 验证所有记录仍存在但被标记为已删除
-        SoftDeletableTestEntity deleted1 = testEntityManager.find(
-            SoftDeletableTestEntity.class, entity1.getId());
-        SoftDeletableTestEntity deleted2 = testEntityManager.find(
-            SoftDeletableTestEntity.class, entity2.getId());
-        SoftDeletableTestEntity deleted3 = testEntityManager.find(
-            SoftDeletableTestEntity.class, entity3.getId());
+        // 验证所有记录仍存在但被标记为已删除（使用原生查询绕过 @SQLRestriction）
+        Boolean deleted1 = (Boolean) testEntityManager.getEntityManager()
+            .createNativeQuery("SELECT deleted FROM soft_delete_test_entity WHERE id = ?")
+            .setParameter(1, entity1.getId())
+            .getSingleResult();
+        Boolean deleted2 = (Boolean) testEntityManager.getEntityManager()
+            .createNativeQuery("SELECT deleted FROM soft_delete_test_entity WHERE id = ?")
+            .setParameter(1, entity2.getId())
+            .getSingleResult();
+        Boolean deleted3 = (Boolean) testEntityManager.getEntityManager()
+            .createNativeQuery("SELECT deleted FROM soft_delete_test_entity WHERE id = ?")
+            .setParameter(1, entity3.getId())
+            .getSingleResult();
 
         assertThat(deleted1).isNotNull();
-        assertThat(deleted1.isDeleted()).isTrue();
+        assertThat(deleted1).isTrue();
         assertThat(deleted2).isNotNull();
-        assertThat(deleted2.isDeleted()).isTrue();
+        assertThat(deleted2).isTrue();
         assertThat(deleted3).isNotNull();
-        assertThat(deleted3.isDeleted()).isTrue();
+        assertThat(deleted3).isTrue();
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.cartisan.data.jpa.repository.impl.softdelete;
 
 import com.cartisan.core.domain.AbstractAggregateRoot;
 import com.cartisan.core.domain.DomainEvent;
+import com.cartisan.data.jpa.domain.SoftDeletable;
 import com.cartisan.data.jpa.repository.impl.TestDomainEvent;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,11 +11,12 @@ import jakarta.persistence.Id;
 import org.hibernate.annotations.SQLRestriction;
 
 /**
- * 测试用软删除实体。
+ * 测试用软删除实体，实现 {@link SoftDeletable} 接口。
  */
 @Entity(name = "soft_delete_test_entity")
 @SQLRestriction("deleted = false")
-public class SoftDeletableTestEntity extends AbstractAggregateRoot<SoftDeletableTestEntity> {
+public class SoftDeletableTestEntity extends AbstractAggregateRoot<SoftDeletableTestEntity>
+        implements SoftDeletable {
 
     @Id
     @GeneratedValue
@@ -41,8 +43,14 @@ public class SoftDeletableTestEntity extends AbstractAggregateRoot<SoftDeletable
         return deleted;
     }
 
+    @Override
     public void markAsDeleted() {
         this.deleted = true;
+    }
+
+    @Override
+    public boolean getDeleted() {
+        return deleted;
     }
 
     /**
