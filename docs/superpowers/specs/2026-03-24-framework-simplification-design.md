@@ -267,18 +267,7 @@ public class CartisanSecurityAutoConfiguration implements WebMvcConfigurer {
 
 ## 回滚计划
 
-对于破坏性变更，如果出现问题：
-
-1. **AuditableSoftDeletable**：保留 `AbstractSoftDeletable` 作为 `@Deprecated` 别名
-   ```java
-   @Deprecated
-   @SuppressWarnings("removal")
-   public abstract class AbstractSoftDeletable extends AuditableSoftDeletable {
-       // 空类，仅作为别名
-   }
-   ```
-
-2. **PageQuery**：先标记 `@Deprecated`，观察一段时间后再删除
+无。框架模板处于定义阶段，业务平台刚开始建设，直接执行变更即可。
 
 ---
 
@@ -291,4 +280,3 @@ public class CartisanSecurityAutoConfiguration implements WebMvcConfigurer {
   - [ ] `docs/superpowers/specs/2026-03-24-test-coverage-enhancement-design.md` — 删除 PageQuery 覆盖率目标
   - [ ] `README.md` — 检查是否有相关引用
 - [ ] 变更日志记录
-- [ ] 破坏性变更的过渡方案实施（@Deprecated 别名）
