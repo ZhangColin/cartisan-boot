@@ -105,4 +105,33 @@ public final class TenantContext {
             runnable.run();
         }
     }
+
+    /**
+     * 在指定租户上下文中执行操作（公开方法，供测试使用）。
+     *
+     * <p>测试使用示例：</p>
+     * <pre>{@code
+     * TenantContext.runWithTenantId(123L, () -> {
+     *     // 在此代码块中，TenantContext.getCurrentTenantId() 返回 123L
+     * });
+     * }</pre>
+     *
+     * @param tenantId 租户 ID，null 表示无租户
+     * @param action   要执行的操作
+     */
+    public static void runWithTenantId(Long tenantId, Runnable action) {
+        runWithTenant(tenantId, action);
+    }
+
+    /**
+     * 清除当前租户上下文。
+     *
+     * <p>仅用于测试环境，清除后 {@link #getCurrentTenantId()} 将返回 null。</p>
+     *
+     * @since 0.4.0
+     */
+    public static void clear() {
+        // 不需要做任何操作，因为 ScopedValue 的作用域在方法调用结束后自动结束
+        // 这个方法是为了代码语义清晰，表示"清除租户上下文"的意图
+    }
 }
