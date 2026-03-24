@@ -237,12 +237,18 @@ Auditable（JPA @MappedSuperclass）
   - updatedBy: String                   — 更新人（可选）
 ```
 
-**SoftDeletable 基类：**
+**AuditableSoftDeletable 基类：**
 
 ```
-SoftDeletable extends Auditable
+AuditableSoftDeletable extends Auditable implements SoftDeletable
   - deleted: boolean = false            — 软删除标记
   自动过滤：查询时自动排除 deleted=true 的记录（@SQLRestriction）
+
+**SoftDeletable 接口：**
+```
+SoftDeletable（接口）
+  - markAsDeleted()                     — 标记为已删除（领域方法）
+  - getDeleted() → boolean              — 获取软删除标记值
 ```
 
 #### exception — 异常与错误码体系
@@ -513,24 +519,11 @@ TsidGenerator
 
 ```
 com.cartisan.data.query/
-├── page/                 # 分页工具
 ├── tenant/               # 多租户工具
 └── config/               # jOOQ 自动配置
 ```
 
 #### 核心组件
-
-**分页工具：**
-
-```
-PageQuery（Record）
-  - page: int（默认 1）
-  - size: int（默认 20，上限 100）
-  - offset(): long          # 计算 OFFSET 值
-
-分页结果统一使用 cartisan-web 的 PageResponse<T>（items, total, page, size）
-读侧与写侧分页 API 保持一致。
-```
 
 **jOOQ 自动配置：**
 

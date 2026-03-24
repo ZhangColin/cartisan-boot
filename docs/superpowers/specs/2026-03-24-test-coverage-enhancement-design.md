@@ -178,7 +178,6 @@
 
 ### 4.2 已有充分测试的功能
 
-- `PageQuery`（100% 覆盖）
 - `DomainEvent` / `DomainEventPublisher`（100% 覆盖）
 - `SecurityContext` / `TenantContext`（92% 覆盖）
 - `ChatMessage` / `ChatRequest` / `ChatResponse`（100% 覆盖）

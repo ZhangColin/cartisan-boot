@@ -80,7 +80,6 @@
 
 | 能力 | 说明 |
 |------|------|
-| **分页查询参数** | `PageQuery` 分页参数类（page、size、offset） |
 | **jOOQ 自动配置** | `DSLContext` Bean 自动配置（PostgreSQL 方言、SQL 日志） |
 | **多租户查询** | `JooqTenantSupport.eqTenantId()` 租户过滤条件生成 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
@@ -213,21 +212,24 @@
 
 ### 2.12 审计与软删除（com.cartisan.data.jpa.domain）
 
-| 类 | 字段/注解/方法 | 说明 |
+| 类/接口 | 字段/注解/方法 | 说明 |
 |----|----------|------|
 | `Auditable` | `@CreatedDate createdAt` | 创建时间（自动填充） |
 | | `@LastModifiedDate lastModifiedDate` | 修改时间（自动更新） |
 | | `@CreatedBy createdBy` | 创建人（需 AuditorAware） |
 | | `@LastModifiedBy lastModifiedBy` | 修改人（需 AuditorAware） |
-| `SoftDeletable` | `boolean deleted` | 软删除标记 |
+| `AuditableSoftDeletable` | 继承 `Auditable`，实现 `SoftDeletable` | 可审计且可软删除实体基类 |
+| | `boolean deleted` | 软删除标记 |
 | | `@SQLRestriction("deleted = false")` | 查询自动过滤 |
 | | `markAsDeleted()` | 标记为已删除（领域方法），供 Repository.delete() 调用 |
+| `SoftDeletable` | `markAsDeleted()` | 软删除接口方法 |
+| | `getDeleted()` | 获取软删除标记值 |
 
 **自动软删除支持**：
 
 | 方法 | 行为 |
 |------|------|
-| `BaseRepositoryImpl.delete(T)` | 软删除实体自动调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
+| `BaseRepositoryImpl.delete(T)` | 实现 `SoftDeletable` 接口的实体调用 `markAsDeleted()` + `save()`，其他实体物理删除 |
 | `BaseRepositoryImpl.deleteById(ID)` | 先查找实体，再调用 `delete()` |
 | `BaseRepositoryImpl.deleteAll(Iterable)` | 混合处理：软删除实体 UPDATE，其他 DELETE |
 | `BaseRepositoryImpl.deleteAll()` | 软删除实体批量 UPDATE，其他物理删除 |
@@ -326,7 +328,6 @@
 | `@CurrentUser` | PARAMETER | Controller 方法参数注解，注入当前用户 ID |
 | `CurrentUserMethodArgumentResolver` | `supportsParameter()` | 判断参数是否支持解析（有注解 + 类型为 Long 或 Optional&lt;Long&gt;） |
 | | `resolveArgument()` | 从 SecurityContext 获取用户 ID 并注入 |
-| `CurrentUserArgumentResolverConfig` | `addArgumentResolvers()` | 注册 Resolver 到 Spring MVC |
 
 **支持的参数类型**：
 - `@CurrentUser Long userId` — 必需登录，未登录抛 `NotLoginException`（401）
@@ -365,21 +366,7 @@ public class PermissionInitService {
 }
 ```
 
-### 2.24 PageQuery（com.cartisan.data.query.page）
-
-| 字段/方法 | 类型/返回值 | 说明 |
-|-----------|------------|------|
-| `page` | `int` | 当前页码（最小 1） |
-| `size` | `int` | 每页大小（范围 1-100） |
-| `offset()` | `long` | 计算 OFFSET 值：`(page - 1) * size` |
-| `of(int, int)` | `PageQuery` | 静态工厂方法，创建实例 |
-
-**参数校验**：
-- `page < 1` 时自动修正为 1
-- `size < 1` 时修正为 20
-- `size > 100` 时修正为 100
-
-### 2.25 DSLContext 自动配置（com.cartisan.data.query.config）
+### 2.24 DSLContext 自动配置（com.cartisan.data.query.config）
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
@@ -390,7 +377,7 @@ public class PermissionInitService {
 - 方言：固定为 `SQLDialect.POSTGRES`
 - Bean：可被用户自定义配置覆盖
 
-### 2.26 JooqTenantSupport（com.cartisan.data.query.support）
+### 2.25 JooqTenantSupport（com.cartisan.data.query.support）
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
@@ -402,7 +389,7 @@ public class PermissionInitService {
 
 **依赖说明**：需要 `cartisan-security` 模块（可选依赖）
 
-### 2.27 AI 对话模型（com.cartisan.ai.model）
+### 2.26 AI 对话模型（com.cartisan.ai.model）
 
 | 类/Record | 字段/方法 | 说明 |
 |----------|----------|------|
@@ -414,7 +401,7 @@ public class PermissionInitService {
 | `TokenUsage` | `promptTokens()`, `completionTokens()`, `totalTokens()` | Token 使用统计 |
 | `ChatStreamEvent` | `delta()`, `finished()`, `usage()` | 流式事件 |
 
-### 2.28 ModelProvider SPI（com.cartisan.ai.provider）
+### 2.27 ModelProvider SPI（com.cartisan.ai.provider）
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
@@ -429,7 +416,7 @@ public class PermissionInitService {
 | | `chatStream(providerId, request)` → `Flux<ChatStreamEvent>` | 通过 Registry 流式调用 |
 | `ModelUsageListener` | `onUsage(providerId, model, usage)` | Token 使用监听器（扩展点） |
 
-### 2.29 SSE 流式工具（com.cartisan.ai.sse）
+### 2.28 SSE 流式工具（com.cartisan.ai.sse）
 
 | 类 | 方法 | 说明 |
 |----|------|------|
@@ -437,7 +424,7 @@ public class PermissionInitService {
 | | `toSse(Flux<ChatStreamEvent>, Consumer<TokenUsage>)` → `SseEmitter` | 转换为 SSE（usage 回调） |
 | `SseProperties` | `timeout`（默认 30 秒） | SSE 超时配置 |
 
-### 2.30 RedisKey 工具（com.cartisan.core.util.RedisKey）
+### 2.29 RedisKey 工具（com.cartisan.core.util.RedisKey）
 
 | 类/方法 | 说明 |
 |---------|------|
@@ -447,7 +434,7 @@ public class PermissionInitService {
 | `expireSeconds()` | 获取过期时间（秒），0 表示永不过期 |
 | `isPermanent()` | 判断是否为永久 Key |
 
-### 2.31 DomainMapper（com.cartisan.web.mapper）
+### 2.30 DomainMapper（com.cartisan.web.mapper）
 
 | 接口/方法 | 说明 |
 |----------|------|
@@ -458,7 +445,7 @@ public class PermissionInitService {
 
 **注意**：`convertList` 和 `convertSet` 在输入为 null 或空时返回空集合。
 
-### 2.32 TreeNode（com.cartisan.web.support）
+### 2.31 TreeNode（com.cartisan.web.support）
 
 | 类/方法 | 说明 |
 |---------|------|
@@ -467,7 +454,7 @@ public class PermissionInitService {
 | `TreeNode(id, name, parentId, children)` | 完整构造 |
 | `TreeNodeBuilder.build(nodes, idMapper, parentIdMapper, rootParentId)` | 构建树形结构 |
 
-### 2.33 @PreventResubmit（com.cartisan.web.resubmit）
+### 2.32 @PreventResubmit（com.cartisan.web.resubmit）
 
 | 注解/类 | 属性/方法 | 说明 |
 |---------|----------|------|
@@ -476,7 +463,7 @@ public class PermissionInitService {
 | `ResubmitLock` | `lock(key, delaySeconds)` | 基于 Redis 的分布式锁 |
 | `ResubmitAspect` | - | AOP 切面，拦截注解方法 |
 
-### 2.34 Jackson 全局配置（com.cartisan.web.config）
+### 2.33 Jackson 全局配置（com.cartisan.web.config）
 
 | 配置项 | 说明 |
 |--------|------|
@@ -486,7 +473,7 @@ public class PermissionInitService {
 | `Enum → 字符串` | 枚举值序列化为字符串 |
 | `忽略未知属性` | 反序列化时忽略未知字段 |
 
-### 2.35 RequestLogFilter（com.cartisan.web.filter）
+### 2.34 RequestLogFilter（com.cartisan.web.filter）
 
 | 类 | 说明 |
 |----|------|
@@ -494,7 +481,7 @@ public class PermissionInitService {
 
 **排除路径**：`/swagger-ui`、`/v3/api-docs`、`/swagger-resources`、`/druid`、`/actuator`
 
-### 2.36 @Condition 注解（com.cartisan.data.jpa.specification）
+### 2.35 @Condition 注解（com.cartisan.data.jpa.specification）
 
 | 注解/枚举 | 说明 |
 |----------|------|
@@ -504,7 +491,7 @@ public class PermissionInitService {
 
 **详细使用指南**：[condition-annotation.md](condition-annotation.md)
 
-### 2.37 AutoResponseAdvice（com.cartisan.web.response）
+### 2.36 AutoResponseAdvice（com.cartisan.web.response）
 
 | 配置项 | 说明 |
 |--------|------|
@@ -825,11 +812,10 @@ public class Product extends Auditable {
 
 // 审计 + 软删除
 @Entity
-@SQLRestriction("deleted = false")  // 查询时自动过滤
-public class Order extends SoftDeletable {
+public class Order extends AuditableSoftDeletable {
     @Id private Long id;
     private String status;
-    // 自动拥有：审计字段 + deleted
+    // 自动拥有：审计字段 + deleted（带 @SQLRestriction）
 }
 
 // 软删除操作
@@ -1128,39 +1114,7 @@ cartisan:
         - "/actuator/**"
 ```
 
-### 3.19 使用 PageQuery
-
-```java
-@RestController
-@RequestMapping("/api/v1/users")
-public class UserController {
-
-    // 接收前端分页参数
-    @GetMapping
-    public ApiResponse<PageResponse<UserDto>> listUsers(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
-
-        PageQuery pageQuery = PageQuery.of(page, size);
-        // pageQuery 自动校验参数：
-        // - page < 1 → 修正为 1
-        // - size < 1 → 修正为 20
-        // - size > 100 → 修正为 100
-
-        long offset = pageQuery.offset();  // (page - 1) * size
-
-        // 用于 jOOQ 查询
-        List<User> users = dsl.selectFrom(USER)
-            .limit(pageQuery.size())
-            .offset(pageQuery.offset())
-            .fetchInto(User.class);
-
-        return ApiResponse.ok(PageResponse.of(users, total, page, size));
-    }
-}
-```
-
-### 3.20 使用 jOOQ 自动配置
+### 3.19 使用 jOOQ 自动配置
 
 ```java
 // 引入依赖后，DSLContext 自动注入可用
@@ -1196,7 +1150,7 @@ public class UserService {
 }
 ```
 
-### 3.21 启用 SQL 日志
+### 3.20 启用 SQL 日志
 
 ```yaml
 # application.yml
@@ -1206,7 +1160,7 @@ cartisan:
       sql-logging: true  # 启用 SQL 执行日志
 ```
 
-### 3.22 使用多租户查询
+### 3.21 使用多租户查询
 
 ```java
 import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
@@ -1241,7 +1195,7 @@ public class UserService {
 }
 ```
 
-### 3.23 jOOQ 代码生成配置
+### 3.22 jOOQ 代码生成配置
 
 在业务项目 `build.gradle.kts` 中添加：
 
@@ -1291,7 +1245,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
-### 3.24 使用 cartisan-ai 同步调用
+### 3.23 使用 cartisan-ai 同步调用
 
 ```java
 @Service
@@ -1324,7 +1278,7 @@ public class AiService {
 }
 ```
 
-### 3.25 使用 cartisan-ai 流式调用（SSE）
+### 3.24 使用 cartisan-ai 流式调用（SSE）
 
 ```java
 @RestController
@@ -1368,7 +1322,7 @@ public class AiController {
 }
 ```
 
-### 3.26 配置 cartisan-ai Provider
+### 3.25 配置 cartisan-ai Provider
 
 ```yaml
 # application.yml
@@ -1395,7 +1349,7 @@ cartisan:
 - 只有配置了对应 `api-key` 的 Provider 才会被创建
 - 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
 
-### 3.27 实现 ModelUsageListener
+### 3.26 实现 ModelUsageListener
 
 ```java
 @Component
@@ -1413,7 +1367,7 @@ public class TokenUsageLogger implements ModelUsageListener {
 }
 ```
 
-### 3.28 使用 RedisKey 工具
+### 3.27 使用 RedisKey 工具
 
 ```java
 @Service
@@ -1439,7 +1393,7 @@ public class UserService {
 }
 ```
 
-### 3.29 使用 DomainMapper 批量转换
+### 3.28 使用 DomainMapper 批量转换
 
 ```java
 @Mapper(componentModel = "spring")
@@ -1469,7 +1423,7 @@ public class UserService {
 }
 ```
 
-### 3.30 使用 TreeNode 构建树结构
+### 3.29 使用 TreeNode 构建树结构
 
 ```java
 @Service
@@ -1501,7 +1455,7 @@ public class DepartmentService {
 }
 ```
 
-### 3.31 使用 @PreventResubmit 防重提交
+### 3.30 使用 @PreventResubmit 防重提交
 
 ```java
 @RestController
@@ -1526,7 +1480,7 @@ public class UserController {
 }
 ```
 
-### 3.32 使用 @Condition 注解查询
+### 3.31 使用 @Condition 注解查询
 
 ```java
 // 定义查询 DTO
@@ -1545,7 +1499,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 [5.1 @Condition 注解详细说明](#五一详细功能指南)
 
-### 3.33 启用自动响应包装
+### 3.32 启用自动响应包装
 
 ```yaml
 # application.yml
@@ -1646,9 +1600,8 @@ public User getById(@PathVariable Long id) {
 |------|------|
 | **QUERY-001** | `generateJooq` 任务必须依赖 `flywayMigrate`，确保先生成 schema 再生成代码 |
 | **QUERY-002** | jOOQ 代码生成目录为 `build/generated/jooq`，需在 IDEA 中标记为 Generated Sources Root |
-| **QUERY-003** | `PageQuery` 参数在 compact constructor 中自动校验，调用方无需手动处理边界情况 |
-| **QUERY-004** | `JooqTenantSupport` 需要 `cartisan-security` 可选依赖，无租户上下文时返回 `noCondition()` |
-| **QUERY-005** | jOOQ 版本由 `cartisan-dependencies` BOM 管理，业务项目无需显式指定版本 |
+| **QUERY-003** | `JooqTenantSupport` 需要 `cartisan-security` 可选依赖，无租户上下文时返回 `noCondition()` |
+| **QUERY-004** | jOOQ 版本由 `cartisan-dependencies` BOM 管理，业务项目无需显式指定版本 |
 
 #### QUERY-001：代码生成任务依赖
 
@@ -1674,7 +1627,7 @@ tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
 # 右键 build/generated/jooq → Mark Directory as → Generated Sources Root
 ```
 
-#### QUERY-004：JooqTenantSupport 可选依赖
+#### QUERY-003：JooqTenantSupport 可选依赖
 
 ```kotlin
 // cartisan-data-query/build.gradle.kts
@@ -1717,9 +1670,9 @@ dependencies {
 
 | 规则 | 说明 |
 |------|------|
-| **QUERY-006** | `@Condition` 注解 BigDecimal 类型有类型推断限制，建议使用 Integer/Long |
-| **QUERY-007** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 LIKE 查询 |
-| **QUERY-008** | `@Condition` 注解 null 和空字符串自动跳过，不生成查询条件 |
+| **QUERY-005** | `@Condition` 注解 BigDecimal 类型有类型推断限制，建议使用 Integer/Long |
+| **QUERY-006** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 LIKE 查询 |
+| **QUERY-007** | `@Condition` 注解 null 和空字符串自动跳过，不生成查询条件 |
 
 ---
 
@@ -2107,7 +2060,7 @@ public class OrderService {
 public class OrderQueryService {
     private final DSLContext dsl;  // jOOQ
 
-    public PageResponse<OrderDto> queryOrders(OrderQuery query, PageQuery pageQuery) {
+    public Page<OrderDto> queryOrders(OrderQuery query, Pageable pageable) {
         // 类型安全的 DSL 查询
         List<OrderDto> orders = dsl.select(
                 ORDER.ID,
@@ -2118,12 +2071,12 @@ public class OrderQueryService {
             .from(ORDER)
             .where(buildConditions(query))
             .orderBy(OrderConstant)
-            .limit(pageQuery.size())
-            .offset(pageQuery.offset())
+            .limit(pageable.getPageSize())
+            .offset(pageable.getOffset())
             .fetchInto(OrderDto.class);
 
         long total = dsl.fetchCount(ORDER);
-        return PageResponse.of(orders, total, pageQuery.page(), pageQuery.size());
+        return new PageImpl<>(orders, pageable, total);
     }
 }
 ```
