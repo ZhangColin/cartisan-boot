@@ -34,7 +34,7 @@
 **Files:**
 - Create: `cartisan-ai/src/test/java/com/cartisan/ai/sse/SsePropertiesTest.java`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the test**
 
 ```java
 package com.cartisan.ai.sse;
@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SsePropertiesTest {
 
     @Test
-    @DisplayName("给定默认配置 - 获取 timeout - 返回 30 秒")
+    @DisplayName("给定默认配置 - 获取 timeout - 返回 5 分钟")
     void shouldReturnDefaultTimeout() {
         // Given: 默认构造的 SseProperties
         SseProperties properties = new SseProperties();
@@ -59,7 +59,7 @@ class SsePropertiesTest {
         Duration timeout = properties.getTimeout();
 
         // Then
-        assertThat(timeout).isEqualTo(Duration.ofSeconds(30));
+        assertThat(timeout).isEqualTo(Duration.ofMinutes(5));
     }
 
     @Test
@@ -67,13 +67,63 @@ class SsePropertiesTest {
     void shouldReturnCustomTimeout() {
         // Given
         SseProperties properties = new SseProperties();
-        Duration customTimeout = Duration.ofMinutes(5);
+        Duration customTimeout = Duration.ofMinutes(10);
 
         // When
         properties.setTimeout(customTimeout);
 
         // Then
         assertThat(properties.getTimeout()).isEqualTo(customTimeout);
+    }
+
+    @Test
+    @DisplayName("给定默认配置 - 获取 heartbeat - 返回 30 秒")
+    void shouldReturnDefaultHeartbeat() {
+        // Given
+        SseProperties properties = new SseProperties();
+
+        // When
+        Duration heartbeat = properties.getHeartbeat();
+
+        // Then
+        assertThat(heartbeat).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    @DisplayName("给定自定义 heartbeat - 设置后获取 - 返回自定义值")
+    void shouldReturnCustomHeartbeat() {
+        // Given
+        SseProperties properties = new SseProperties();
+        Duration customHeartbeat = Duration.ofSeconds(60);
+
+        // When
+        properties.setHeartbeat(customHeartbeat);
+
+        // Then
+        assertThat(properties.getHeartbeat()).isEqualTo(customHeartbeat);
+    }
+
+    @Test
+    @DisplayName("给定默认配置 - 获取 heartbeatEnabled - 返回 true")
+    void shouldReturnDefaultHeartbeatEnabled() {
+        // Given
+        SseProperties properties = new SseProperties();
+
+        // When & Then
+        assertThat(properties.isHeartbeatEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("给定自定义 heartbeatEnabled - 设置后获取 - 返回自定义值")
+    void shouldReturnCustomHeartbeatEnabled() {
+        // Given
+        SseProperties properties = new SseProperties();
+
+        // When
+        properties.setHeartbeatEnabled(false);
+
+        // Then
+        assertThat(properties.isHeartbeatEnabled()).isFalse();
     }
 }
 ```
@@ -89,8 +139,12 @@ Expected: PASS（SseProperties 是简单的 POJO，不需要修改代码）
 git add cartisan-ai/src/test/java/com/cartisan/ai/sse/SsePropertiesTest.java
 git commit -m "test(ai): add SseProperties unit test
 
-- Test default timeout value (30 seconds)
+- Test default timeout value (5 minutes)
 - Test custom timeout setter/getter
+- Test default heartbeat value (30 seconds)
+- Test custom heartbeat setter/getter
+- Test default heartbeatEnabled (true)
+- Test custom heartbeatEnabled setter/getter
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
 ```
@@ -436,7 +490,66 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 5: JooqTenantSupport 有租户上下文集成测试
+## Task 5: TenantContext 测试辅助方法添加
+
+**Files:**
+- Modify: `cartisan-security/src/main/java/com/cartisan/security/context/TenantContext.java`
+
+- [ ] **Step 1: Add testing helper methods to TenantContext**
+
+在 `TenantContext.java` 末尾（`runWithTenant` 方法之后）添加：
+
+```java
+/**
+ * 在指定租户上下文中执行操作（公开方法，供测试使用）。
+ *
+ * <p>测试使用示例：</p>
+ * <pre>{@code
+ * TenantContext.runWithTenantId(123L, () -> {
+ *     // 在此代码块中，TenantContext.getCurrentTenantId() 返回 123L
+ * });
+ * }</pre>
+ *
+ * @param tenantId 租户 ID，null 表示无租户
+ * @param action   要执行的操作
+ */
+public static void runWithTenantId(Long tenantId, Runnable action) {
+    runWithTenant(tenantId, action);
+}
+
+/**
+ * 清除当前租户上下文。
+ *
+ * <p>仅用于测试环境，清除后 {@link #getCurrentTenantId()} 将返回 null。</p>
+ *
+ * @since 0.4.0
+ */
+public static void clear() {
+    // 不需要做任何操作，因为 ScopedValue 的作用域在方法调用结束后自动结束
+    // 这个方法是为了代码语义清晰，表示"清除租户上下文"的意图
+}
+```
+
+- [ ] **Step 2: Verify compilation**
+
+Run: `./gradlew :cartisan-security:compileJava`
+Expected: 编译成功
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add cartisan-security/src/main/java/com/cartisan/security/context/TenantContext.java
+git commit -m "feat(security): add TenantContext testing helper methods
+
+- Add public runWithTenantId() for testing
+- Add clear() method for test semantic clarity
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+## Task 6: JooqTenantSupport 有租户上下文集成测试
 
 **Files:**
 - Create: `cartisan-data-query/src/test/java/com/cartisan/data/query/support/JooqTenantSupportIntegrationTest.java`
@@ -449,8 +562,6 @@ package com.cartisan.data.query.support;
 import com.cartisan.security.context.TenantContext;
 import org.jooq.Condition;
 import org.jooq.impl.DSL;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -467,104 +578,60 @@ class JooqTenantSupportIntegrationTest {
 
     private static final Long TEST_TENANT_ID = 123L;
 
-    @BeforeEach
-    void setUp() {
-        // 设置租户上下文
-        TenantContext.runWithTenantId(TEST_TENANT_ID, () -> {});
-    }
-
-    @AfterEach
-    void tearDown() {
-        // 清理租户上下文
-        TenantContext.clear();
-    }
-
     @Test
     @DisplayName("给定有租户上下文 - 调用 eqTenantId - 返回租户等值条件")
     void shouldReturnTenantEqCondition_whenTenantContextExists() {
-        // Given: 租户上下文已设置
-        var tenantIdField = DSL.field("tenant_id", Long.class);
+        // Given: 使用 runWithTenantId 设置租户上下文
+        var resultHolder = new Object() { Condition condition; };
 
-        // When: 调用 eqTenantId
-        Condition result = JooqTenantSupport.eqTenantId(tenantIdField);
+        TenantContext.runWithTenantId(TEST_TENANT_ID, () -> {
+            var tenantIdField = DSL.field("tenant_id", Long.class);
+            resultHolder.condition = JooqTenantSupport.eqTenantId(tenantIdField);
+        });
 
-        // Then: 应返回租户等值条件
-        assertThat(result).isNotNull();
-        // 注意：无法直接验证 Condition 的值，因为它是一个内部实现
-        // 但可以验证它不是 noCondition
-        assertThat(result).isNotEqualTo(DSL.noCondition());
+        // Then: 应返回租户等值条件（不是 noCondition）
+        assertThat(resultHolder.condition).isNotNull();
+        assertThat(resultHolder.condition).isNotEqualTo(DSL.noCondition());
     }
 
     @Test
-    @DisplayName("给定清除租户上下文后 - 调用 eqTenantId - 返回 noCondition")
-    void shouldReturnNoCondition_afterTenantContextCleared() {
-        // Given: 先清除租户上下文
-        TenantContext.clear();
-        var tenantIdField = DSL.field("tenant_id", Long.class);
+    @DisplayName("给定无租户上下文 - 调用 eqTenantId - 返回 noCondition")
+    void shouldReturnNoCondition_whenNoTenantContext() {
+        // Given: 使用 null 租户 ID（无租户上下文）
+        var resultHolder = new Object() { Condition condition; };
 
-        // When
-        Condition result = JooqTenantSupport.eqTenantId(tenantIdField);
+        TenantContext.runWithTenantId(null, () -> {
+            var tenantIdField = DSL.field("tenant_id", Long.class);
+            resultHolder.condition = JooqTenantSupport.eqTenantId(tenantIdField);
+        });
 
         // Then
-        assertThat(result).isEqualTo(DSL.noCondition());
+        assertThat(resultHolder.condition).isEqualTo(DSL.noCondition());
     }
 }
 ```
 
-注意：这个测试需要 `TenantContext` 支持 `runWithTenantId` 和 `clear` 方法。如果当前版本没有这些方法，需要先添加。
-
-- [ ] **Step 2: Check if TenantContext has required methods**
-
-Run: `./gradlew :cartisan-data-query:test --tests JooqTenantSupportIntegrationTest`
-Expected: 如果 `TenantContext` 缺少 `runWithTenantId` 或 `clear` 方法，需要先添加
-
-- [ ] **Step 3: If methods missing, add to TenantContext**
-
-如果需要，在 `cartisan-security/src/main/java/com/cartisan/security/context/TenantContext.java` 添加：
-
-```java
-/**
- * 在指定租户上下文中执行操作。
- *
- * @param tenantId 租户 ID
- * @param action   要执行的操作
- */
-public static void runWithTenantId(Long tenantId, Runnable action) {
-    TENANT_ID.runWhere(() -> tenantId, action);
-}
-
-/**
- * 清除当前租户上下文。
- *
- * <p>仅用于测试环境。</p>
- */
-public static void clear() {
-    TENANT_ID.runWhere(() -> null, () -> {});
-}
-```
-
-- [ ] **Step 4: Run test again**
+- [ ] **Step 2: Run test**
 
 Run: `./gradlew :cartisan-data-query:test --tests JooqTenantSupportIntegrationTest`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add cartisan-data-query/src/test/java/com/cartisan/data/query/support/JooqTenantSupportIntegrationTest.java
-git add cartisan-security/src/main/java/com/cartisan/security/context/TenantContext.java
 git commit -m "test(data-query): add JooqTenantSupport integration test
 
 - Add test for tenant context exists scenario
-- Add TenantContext.runWithTenantId() helper method
-- Add TenantContext.clear() helper for testing
+- Add test for no tenant context scenario
+- Use TenantContext.runWithTenantId() for test setup
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 6: 运行全量测试并验证覆盖率
+## Task 7: 运行全量测试并验证覆盖率
 
 - [ ] **Step 1: Run all tests**
 
@@ -599,7 +666,7 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
 
 | 指标 | 目标 |
 |------|------|
-| cartisan-ai 模块分支覆盖 | ≥ 75% |
+| cartisan-ai 模块分支覆盖 | ≥ 80% |
 | cartisan-web/support 分支覆盖 | ≥ 85% |
 | cartisan-data-query/support 指令覆盖 | ≥ 80% |
 | 所有新增测试通过 | 100% |
