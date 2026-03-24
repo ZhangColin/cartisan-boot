@@ -26,7 +26,7 @@
 **文件:**
 - 修改: `cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/specification/ConditionSpecificationsTest.java`
 
-**目标:** ConditionSpecifications 覆盖率 ≥ 85%
+**目标:** ConditionSpecifications 覆盖率 ≥ 70%（边界测试完成后，通过其他任务进一步提升）
 
 **步骤:**
 
