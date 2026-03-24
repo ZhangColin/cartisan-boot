@@ -103,7 +103,10 @@ git commit -m "refactor(jpa): merge JpaAuditingConfiguration into CartisanDataJp
 - Rename: `cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/domain/AbstractSoftDeletable.java` → `AuditableSoftDeletable.java`
 - Modify: `cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/domain/SoftDeletable.java` (JavaDoc)
 - Modify: `cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/repository/impl/BaseRepositoryImpl.java`
-- Modify: All test files referencing AbstractSoftDeletable
+- Modify: `cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/SoftDeletableTest.java`
+- Modify: `cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/TestSoftDeletableEntity.java`
+- Modify: `cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/AuditableTest.java`
+- Modify: `cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/softdelete/*.java`
 
 - [ ] **Step 1: Rename the file**
 
@@ -150,28 +153,33 @@ Find and replace `AbstractSoftDeletable` → `AuditableSoftDeletable`:
 - Type references in instanceof checks
 - JavaDoc comments
 
-- [ ] **Step 5: Find all test files referencing AbstractSoftDeletable**
+- [ ] **Step 5: Update SoftDeletableTest.java**
 
-Run: `grep -r "AbstractSoftDeletable" cartisan-data-jpa/src/test/ --include="*.java"`
+Run: `sed -i '' 's/AbstractSoftDeletable/AuditableSoftDeletable/g' cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/SoftDeletableTest.java`
 
-- [ ] **Step 6: Update each test file**
+- [ ] **Step 6: Update TestSoftDeletableEntity.java**
 
-For each file found:
-- Update import statements
-- Update class references
-- Update extends clauses
+Run: `sed -i '' 's/AbstractSoftDeletable/AuditableSoftDeletable/g' cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/TestSoftDeletableEntity.java`
 
-- [ ] **Step 7: Verify no remaining references**
+- [ ] **Step 7: Update AuditableTest.java**
+
+Run: `sed -i '' 's/AbstractSoftDeletable/AuditableSoftDeletable/g' cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/domain/AuditableTest.java`
+
+- [ ] **Step 8: Update softdelete test directory**
+
+Run: `sed -i '' 's/AbstractSoftDeletable/AuditableSoftDeletable/g' cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/softdelete/*.java`
+
+- [ ] **Step 9: Verify no remaining references**
 
 Run: `grep -r "AbstractSoftDeletable" cartisan-data-jpa/src/ --include="*.java"`
 Expected: No results
 
-- [ ] **Step 8: Run all JPA module tests**
+- [ ] **Step 10: Run all JPA module tests**
 
 Run: `./gradlew :cartisan-data-jpa:test`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add cartisan-data-jpa/src/
@@ -235,6 +243,9 @@ PageQuery provided minimal value over Spring's built-in solution."
 - Modify: `cartisan-security/src/main/java/com/cartisan/security/config/CartisanSecurityAutoConfiguration.java`
 - Delete: `cartisan-security/src/main/java/com/cartisan/security/config/SecurityInterceptorConfig.java`
 - Delete: `cartisan-security/src/main/java/com/cartisan/security/config/CurrentUserArgumentResolverConfig.java`
+- Modify: `cartisan-security/src/test/java/com/cartisan/security/config/CartisanSecurityAutoConfigurationTest.java`
+- Delete: `cartisan-security/src/test/java/com/cartisan/security/config/SecurityInterceptorConfigTest.java` (if exists)
+- Delete: `cartisan-security/src/test/java/com/cartisan/security/config/CurrentUserArgumentResolverConfigTest.java` (if exists)
 
 - [ ] **Step 1: Read all three config files**
 
@@ -242,13 +253,31 @@ Run: `cat cartisan-security/src/main/java/com/cartisan/security/config/CartisanS
 Run: `cat cartisan-security/src/main/java/com/cartisan/security/config/SecurityInterceptorConfig.java`
 Run: `cat cartisan-security/src/main/java/com/cartisan/security/config/CurrentUserArgumentResolverConfig.java`
 
-- [ ] **Step 2: Modify CartisanSecurityAutoConfiguration to implement WebMvcConfigurer**
+- [ ] **Step 2: Check existing test file**
+
+Run: `cat cartisan-security/src/test/java/com/cartisan/security/config/CartisanSecurityAutoConfigurationTest.java`
+
+Note: Check if it imports the config classes to be deleted.
+
+- [ ] **Step 3: Modify CartisanSecurityAutoConfiguration to implement WebMvcConfigurer**
 
 Add `implements WebMvcConfigurer` to class declaration.
 
-- [ ] **Step 3: Add ObjectProvider fields and constructor**
+- [ ] **Step 4: Add CartisanSecurityProperties field**
 
-Add to `CartisanSecurityAutoConfiguration`:
+Since the current class uses method injection for properties, add a field:
+
+```java
+private final CartisanSecurityProperties properties;
+
+public CartisanSecurityAutoConfiguration(CartisanSecurityProperties properties) {
+    this.properties = properties;
+}
+```
+
+- [ ] **Step 5: Add ObjectProvider fields**
+
+Add to constructor parameters:
 
 ```java
 private final ObjectProvider<SecurityInterceptor> interceptorProvider;
@@ -260,11 +289,11 @@ public CartisanSecurityAutoConfiguration(
         CartisanSecurityProperties properties) {
     this.interceptorProvider = interceptorProvider;
     this.resolverProvider = resolverProvider;
-    // keep existing properties assignment
+    this.properties = properties;
 }
 ```
 
-- [ ] **Step 4: Add securityInterceptor() Bean**
+- [ ] **Step 6: Add securityInterceptor() Bean**
 
 ```java
 @Bean
@@ -274,7 +303,7 @@ public SecurityInterceptor securityInterceptor() {
 }
 ```
 
-- [ ] **Step 5: Add addInterceptors() method**
+- [ ] **Step 7: Add addInterceptors() method**
 
 ```java
 @Override
@@ -288,7 +317,7 @@ public void addInterceptors(InterceptorRegistry registry) {
 }
 ```
 
-- [ ] **Step 6: Add currentUserMethodArgumentResolver() Bean**
+- [ ] **Step 8: Add currentUserMethodArgumentResolver() Bean**
 
 ```java
 @Bean
@@ -298,7 +327,7 @@ public CurrentUserMethodArgumentResolver currentUserMethodArgumentResolver() {
 }
 ```
 
-- [ ] **Step 7: Add addArgumentResolvers() method**
+- [ ] **Step 9: Add addArgumentResolvers() method**
 
 ```java
 @Override
@@ -307,33 +336,47 @@ public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) 
 }
 ```
 
-- [ ] **Step 8: Remove @Import annotation**
+- [ ] **Step 10: Remove @Import annotation**
 
 Remove `@Import({ SecurityInterceptorConfig.class, CurrentUserArgumentResolverConfig.class })`
 
-- [ ] **Step 9: Delete SecurityInterceptorConfig.java**
+- [ ] **Step 11: Update existing Bean methods to use field instead of parameter**
+
+Find Bean methods that take `CartisanSecurityProperties` as parameter and change to use `this.properties`.
+
+- [ ] **Step 12: Update CartisanSecurityAutoConfigurationTest.java**
+
+Remove deleted config classes from `@SpringBootTest` annotation.
+Remove test methods that verify deleted config beans.
+
+- [ ] **Step 13: Delete SecurityInterceptorConfig.java**
 
 Run: `rm cartisan-security/src/main/java/com/cartisan/security/config/SecurityInterceptorConfig.java`
 
-- [ ] **Step 10: Delete CurrentUserArgumentResolverConfig.java**
+- [ ] **Step 14: Delete CurrentUserArgumentResolverConfig.java**
 
 Run: `rm cartisan-security/src/main/java/com/cartisan/security/config/CurrentUserArgumentResolverConfig.java`
 
-- [ ] **Step 11: Run security module tests**
+- [ ] **Step 15: Delete config test files if they exist**
+
+Run: `rm -f cartisan-security/src/test/java/com/cartisan/security/config/SecurityInterceptorConfigTest.java`
+Run: `rm -f cartisan-security/src/test/java/com/cartisan/security/config/CurrentUserArgumentResolverConfigTest.java`
+
+- [ ] **Step 16: Run security module tests**
 
 Run: `./gradlew :cartisan-security:test`
 Expected: PASS
 
-- [ ] **Step 12: Commit**
+- [ ] **Step 17: Commit**
 
 ```bash
-git add cartisan-security/src/main/java/com/cartisan/security/config/
+git add cartisan-security/src/
 git commit -m "refactor(security): merge config classes into CartisanSecurityAutoConfiguration
 
 - Merge SecurityInterceptorConfig and CurrentUserArgumentResolverConfig
 - Implement WebMvcConfigurer directly
-- Keep ObjectProvider pattern to avoid circular dependency
-- Delete now-empty config classes"
+- Add constructor injection for dependencies
+- Update tests to remove deleted config classes"
 ```
 
 ---
@@ -344,6 +387,7 @@ git commit -m "refactor(security): merge config classes into CartisanSecurityAut
 - Modify: `docs/guide/cartisan-boot-使用手册.md`
 - Modify: `docs/cartisan-boot-设计文档.md`
 - Modify: `docs/superpowers/specs/2026-03-24-test-coverage-enhancement-design.md`
+- Check: `README.md`
 
 - [ ] **Step 1: Update cartisan-boot-使用手册.md**
 
@@ -361,7 +405,12 @@ Find and replace:
 
 Remove PageQuery coverage target reference.
 
-- [ ] **Step 4: Commit docs**
+- [ ] **Step 4: Check and update README.md**
+
+Run: `grep -n "AbstractSoftDeletable\|PageQuery" README.md`
+If found, update references.
+
+- [ ] **Step 5: Commit docs**
 
 ```bash
 git add docs/
