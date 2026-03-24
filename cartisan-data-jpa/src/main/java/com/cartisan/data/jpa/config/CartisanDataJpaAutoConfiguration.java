@@ -5,10 +5,14 @@ import com.cartisan.data.jpa.repository.impl.DomainEventPublisherHolder;
 import com.cartisan.event.DomainEventPublisher;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.core.support.RepositoryFactoryBeanSupport;
+
+import java.util.Optional;
 
 /**
  * cartisan-data-jpa 模块自动配置。
@@ -17,12 +21,39 @@ import org.springframework.data.repository.core.support.RepositoryFactoryBeanSup
  * <ul>
  *   <li>领域事件发布器持有者 — 使 Repository 实例能够发布领域事件</li>
  *   <li>Repository 基类 — 全局配置 BaseRepositoryImpl 为所有 Repository 基类</li>
- *   <li>JPA Auditing — 当存在 {@code AuditorAware} Bean 时自动启用</li>
+ *   <li>JPA Auditing — 启用审计功能，提供默认 {@code AuditorAware<String>} Bean</li>
  * </ul>
+ *
+ * <h3>JPA Auditing 集成</h3>
+ * <p>默认提供一个返回 {@code Optional.empty()} 的 {@link AuditorAware} Bean，
+ * 业务系统可通过自定义 {@code AuditorAware<String>} Bean 覆盖默认实现：</p>
+ * <pre>{@code
+ * @Bean
+ * public AuditorAware<String> auditorAware() {
+ *     return () -> {
+ *         // 从 SecurityContext 获取当前用户
+ *         String currentUser = SecurityContext.getCurrentUser();
+ *         return Optional.ofNullable(currentUser);
+ *     };
+ * }
+ * }</pre>
  */
 @AutoConfiguration
-@Import(JpaAuditingConfiguration.class)
+@EnableJpaAuditing(auditorAwareRef = "auditorAware")
 public class CartisanDataJpaAutoConfiguration {
+
+    /**
+     * 默认 AuditorAware Bean。
+     *
+     * <p>提供空实现避免启动失败，业务系统可通过自定义 Bean 覆盖。</p>
+     *
+     * @return 返回 {@code Optional.empty()} 的 AuditorAware
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public AuditorAware<String> auditorAware() {
+        return () -> Optional.empty();
+    }
 
     /**
      * 配置领域事件发布器持有者。
