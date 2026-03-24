@@ -1675,3 +1675,149 @@ return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
 - 或在 Registry Bean 所在配置类上加 `@AutoConfigureAfter(OpenAiAutoConfiguration.class)` 等注解明确顺序
 
 **适用场景**：F05-09 `CartisanAiAutoConfiguration` 注册 `ModelProviderRegistry` 时需注意此规则。
+
+---
+
+## Web 基础设施
+
+### 规则 WEB-001：@PreventResubmit 需要 Redis 环境
+
+**问题**：`@PreventResubmit` 基于 Redis 分布式锁实现，无 Redis 时不生效。
+
+**正确做法**：
+- 确保 Redis 可用
+- `ResubmitAspect` 条件装配：`@ConditionalOnBean(ResubmitLock.class)`
+- `ResubmitLock` 条件装配：`@ConditionalOnClass(PreventResubmit.class)`
+
+**记忆口诀**：防重提交需 Redis，无锁不生效。
+
+---
+
+### 规则 WEB-002：AutoResponseAdvice String 类型特殊处理
+
+**问题**：String 返回类型会被 Jackson 序列化两次，导致响应格式错误。
+
+**正确做法**：
+```java
+// ResponseBodyAdvice 中需要特殊处理 String 类型
+if (body instanceof String) {
+    return objectMapper.writeValueAsString(ApiResponse.ok(body));
+}
+```
+
+**错误表现**：返回 `{"code":200,"data":"{\"message\":\"hello\"}"}`（双引号转义）
+
+**记忆口诀**：String 返回要特殊处理，避免二次序列化。
+
+---
+
+### 规则 WEB-003：TreeNodeBuilder 需要 ID 类型转换
+
+**问题**：TreeNode 的 ID 泛型可能与数据库类型不一致。
+
+**正确做法**：
+```java
+// 使用 Function 转换 ID 类型
+TreeNodeBuilder.build(
+    nodes,
+    id -> String.valueOf(id),      // Long → String
+    parentId -> String.valueOf(parentId),
+    "0"                             // 根节点父 ID
+);
+```
+
+**记忆口诀**：TreeNode ID 类型可能不一致，用 Function 转换。
+
+---
+
+### 规则 WEB-004：@Condition 注解 BigDecimal 类型限制
+
+**问题**：`ConditionSpecifications` 对 BigDecimal 使用 `path.as(Comparable.class)` 导致 Hibernate 无法推断类型。
+
+**正确做法**：
+```java
+// ❌ 不推荐：BigDecimal 的大小比较可能有问题
+@Condition(propName = "price", type = ConditionType.GREATER_EQUAL)
+BigDecimal minPrice;
+
+// ✅ 推荐：使用 Integer 或 Long
+@Condition(propName = "stock", type = ConditionType.GREATER_EQUAL)
+Integer minStock;
+```
+
+**记忆口诀**：@Condition 查询用 Integer/Long，BigDecimal 类型推断有问题。
+
+---
+
+### 规则 WEB-005：RequestLogFilter 自动排除特定路径
+
+**问题**：swagger、druid、actuator 等路径的日志会大量输出，干扰问题排查。
+
+**正确做法**：
+```java
+private static final Set<String> EXCLUDE_PATHS = Set.of(
+    "/swagger-ui",
+    "/v3/api-docs",
+    "/swagger-resources",
+    "/druid",
+    "/actuator"
+);
+```
+
+**记忆口诀**：日志排除工具路径，减少干扰。
+
+---
+
+### 规则 WEB-006：MDC requestId 自动清理
+
+**问题**：异步线程需要手动传递 MDC 值，否则日志中丢失 requestId。
+
+**正确做法**：
+```java
+// 同步场景：RequestContextFilter 自动清理，无需手动处理
+log.info("requestId 自动存在于 MDC");
+
+// 异步场景：需要手动传递
+String requestId = MDC.get("requestId");
+CompletableFuture.runAsync(() -> {
+    MDC.put("requestId", requestId);  // 手动传递
+    log.info("异步任务也有 requestId");
+    MDC.clear();  // 手动清理
+});
+```
+
+**记忆口诀**：同步自动清理，异步手动传递 MDC。
+
+---
+
+### 规则 WEB-007：DomainMapper 默认方法返回空集合
+
+**问题**：`convertList` 和 `convertSet` 在输入为 null 或空时返回空集合，不是 null。
+
+**正确做法**：
+```java
+List<User> users = userMapper.convertList(null);  // 返回空列表，不是 null
+users.isEmpty();  // true，不会 NPE
+```
+
+**记忆口诀**：DomainMapper 批量转换返回空集合，非 null。
+
+---
+
+### 规则 WEB-008：RedisKey 过期时间单位是秒
+
+**问题**：误以为 RedisKey.of() 的过期时间单位是毫秒。
+
+**正确做法**：
+```java
+// ✅ 正确：单位是秒
+private static final RedisKey KEY = RedisKey.of("user:cache", 3600);  // 1 小时
+
+// ❌ 错误：误以为是毫秒
+private static final RedisKey KEY = RedisKey.of("user:cache", 3600_000);  // 实际是 1000 小时！
+```
+
+**记忆口诀**：RedisKey 过期时间用秒，不是毫秒。
+
+---
+

@@ -1,6 +1,6 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.7 | **日期**：2026-03-22
+> **版本**：v0.8 | **日期**：2026-03-24
 > **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
@@ -15,6 +15,7 @@
 | **异常体系** | 统一错误码接口 + 业务异常层次 |
 | **架构注解** | DDD 分层标记注解（限界上下文、聚合、端口、适配器） |
 | **断言工具** | Design by Contract 风格的前置/后置条件断言 |
+| **RedisKey 工具** | Redis Key 管理（前缀、过期时间） |
 
 ### 1.2 cartisan-test 模块
 
@@ -32,6 +33,13 @@
 | **统一响应体** | `ApiResponse<T>`、`PageResponse<T>`、`FieldError` |
 | **全局异常处理** | `@ControllerAdvice` 自动捕获异常并转换为响应 |
 | **请求上下文** | `RequestContext` 存储 requestId、clientIp（ThreadLocal） |
+| **DomainMapper** | MapStruct 批量转换默认方法（List/Set） |
+| **TreeNode** | 树结构数据支持（前端树组件） |
+| **防重提交** | `@PreventResubmit` 注解（基于 Redis） |
+| **请求日志** | `RequestLogFilter` 记录请求信息 |
+| **MDC 集成** | requestId 自动放入 MDC |
+| **Jackson 配置** | 全局序列化配置（Long→String、日期格式等） |
+| **自动响应包装** | `AutoResponseAdvice` 可选功能 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 ### 1.4 cartisan-data-jpa 模块
@@ -43,6 +51,7 @@
 | **审计支持** | `@CreatedDate`、`@LastModifiedDate`、`@CreatedBy`、`@LastModifiedBy` |
 | **软删除** | `@SQLRestriction` 自动过滤已删除记录 |
 | **分布式 ID** | TSID 生成器（42 位时间戳 + 22 位随机数） |
+| **@Condition 注解** | 简化 JPA Specification 查询（11 种条件类型） |
 
 ### 1.5 cartisan-event 模块
 
@@ -427,6 +436,83 @@ public class PermissionInitService {
 | `SseHelper` | `toSse(Flux<ChatStreamEvent>)` → `SseEmitter` | 转换为 SSE（无回调） |
 | | `toSse(Flux<ChatStreamEvent>, Consumer<TokenUsage>)` → `SseEmitter` | 转换为 SSE（usage 回调） |
 | `SseProperties` | `timeout`（默认 30 秒） | SSE 超时配置 |
+
+### 2.30 RedisKey 工具（com.cartisan.core.util.RedisKey）
+
+| 类/方法 | 说明 |
+|---------|------|
+| `RedisKey.of(prefix, expireSeconds)` | 创建带过期时间的 Key |
+| `RedisKey.permanent(prefix)` | 创建永不过期的 Key |
+| `key(suffix)` | 生成完整的 Redis Key（格式：`prefix:suffix`） |
+| `expireSeconds()` | 获取过期时间（秒），0 表示永不过期 |
+| `isPermanent()` | 判断是否为永久 Key |
+
+### 2.31 DomainMapper（com.cartisan.web.mapper）
+
+| 接口/方法 | 说明 |
+|----------|------|
+| `DomainMapper<S, T>` | MapStruct 转换器基接口 |
+| `convert(S source)` | 转换单个对象（需由 MapStruct 生成） |
+| `convertList(List<S> sources)` | 批量转换 List（默认方法） |
+| `convertSet(Set<S> sources)` | 批量转换 Set（默认方法） |
+
+**注意**：`convertList` 和 `convertSet` 在输入为 null 或空时返回空集合。
+
+### 2.32 TreeNode（com.cartisan.web.support）
+
+| 类/方法 | 说明 |
+|---------|------|
+| `TreeNode<T>` | 树节点泛型类 |
+| `TreeNode(id, name, parentId)` | 基本构造 |
+| `TreeNode(id, name, parentId, children)` | 完整构造 |
+| `TreeNodeBuilder.build(nodes, idMapper, parentIdMapper, rootParentId)` | 构建树形结构 |
+
+### 2.33 @PreventResubmit（com.cartisan.web.resubmit）
+
+| 注解/类 | 属性/方法 | 说明 |
+|---------|----------|------|
+| `@PreventResubmit` | `delaySeconds`（默认 20） | 防重提交时间窗口（秒） |
+| | `prefix`（默认 ""） | Redis key 前缀 |
+| `ResubmitLock` | `lock(key, delaySeconds)` | 基于 Redis 的分布式锁 |
+| `ResubmitAspect` | - | AOP 切面，拦截注解方法 |
+
+### 2.34 Jackson 全局配置（com.cartisan.web.config）
+
+| 配置项 | 说明 |
+|--------|------|
+| `Long → String` | 解决 JavaScript Long 精度问题 |
+| `LocalDateTime → ISO 8601` | 标准日期时间格式 |
+| `BigDecimal → 禁止科学计数法` | 保持金额精度 |
+| `Enum → 字符串` | 枚举值序列化为字符串 |
+| `忽略未知属性` | 反序列化时忽略未知字段 |
+
+### 2.35 RequestLogFilter（com.cartisan.web.filter）
+
+| 类 | 说明 |
+|----|------|
+| `RequestLogFilter` | 记录 HTTP 请求基本信息（requestId、IP、方法、URI） |
+
+**排除路径**：`/swagger-ui`、`/v3/api-docs`、`/swagger-resources`、`/druid`、`/actuator`
+
+### 2.36 @Condition 注解（com.cartisan.data.jpa.specification）
+
+| 注解/枚举 | 说明 |
+|----------|------|
+| `@Condition` | 查询条件注解（propName、type、blurry） |
+| `ConditionType` | 11 种查询类型：EQUAL、NOT_EQUAL、GREATER、GREATER_EQUAL、LESS、LESS_EQUAL、INNER_LIKE、LEFT_LIKE、RIGHT_LIKE、IN、BETWEEN |
+| `ConditionSpecifications.fromAnnotation(query)` | 从注解生成 Specification |
+
+**详细使用指南**：[condition-annotation.md](condition-annotation.md)
+
+### 2.37 AutoResponseAdvice（com.cartisan.web.response）
+
+| 配置项 | 说明 |
+|--------|------|
+| `cartisan.web.auto-response.enabled` | 启用自动响应包装（默认 false） |
+
+**排除路径**：`/swagger-ui`、`/v3/api-docs`、`/actuator`
+
+**详细使用指南**：[optional-features.md](optional-features.md)
 
 ---
 
@@ -1327,6 +1413,159 @@ public class TokenUsageLogger implements ModelUsageListener {
 }
 ```
 
+### 3.28 使用 RedisKey 工具
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final StringRedisTemplate redisTemplate;
+
+    // 定义带过期时间的 Key（1 小时）
+    private static final RedisKey USER_CACHE_KEY = RedisKey.of("user:cache", 3600);
+
+    // 定义永不过期的 Key
+    private static final RedisKey SYSTEM_CONFIG_KEY = RedisKey.permanent("system:config");
+
+    public void cacheUser(Long userId, String userData) {
+        String key = USER_CACHE_KEY.key(String.valueOf(userId));
+        redisTemplate.opsForValue().set(key, userData, USER_CACHE_KEY.expireSeconds(), TimeUnit.SECONDS);
+    }
+
+    public String getUserCache(Long userId) {
+        String key = USER_CACHE_KEY.key(String.valueOf(userId));
+        return redisTemplate.opsForValue().get(key);
+    }
+}
+```
+
+### 3.29 使用 DomainMapper 批量转换
+
+```java
+@Mapper(componentModel = "spring")
+public interface UserMapper extends DomainMapper<User, UserResponse> {
+    // convert 方法由 MapStruct 自动生成
+}
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final UserMapper userMapper;
+
+    public UserResponse getUser(Long id) {
+        User user = userRepository.findById(id);
+        return userMapper.convert();  // 单个对象
+    }
+
+    public List<UserResponse> listUsers() {
+        List<User> users = userRepository.findAll();
+        return userMapper.convertList(users);  // List 批量转换
+    }
+
+    public Set<UserResponse> setUsers() {
+        Set<User> users = userRepository.findAllAsSet();
+        return userMapper.convertSet(users);  // Set 批量转换
+    }
+}
+```
+
+### 3.30 使用 TreeNode 构建树结构
+
+```java
+@Service
+@RequiredArgsConstructor
+public class DepartmentService {
+    private final DepartmentRepository departmentRepository;
+
+    public List<TreeNode<Long>> getDepartmentTree() {
+        // 1. 从数据库获取扁平的部门列表
+        List<Department> departments = departmentRepository.findAll();
+
+        // 2. 转换为 TreeNode
+        List<TreeNode<Long>> nodes = departments.stream()
+            .map(dept -> new TreeNode<>(
+                dept.getId(),
+                dept.getName(),
+                dept.getParentId()
+            ))
+            .toList();
+
+        // 3. 构建树形结构
+        return TreeNodeBuilder.build(
+            nodes,
+            id -> String.valueOf(id),           // ID 映射函数
+            parentId -> String.valueOf(parentId), // 父 ID 映射函数
+            0L                                    // 根节点的父 ID
+        );
+    }
+}
+```
+
+### 3.31 使用 @PreventResubmit 防重提交
+
+```java
+@RestController
+@RequestMapping("/api/users")
+@RequiredArgsConstructor
+public class UserController {
+    private final UserService userService;
+
+    @PostMapping
+    @PreventResubmit(delaySeconds = 10, prefix = "createUser")
+    public ApiResponse<Void> createUser(@RequestBody CreateUserRequest request) {
+        userService.create(request);
+        return ApiResponse.ok();
+    }
+
+    @PostMapping("/batch")
+    @PreventResubmit(delaySeconds = 30)  // 使用默认前缀
+    public ApiResponse<Void> batchCreate(@RequestBody List<CreateUserRequest> requests) {
+        userService.batchCreate(requests);
+        return ApiResponse.ok();
+    }
+}
+```
+
+### 3.32 使用 @Condition 注解查询
+
+```java
+// 定义查询 DTO
+public record ProductQuery(
+    @Condition(type = ConditionType.INNER_LIKE) String name,
+    @Condition(propName = "stock", type = ConditionType.GREATER_EQUAL) Integer minStock
+) {}
+
+// Repository 使用
+public interface ProductRepository extends BaseRepository<Product, Long> {
+    default List<Product> findByCondition(ProductQuery query) {
+        return findAll(ConditionSpecifications.fromAnnotation(query));
+    }
+}
+```
+
+> **详细说明**：参见 [5.1 @Condition 注解详细说明](#五一详细功能指南)
+
+### 3.33 启用自动响应包装
+
+```yaml
+# application.yml
+cartisan:
+  web:
+    auto-response:
+      enabled: true
+```
+
+启用后 Controller 可以直接返回数据：
+
+```java
+@GetMapping("/{id}")
+public User getById(@PathVariable Long id) {
+    return userService.findById(id);
+}
+```
+
+> **详细说明**：参见 [5.9 AutoResponseAdvice 详细说明](#五一详细功能指南)
+
 ---
 
 ## 四、注意事项
@@ -1464,9 +1703,383 @@ dependencies {
 | **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
 | **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
 
+### 4.11 Web 基础设施
+
+| 规则 | 说明 |
+|------|------|
+| **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
+| **WEB-002** | `AutoResponseAdvice` 对 String 类型特殊处理，避免二次序列化 |
+| **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
+| **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
+| **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
+
+### 4.12 数据查询
+
+| 规则 | 说明 |
+|------|------|
+| **QUERY-006** | `@Condition` 注解 BigDecimal 类型有类型推断限制，建议使用 Integer/Long |
+| **QUERY-007** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 LIKE 查询 |
+| **QUERY-008** | `@Condition` 注解 null 和空字符串自动跳过，不生成查询条件 |
+
 ---
 
-## 五、CQRS 架构说明
+## 五、详细功能指南
+
+### 5.1 @Condition 注解详细说明
+
+`@Condition` 注解用于标注查询 DTO 字段，指定查询条件类型，配合 JPA Specification 使用，避免手动编写 Predicate 构建逻辑。
+
+#### 5.1.1 ConditionType 枚举（11 种查询类型）
+
+**相等性比较**
+| 类型 | SQL 示例 | 说明 |
+|------|----------|------|
+| `EQUAL` | `WHERE field = value` | 相等查询（默认） |
+| `NOT_EQUAL` | `WHERE field != value` | 不相等查询 |
+
+**大小比较**
+| 类型 | SQL 示例 | 说明 |
+|------|----------|------|
+| `GREATER_EQUAL` | `WHERE field >= value` | 大于等于 |
+| `GREATER` | `WHERE field > value` | 大于 |
+| `LESS_EQUAL` | `WHERE field <= value` | 小于等于 |
+| `LESS` | `WHERE field < value` | 小于 |
+
+**模糊查询**
+| 类型 | SQL 示例 | 说明 |
+|------|----------|------|
+| `INNER_LIKE` | `WHERE field LIKE '%value%'` | 中间模糊查询 |
+| `LEFT_LIKE` | `WHERE field LIKE '%value'` | 左模糊查询 |
+| `RIGHT_LIKE` | `WHERE field LIKE 'value%'` | 右模糊查询 |
+
+**集合与区间查询**
+| 类型 | SQL 示例 | 说明 |
+|------|----------|------|
+| `IN` | `WHERE field IN (value1, value2, ...)` | IN 查询 |
+| `BETWEEN` | `WHERE field BETWEEN value1 AND value2` | 区间查询 |
+
+#### 5.1.2 注解属性说明
+
+```java
+public @interface Condition {
+    String propName() default "";           // 实体属性名
+    ConditionType type() default EQUAL;     // 查询条件类型
+    String blurry() default "";             // 多字段模糊搜索
+}
+```
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `propName` | `""` | 实体属性名，空字符串表示使用与字段名相同的名称 |
+| `type` | `EQUAL` | 查询条件类型 |
+| `blurry` | `""` | 多字段模糊搜索，逗号分隔，使用 OR 连接 |
+
+#### 5.1.3 定义查询 DTO
+
+```java
+import com.cartisan.data.jpa.specification.Condition;
+import com.cartisan.data.jpa.specification.ConditionType;
+import java.util.List;
+
+public record ProductQuery(
+    @Condition(type = ConditionType.INNER_LIKE) String name,
+    @Condition(propName = "stock", type = ConditionType.GREATER_EQUAL) Integer minStock,
+    @Condition(propName = "stock", type = ConditionType.LESS_EQUAL) Integer maxStock,
+    @Condition(type = ConditionType.EQUAL) String category,
+    @Condition(propName = "category", type = ConditionType.IN) List<String> categories,
+    @Condition(propName = "stock", type = ConditionType.BETWEEN) List<Integer> stockRange,
+    @Condition(blurry = "name,category") String keyword
+) {}
+```
+
+#### 5.1.4 Repository 使用
+
+```java
+public interface ProductRepository extends BaseRepository<Product, Long> {
+    default List<Product> findByCondition(ProductQuery query) {
+        return findAll(ConditionSpecifications.fromAnnotation(query));
+    }
+}
+```
+
+#### 5.1.5 嵌套属性路径
+
+```java
+public record OrderQuery(
+    @Condition(propName = "user.name", type = ConditionType.INNER_LIKE)
+    String userName
+) {}
+```
+
+#### 5.1.6 注意事项
+
+- **null 和空字符串自动跳过**：不会生成对应的查询条件
+- **Record 类推荐**：不可变性、简洁性、构造函数校验
+- **BigDecimal 类型限制**：大小比较建议使用 Integer/Long
+- **IN 和 BETWEEN 查询**：IN 支持 Collection，BETWEEN 需要 2 个元素的 List
+
+---
+
+### 5.2 RedisKey 工具详细说明
+
+统一管理 Redis Key 的前缀和过期时间。
+
+#### 5.2.1 创建 RedisKey
+
+```java
+// 带过期时间的 Key（1 小时）
+private static final RedisKey USER_CACHE_KEY = RedisKey.of("user:cache", 3600);
+
+// 永不过期的 Key
+private static final RedisKey SYSTEM_CONFIG_KEY = RedisKey.permanent("system:config");
+```
+
+#### 5.2.2 API 说明
+
+| 方法 | 说明 |
+|------|------|
+| `RedisKey.of(prefix, expireSeconds)` | 创建带过期时间的 Key |
+| `RedisKey.permanent(prefix)` | 创建永不过期的 Key |
+| `key(suffix)` | 生成完整的 Redis Key（格式：`prefix:suffix`） |
+| `expireSeconds()` | 获取过期时间（秒），0 表示永不过期 |
+| `isPermanent()` | 判断是否为永久 Key |
+
+#### 5.2.3 使用示例
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final StringRedisTemplate redisTemplate;
+    private static final RedisKey USER_CACHE = RedisKey.of("user:info", 600);
+
+    public void cacheUser(Long userId, String userData) {
+        String key = USER_CACHE.key(String.valueOf(userId));
+        redisTemplate.opsForValue().set(key, userData, USER_CACHE.expireSeconds(), TimeUnit.SECONDS);
+    }
+}
+```
+
+---
+
+### 5.3 DomainMapper 详细说明
+
+提供 MapStruct 批量转换的默认实现。
+
+#### 5.3.1 定义 Mapper
+
+```java
+@Mapper(componentModel = "spring")
+public interface UserMapper extends DomainMapper<User, UserResponse> {
+    // convert 方法由 MapStruct 自动生成
+}
+```
+
+#### 5.3.2 @Mapping 注解
+
+```java
+@Mapper
+public interface UserMapper extends DomainMapper<User, UserResponse> {
+    @Mapping(source = "fullName", target = "name")
+    @Mapping(target = "email", ignore = true)
+    UserResponse toResponse(User user);
+}
+```
+
+#### 5.3.3 qualifiedByName
+
+```java
+@Mapper
+public interface UserMapper extends DomainMapper<User, UserResponse> {
+    @Named("nullableToEmpty")
+    default String nullableToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    @Mapping(target = "email", qualifiedByName = "nullableToEmpty")
+    UserResponse toResponse(User user);
+}
+```
+
+#### 5.3.4 Lombok 集成
+
+框架已配置 `lombok-mapstruct-binding`，支持映射 Lombok `@Builder`：
+
+```java
+@Builder
+public class UserResponse {
+    private Long id;
+    private String name;
+}
+```
+
+---
+
+### 5.4 TreeNode 树结构详细说明
+
+为前端树组件提供统一的树结构数据。
+
+#### 5.4.1 TreeNode 结构
+
+```json
+{
+  "id": 1,
+  "name": "部门名称",
+  "parentId": 0,
+  "children": [{"id": 2, "name": "子部门", "parentId": 1}]
+}
+```
+
+#### 5.4.2 构建树结构
+
+```java
+List<TreeNode<Long>> tree = TreeNodeBuilder.build(
+    nodes,
+    id -> String.valueOf(id),
+    parentId -> String.valueOf(parentId),
+    0L
+);
+```
+
+---
+
+### 5.5 @PreventResubmit 防重提交详细说明
+
+防止用户在短时间内重复提交表单。
+
+#### 5.5.1 注解属性
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `delaySeconds` | int | 20 | 防重提交时间窗口（秒） |
+| `prefix` | String | "" | Redis key 前缀 |
+
+#### 5.5.2 使用示例
+
+```java
+@PostMapping
+@PreventResubmit(delaySeconds = 10, prefix = "createUser")
+public ApiResponse<Void> createUser(@RequestBody CreateUserRequest request) {
+    userService.create(request);
+    return ApiResponse.ok();
+}
+```
+
+---
+
+### 5.6 Jackson 全局配置详细说明
+
+统一 JSON 序列化/反序列化行为。
+
+#### 5.6.1 配置项
+
+| 配置项 | 说明 |
+|--------|------|
+| `Long → String` | 解决 JavaScript Long 精度问题 |
+| `LocalDateTime → ISO 8601` | 标准日期时间格式 |
+| `BigDecimal → 禁止科学计数法` | 保持金额精度 |
+| `Enum → 字符串` | 提高可读性 |
+| `忽略未知属性` | 避免字段不匹配导致失败 |
+
+---
+
+### 5.7 RequestLogFilter 详细说明
+
+记录 HTTP 请求基本信息。
+
+#### 5.7.1 排除路径
+
+| 路径前缀 | 说明 |
+|----------|------|
+| `/swagger-ui` | Swagger UI 文档 |
+| `/v3/api-docs` | OpenAPI 文档 |
+| `/druid` | Druid 监控 |
+| `/actuator` | Spring Boot Actuator |
+
+---
+
+### 5.8 MDC 集成详细说明
+
+将 `requestId` 放入 MDC 便于日志追踪。
+
+#### 5.8.1 logback 配置
+
+```xml
+<pattern>[%X{requestId}] - %msg%n</pattern>
+```
+
+#### 5.8.2 异步场景
+
+```java
+String requestId = MDC.get("requestId");
+CompletableFuture.runAsync(() -> {
+    MDC.put("requestId", requestId);
+    log.info("异步任务也有 requestId");
+    MDC.clear();
+});
+```
+
+---
+
+### 5.9 AutoResponseAdvice 详细说明
+
+自动将 Controller 返回值包装为统一的 `ApiResponse` 格式。
+
+#### 5.9.1 配置方式
+
+```yaml
+cartisan:
+  web:
+    auto-response:
+      enabled: true
+```
+
+#### 5.9.2 排除路径
+
+- `/swagger-ui`、`/v3/api-docs`、`/actuator`
+
+---
+
+### 5.10 用户踢出功能详细说明
+
+强制用户下线，使其 Token 失效。
+
+#### 5.10.1 API
+
+```java
+void kickout(Long loginId);  // 根据 loginId 踢出
+void kickoutByUsername(String username);  // 需业务层实现
+```
+
+---
+
+### 5.11 jOOQ 代码生成配置
+
+#### 5.11.1 最小化配置
+
+```kotlin
+plugins {
+    id("nu.studer.jooq") version "8.2.1"
+}
+
+jooq {
+    configuration {
+        generator {
+            database { name = "org.jooq.meta.postgres.PostgresDatabase" }
+            generate { isJavaTimeTypes = true }
+            target { packageName = "com.example.db" }
+        }
+    }
+}
+
+tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
+    dependsOn("flywayMigrate")
+}
+```
+
+---
+
+## 六、CQRS 架构说明
 
 ### 5.1 读写分离设计
 
@@ -1698,9 +2311,10 @@ implementation 依赖：
 ### 6.2 开发指南
 
 - [AI协作开发SOP.md](../sop/AI协作开发SOP.md)
-- [jOOQ 代码生成配置指南](./jooq-code-generation.md)
 - [团队踩坑经验库 (PITFALLS.md)](../PITFALLS.md)
+
+> **说明**：MapStruct、jOOQ、@Condition、Web 基础设施、可选功能等详细使用说明已整合到本文档"五、详细功能指南"章节。
 
 ---
 
-**文档结束** | 更新日期：2026-03-22
+**文档结束** | 更新日期：2026-03-24
