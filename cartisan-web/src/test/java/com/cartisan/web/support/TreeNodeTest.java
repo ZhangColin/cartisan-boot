@@ -73,4 +73,57 @@ class TreeNodeTest {
         // When & Then
         assertThat(node.children()).isEmpty();
     }
+
+    @Test
+    @DisplayName("给定默认构造函数 - 创建 TreeNode - 字段为默认值")
+    void shouldCreateWithDefaultConstructor() {
+        // When
+        TreeNode<Long> node = new TreeNode<>();
+
+        // Then
+        assertThat(node.id()).isNull();
+        assertThat(node.name()).isNull();
+        assertThat(node.parentId()).isNull();
+        assertThat(node.children()).isNotNull().isEmpty();
+    }
+
+    @Test
+    @DisplayName("给定 setter 方法 - 设置属性 - 属性被正确设置")
+    void shouldSetProperties() {
+        // Given
+        TreeNode<Long> node = new TreeNode<>();
+
+        // When
+        node.setId(1L);
+        node.setName("Test");
+        node.setParentId(0L);
+
+        // Then
+        assertThat(node.id()).isEqualTo(1L);
+        assertThat(node.name()).isEqualTo("Test");
+        assertThat(node.parentId()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("给定 null 子节点 - 构造函数 - 创建空列表")
+    void shouldHandleNullChildren_inConstructor() {
+        // When
+        TreeNode<Long> node = new TreeNode<>(1L, "Node", 0L, null);
+
+        // Then
+        assertThat(node.children()).isNotNull().isEmpty();
+    }
+
+    @Test
+    @DisplayName("给定 null 子节点 - setChildren - 设置为空列表")
+    void shouldHandleNullChildren_inSetChildren() {
+        // Given
+        TreeNode<Long> node = new TreeNode<>(1L, "Node", 0L);
+
+        // When
+        node.setChildren(null);
+
+        // Then
+        assertThat(node.children()).isNotNull().isEmpty();
+    }
 }

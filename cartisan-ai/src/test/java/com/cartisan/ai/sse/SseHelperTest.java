@@ -185,4 +185,57 @@ class SseHelperTest {
             assertThat(emitter).isNotNull();
         }
     }
+
+    @Nested
+    @DisplayName("Emitter 回调测试")
+    class EmitterCallbackTests {
+
+        @Test
+        @DisplayName("给定永不发射的流 - 调用 toSse - emitter 正常创建")
+        void shouldHandleNeverStream() {
+            // Given
+            SseProperties properties = new SseProperties();
+            SseHelper sseHelper = new SseHelper(properties);
+
+            // 创建一个永不发射的 Flux（模拟客户端可能随时断开）
+            Flux<ChatStreamEvent> events = Flux.never();
+
+            // When
+            SseEmitter emitter = sseHelper.toSse(events);
+
+            // Then: emitter 创建成功，回调已注册
+            assertThat(emitter).isNotNull();
+            assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
+        }
+
+        @Test
+        @DisplayName("给定延迟发射的流 - 调用 toSse - 正确处理延迟事件")
+        void shouldHandleDelayedEvents() throws InterruptedException {
+            // Given
+            SseProperties properties = new SseProperties();
+            SseHelper sseHelper = new SseHelper(properties);
+
+            TokenUsage usage = new TokenUsage(10, 5, 15);
+            // 创建一个延迟发射的 Flux，最后一个事件包含 usage
+            Flux<ChatStreamEvent> events = Flux.just(
+                new ChatStreamEvent("Hello", false, null),
+                new ChatStreamEvent("!", true, usage)
+            ).delayElements(java.time.Duration.ofMillis(10));
+
+            AtomicReference<TokenUsage> capturedUsage = new AtomicReference<>();
+            CountDownLatch latch = new CountDownLatch(1);
+
+            // When
+            SseEmitter emitter = sseHelper.toSse(events, u -> {
+                capturedUsage.set(u);
+                latch.countDown();
+            });
+
+            // Then: 等待异步完成
+            boolean completed = latch.await(2, TimeUnit.SECONDS);
+            assertThat(completed).isTrue();
+            assertThat(capturedUsage.get()).isEqualTo(usage);
+            assertThat(emitter.getTimeout()).isEqualTo(properties.getTimeout().toMillis());
+        }
+    }
 }
