@@ -41,7 +41,7 @@ class AuditingIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        testAuditorAware.setCurrentAuditor("test-user");
+        testAuditorAware.setCurrentAuditor(1L);
     }
 
     @AfterEach
@@ -63,8 +63,8 @@ class AuditingIntegrationTest {
         // Then: 审计字段被自动填充
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNotNull();
-        assertThat(saved.getCreatedBy()).isEqualTo("test-user");
-        assertThat(saved.getUpdatedBy()).isEqualTo("test-user");
+        assertThat(saved.getCreatedBy()).isEqualTo(1L);
+        assertThat(saved.getUpdatedBy()).isEqualTo(1L);
     }
 
     // ==================== AC2: 更新时时间/人字段自动更新 ====================
@@ -78,7 +78,7 @@ class AuditingIntegrationTest {
         LocalDateTime originalLastModifiedDate = saved.getUpdatedAt();
 
         // 切换审计人
-        testAuditorAware.setCurrentAuditor("updater-user");
+        testAuditorAware.setCurrentAuditor(2L);
 
         // When: 更新实体并刷新
         saved.setName("Updated Name");
@@ -89,8 +89,8 @@ class AuditingIntegrationTest {
 
         // Then: createdAt/createdBy 保持不变，updatedAt/updatedBy 被更新
         assertThat(updated.getCreatedAt()).isEqualTo(saved.getCreatedAt());
-        assertThat(updated.getCreatedBy()).isEqualTo("test-user");
-        assertThat(updated.getUpdatedBy()).isEqualTo("updater-user");
+        assertThat(updated.getCreatedBy()).isEqualTo(1L);
+        assertThat(updated.getUpdatedBy()).isEqualTo(2L);
         assertThat(updated.getUpdatedAt()).isAfter(originalLastModifiedDate);
     }
 

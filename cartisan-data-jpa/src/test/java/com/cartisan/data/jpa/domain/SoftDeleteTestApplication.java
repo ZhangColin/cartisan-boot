@@ -21,23 +21,23 @@ import java.util.Optional;
 public class SoftDeleteTestApplication {
 
     @Bean
-    public AuditorAware<String> auditorAware() {
+    public AuditorAware<Long> auditorAware() {
         return new TestAuditorAware();
     }
 
     /**
      * 测试用 AuditorAware。
      */
-    static class TestAuditorAware implements AuditorAware<String> {
+    static class TestAuditorAware implements AuditorAware<Long> {
 
-        private String currentAuditor = "test-user";
+        private Long currentAuditor = 1L;
 
         @Override
-        public Optional<String> getCurrentAuditor() {
+        public Optional<Long> getCurrentAuditor() {
             return Optional.ofNullable(currentAuditor);
         }
 
-        public void setCurrentAuditor(String currentAuditor) {
+        public void setCurrentAuditor(Long currentAuditor) {
             this.currentAuditor = currentAuditor;
         }
 

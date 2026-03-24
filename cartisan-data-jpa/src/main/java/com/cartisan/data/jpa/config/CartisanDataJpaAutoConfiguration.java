@@ -21,19 +21,19 @@ import java.util.Optional;
  * <ul>
  *   <li>领域事件发布器持有者 — 使 Repository 实例能够发布领域事件</li>
  *   <li>Repository 基类 — 全局配置 BaseRepositoryImpl 为所有 Repository 基类</li>
- *   <li>JPA Auditing — 启用审计功能，提供默认 {@code AuditorAware<String>} Bean</li>
+ *   <li>JPA Auditing — 启用审计功能，提供默认 {@code AuditorAware<Long>} Bean</li>
  * </ul>
  *
  * <h3>JPA Auditing 集成</h3>
  * <p>默认提供一个返回 {@code Optional.empty()} 的 {@link AuditorAware} Bean，
- * 业务系统可通过自定义 {@code AuditorAware<String>} Bean 覆盖默认实现：</p>
+ * 业务系统可通过自定义 {@code AuditorAware<Long>} Bean 覆盖默认实现：</p>
  * <pre>{@code
  * @Bean
- * public AuditorAware<String> auditorAware() {
+ * public AuditorAware<Long> auditorAware() {
  *     return () -> {
- *         // 从 SecurityContext 获取当前用户
- *         String currentUser = SecurityContext.getCurrentUser();
- *         return Optional.ofNullable(currentUser);
+ *         // 从 SecurityContext 获取当前用户ID
+ *         Long currentUserId = SecurityContext.getCurrentUserId();
+ *         return Optional.ofNullable(currentUserId);
  *     };
  * }
  * }</pre>
@@ -51,7 +51,7 @@ public class CartisanDataJpaAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public AuditorAware<String> auditorAware() {
+    public AuditorAware<Long> auditorAware() {
         return () -> Optional.empty();
     }
 

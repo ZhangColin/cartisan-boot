@@ -52,22 +52,22 @@ public abstract class Auditable {
     private LocalDateTime updatedAt;
 
     /**
-     * 创建人，首次持久化时从 AuditorAware 获取。
+     * 创建人ID，首次持久化时从 AuditorAware 获取。
      *
      * <p>若容器中不存在 AuditorAware Bean，此字段保持 null。</p>
      */
     @CreatedBy
-    @Column(name = "created_by", length = 100)
-    private String createdBy;
+    @Column(name = "created_by")
+    private Long createdBy;
 
     /**
-     * 最后修改人，每次保存时从 AuditorAware 获取。
+     * 最后修改人ID，每次保存时从 AuditorAware 获取。
      *
      * <p>若容器中不存在 AuditorAware Bean，此字段保持 null。</p>
      */
     @LastModifiedBy
-    @Column(name = "updated_by", length = 100)
-    private String updatedBy;
+    @Column(name = "updated_by")
+    private Long updatedBy;
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -77,11 +77,11 @@ public abstract class Auditable {
         return updatedAt;
     }
 
-    public String getCreatedBy() {
+    public Long getCreatedBy() {
         return createdBy;
     }
 
-    public String getUpdatedBy() {
+    public Long getUpdatedBy() {
         return updatedBy;
     }
 }
