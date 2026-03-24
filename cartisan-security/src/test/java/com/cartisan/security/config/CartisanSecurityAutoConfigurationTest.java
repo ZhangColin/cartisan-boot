@@ -13,11 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 自动配置集成测试，验证所有组件正确装配。
  */
-@SpringBootTest(classes = {
-        SecurityInterceptorConfig.class,
-        CurrentUserArgumentResolverConfig.class,
-        CartisanSecurityAutoConfiguration.class
-})
+@SpringBootTest(classes = CartisanSecurityAutoConfiguration.class)
 class CartisanSecurityAutoConfigurationTest {
 
     @Autowired(required = false)
@@ -45,20 +41,8 @@ class CartisanSecurityAutoConfigurationTest {
     }
 
     @Test
-    void given_context_when_getSecurityInterceptorConfig_then_exists() {
-        SecurityInterceptorConfig config = applicationContext.getBean(SecurityInterceptorConfig.class);
-        assertThat(config).isNotNull();
-    }
-
-    @Test
     void given_context_when_getCurrentUserMethodArgumentResolver_then_exists() {
         assertThat(currentUserMethodArgumentResolver).isNotNull();
-    }
-
-    @Test
-    void given_context_when_getCurrentUserArgumentResolverConfig_then_exists() {
-        CurrentUserArgumentResolverConfig config = applicationContext.getBean(CurrentUserArgumentResolverConfig.class);
-        assertThat(config).isNotNull();
     }
 
     @Test

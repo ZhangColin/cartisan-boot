@@ -2,12 +2,14 @@ package com.cartisan.security.config;
 
 import cn.dev33.satoken.filter.SaTokenContextFilterForJakartaServlet;
 import cn.dev33.satoken.stp.StpUtil;
+import com.cartisan.security.annotation.CurrentUserMethodArgumentResolver;
 import com.cartisan.security.authentication.AuthenticationService;
 import com.cartisan.security.authentication.SaTokenAuthenticationService;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import com.cartisan.security.context.TenantContextFilter;
 import com.cartisan.security.permission.DefaultPermissionScanner;
 import com.cartisan.security.permission.PermissionScanner;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -16,9 +18,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+
+import java.util.List;
 
 /**
  * cartisan-security 自动配置主类。
@@ -45,11 +51,57 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @ConditionalOnWebApplication
 @ConditionalOnClass(StpUtil.class)
 @EnableConfigurationProperties(CartisanSecurityProperties.class)
-@Import({
-    SecurityInterceptorConfig.class,
-    CurrentUserArgumentResolverConfig.class
-})
-public class CartisanSecurityAutoConfiguration {
+public class CartisanSecurityAutoConfiguration implements WebMvcConfigurer {
+
+    private final ObjectProvider<SecurityInterceptor> interceptorProvider;
+    private final ObjectProvider<CurrentUserMethodArgumentResolver> resolverProvider;
+    private final CartisanSecurityProperties properties;
+
+    public CartisanSecurityAutoConfiguration(
+            ObjectProvider<SecurityInterceptor> interceptorProvider,
+            ObjectProvider<CurrentUserMethodArgumentResolver> resolverProvider,
+            CartisanSecurityProperties properties) {
+        this.interceptorProvider = interceptorProvider;
+        this.resolverProvider = resolverProvider;
+        this.properties = properties;
+    }
+
+    /**
+     * 声明 {@link SecurityInterceptor} Bean。
+     * <p>
+     * 若业务项目已提供自定义实现，则此方法不执行（{@code @ConditionalOnMissingBean}）。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public SecurityInterceptor securityInterceptor() {
+        return new SecurityInterceptor();
+    }
+
+    /**
+     * 创建 {@link CurrentUserMethodArgumentResolver} Bean。
+     * <p>
+     * 若应用已通过组件扫描创建了该 Bean，则此方法不执行（{@code @ConditionalOnMissingBean}）。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public CurrentUserMethodArgumentResolver currentUserMethodArgumentResolver() {
+        return new CurrentUserMethodArgumentResolver();
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        List<String> pathPatterns = properties.getPathPatterns();
+        List<String> excludePathPatterns = properties.getExcludePathPatterns();
+
+        registry.addInterceptor(interceptorProvider.getObject())
+            .addPathPatterns(pathPatterns.toArray(new String[0]))
+            .excludePathPatterns(excludePathPatterns.toArray(new String[0]));
+    }
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(resolverProvider.getObject());
+    }
 
     /**
      * 注册 Sa-Token 请求上下文 Filter。
