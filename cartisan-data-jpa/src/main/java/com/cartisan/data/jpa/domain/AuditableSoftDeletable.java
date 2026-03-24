@@ -5,7 +5,7 @@ import jakarta.persistence.MappedSuperclass;
 import org.hibernate.annotations.SQLRestriction;
 
 /**
- * 可软删除实体基类。
+ * 可审计且可软删除实体基类。
  *
  * <p>继承 {@link Auditable}，增加软删除能力：</p>
  * <ul>
@@ -39,7 +39,7 @@ import org.hibernate.annotations.SQLRestriction;
  * <h3>使用示例</h3>
  * <pre>{@code
  * @Entity
- * public class Product extends AbstractSoftDeletable {
+ * public class Product extends AuditableSoftDeletable {
  *     @Id private Long id;
  *     private String name;
  *     // ...
@@ -50,11 +50,11 @@ import org.hibernate.annotations.SQLRestriction;
  * productRepository.findAll();        // 不包含已删除记录
  * }</pre>
  *
- * @since 0.2.0
+ * @since 0.3.0
  */
 @MappedSuperclass
 @SQLRestriction("deleted = false")
-public abstract class AbstractSoftDeletable extends Auditable implements SoftDeletable {
+public abstract class AuditableSoftDeletable extends Auditable implements SoftDeletable {
 
     /**
      * 软删除标记。

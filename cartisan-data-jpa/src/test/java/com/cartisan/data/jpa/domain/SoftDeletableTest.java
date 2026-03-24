@@ -51,9 +51,9 @@ class SoftDeletableTest {
     }
 
     /**
-     * 测试用 AbstractSoftDeletable 子类。
+     * 测试用 AuditableSoftDeletable 子类。
      */
-    static class TestSoftDeletableEntity extends AbstractSoftDeletable {
+    static class TestSoftDeletableEntity extends AuditableSoftDeletable {
         // 空实现，仅用于测试
     }
 }

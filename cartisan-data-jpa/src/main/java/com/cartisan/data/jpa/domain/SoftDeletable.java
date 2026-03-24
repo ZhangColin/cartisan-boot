@@ -7,13 +7,13 @@ package com.cartisan.data.jpa.domain;
  * {@link com.cartisan.data.jpa.repository.BaseRepository#delete(Object)} 会调用
  * {@link #markAsDeleted()} 方法将 {@code deleted} 标记设为 {@code true}，而不是物理删除。</p>
  *
- * <p>此接口与 {@link AbstractSoftDeletable} 抽象类配合使用：</p>
+ * <p>此接口与 {@link AuditableSoftDeletable} 抽象类配合使用：</p>
  * <ul>
- *   <li>实体可以直接继承 {@link AbstractSoftDeletable} 获得完整实现</li>
+ *   <li>实体可以直接继承 {@link AuditableSoftDeletable} 获得完整实现</li>
  *   <li>或者继承其他基类（如 {@link com.cartisan.core.domain.AbstractAggregateRoot}）并实现此接口</li>
  * </ul>
  *
- * @see AbstractSoftDeletable
+ * @see AuditableSoftDeletable
  * @since 0.3.0
  */
 public interface SoftDeletable {
