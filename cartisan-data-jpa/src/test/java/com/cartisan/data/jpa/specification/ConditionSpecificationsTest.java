@@ -1,6 +1,7 @@
 package com.cartisan.data.jpa.specification;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -9,9 +10,11 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collection;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -442,6 +445,362 @@ class ConditionSpecificationsTest {
 
             // then
             assertThat(specification).isNotNull();
+        }
+    }
+
+    // ==================== 边界条件和异常处理测试 ====================
+
+    @Nested
+    @DisplayName("Edge Case and Exception Handling Tests")
+    class EdgeCaseAndExceptionHandlingTests {
+
+        // ==================== IN 条件边界测试 ====================
+
+        @Test
+        @DisplayName("should handle IN condition with Object[] array")
+        void shouldHandleInConditionWithObjectArray() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("category", ConditionType.IN, new Object[]{"A", "B", "C"});
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> path = mock(Path.class);
+            when(root.get("category")).thenReturn(path);
+
+            // 使用 in(Collection) 来匹配 - 数组会被转换
+            @SuppressWarnings("unchecked")
+            Predicate inPredicate = mock(Predicate.class);
+            when(path.in(org.mockito.ArgumentMatchers.<Collection>any())).thenReturn(inPredicate);
+
+            // 同时也匹配 varargs 版本
+            org.mockito.Mockito.doReturn(inPredicate).when(path).in(new Object[]{"A", "B", "C"});
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证结果不为空
+            assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should return disjunction for IN condition with invalid value")
+        void shouldReturnDisjunctionForInConditionWithInvalidValue() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("category", ConditionType.IN, "invalid-string-value");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate (返回 disjunction)
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> path = mock(Path.class);
+            when(root.get("category")).thenReturn(path);
+
+            Predicate disjunction = mock(Predicate.class);
+            when(cb.disjunction()).thenReturn(disjunction);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证 disjunction 被调用
+            assertThat(result).isNotNull();
+            verify(cb).disjunction();
+        }
+
+        // ==================== BETWEEN 条件边界测试 ====================
+
+        @Test
+        @DisplayName("should handle BETWEEN condition with Object[] array")
+        void shouldHandleBetweenConditionWithObjectArray() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("createdDate", ConditionType.BETWEEN, new Object[]{"2024-01-01", "2024-12-31"});
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            @SuppressWarnings("unchecked")
+            Path<Object> path = mock(Path.class);
+            when(root.get("createdDate")).thenReturn(path);
+
+            // 使用更宽松的匹配器
+            @SuppressWarnings("rawtypes")
+            Predicate betweenPredicate = mock(Predicate.class);
+            when(cb.between(
+                    org.mockito.ArgumentMatchers.<jakarta.persistence.criteria.Expression>any(),
+                    org.mockito.ArgumentMatchers.<Comparable>any(),
+                    org.mockito.ArgumentMatchers.<Comparable>any()
+            )).thenReturn(betweenPredicate);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证结果不为空
+            assertThat(result).isNotNull();
+        }
+
+        @Test
+        @DisplayName("should return disjunction for BETWEEN condition with invalid array size")
+        void shouldReturnDisjunctionForBetweenConditionWithInvalidArraySize() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("createdDate", ConditionType.BETWEEN, new Object[]{"2024-01-01"});
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate (返回 disjunction)
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> path = mock(Path.class);
+            when(root.get("createdDate")).thenReturn(path);
+
+            Predicate disjunction = mock(Predicate.class);
+            when(cb.disjunction()).thenReturn(disjunction);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证 disjunction 被调用
+            assertThat(result).isNotNull();
+            verify(cb).disjunction();
+        }
+
+        @Test
+        @DisplayName("should return disjunction for BETWEEN condition with List of wrong size")
+        void shouldReturnDisjunctionForBetweenConditionWithWrongListSize() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("createdDate", ConditionType.BETWEEN, List.of("2024-01-01"));
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate (返回 disjunction)
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> path = mock(Path.class);
+            when(root.get("createdDate")).thenReturn(path);
+
+            Predicate disjunction = mock(Predicate.class);
+            when(cb.disjunction()).thenReturn(disjunction);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证 disjunction 被调用
+            assertThat(result).isNotNull();
+            verify(cb).disjunction();
+        }
+
+        // ==================== getFieldValue 异常测试 ====================
+
+        record InvalidQueryCondition(
+                String wrongFieldName,
+                ConditionType type
+        ) {}
+
+        @Test
+        @DisplayName("should throw IllegalArgumentException when field not found")
+        void shouldThrowExceptionWhenFieldNotFound() {
+            // given
+            InvalidQueryCondition condition = new InvalidQueryCondition("test", ConditionType.EQUAL);
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then - Specification 创建成功，但执行 toPredicate 时抛出异常
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            assertThatThrownBy(() -> specification.toPredicate(root, criteriaQuery, cb))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Field")
+                    .hasMessageContaining("not found");
+        }
+
+        // ==================== buildPath 单层路径测试 ====================
+
+        @Test
+        @DisplayName("should build single layer path without dot")
+        void shouldBuildSingleLayerPath() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("name", ConditionType.EQUAL, "John");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证 root.get() 被正确调用（单层路径）
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> path = mock(Path.class);
+            when(root.get("name")).thenReturn(path);
+
+            Predicate predicate = mock(Predicate.class);
+            when(cb.equal(path, "John")).thenReturn(predicate);
+
+            specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证 root.get() 被调用一次（单层路径，不涉及嵌套）
+            verify(root).get("name");
+        }
+
+        // ==================== buildPath 多层嵌套测试 ====================
+
+        @Test
+        @DisplayName("should build multi-layer nested path")
+        void shouldBuildMultiLayerNestedPath() {
+            // given
+            TestQueryCondition condition = new TestQueryCondition("user.profile.name", ConditionType.EQUAL, "John");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.of(condition);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证路径链式调用
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> userPath = mock(Path.class);
+            Path<Object> profilePath = mock(Path.class);
+            Path<Object> namePath = mock(Path.class);
+
+            when(root.get("user")).thenReturn(userPath);
+            when(userPath.get("profile")).thenReturn(profilePath);
+            when(profilePath.get("name")).thenReturn(namePath);
+
+            Predicate predicate = mock(Predicate.class);
+            when(cb.equal(namePath, "John")).thenReturn(predicate);
+
+            specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证三层嵌套路径链式调用
+            verify(root).get("user");
+            verify(userPath).get("profile");
+            verify(profilePath).get("name");
+        }
+
+        // ==================== buildBlurryPredicate 空字段测试 ====================
+
+        record ArticleQueryWithEmptyFields(
+                @Condition(blurry = " , , ") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should return conjunction for blurry predicate with empty fields")
+        void shouldReturnConjunctionForBlurryPredicateWithEmptyFields() {
+            // given
+            ArticleQueryWithEmptyFields query = new ArticleQueryWithEmptyFields("test");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate (返回 conjunction)
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Predicate conjunction = mock(Predicate.class);
+            when(cb.conjunction()).thenReturn(conjunction);
+
+            // 模拟 cb.and() 调用（外层会包裹 and）
+            Predicate andPredicate = mock(Predicate.class);
+            when(cb.and(any(Predicate[].class))).thenReturn(andPredicate);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证 conjunction 被调用（因为所有字段都是空的）
+            assertThat(result).isNotNull();
+            verify(cb).conjunction();
+        }
+
+        record ArticleQueryWithMixedEmptyFields(
+                @Condition(blurry = "title, ,content") String keyword
+        ) {}
+
+        @Test
+        @DisplayName("should handle blurry predicate with mixed empty fields")
+        void shouldHandleBlurryPredicateWithMixedEmptyFields() {
+            // given
+            ArticleQueryWithMixedEmptyFields query = new ArticleQueryWithMixedEmptyFields("test");
+
+            // when
+            Specification<Object> specification = ConditionSpecifications.fromAnnotation(query);
+
+            // then
+            assertThat(specification).isNotNull();
+
+            // 验证生成的 Specification 能正确转换为 Predicate
+            Root<Object> root = mock(Root.class);
+            jakarta.persistence.criteria.CriteriaQuery<Object> criteriaQuery = mock(jakarta.persistence.criteria.CriteriaQuery.class);
+            CriteriaBuilder cb = mock(CriteriaBuilder.class);
+
+            Path<Object> titlePath = mock(Path.class);
+            Path<Object> contentPath = mock(Path.class);
+
+            // 模拟 root.get() 调用
+            when(root.get("title")).thenReturn(titlePath);
+            when(root.get("content")).thenReturn(contentPath);
+
+            Predicate titleLike = mock(Predicate.class);
+            Predicate contentLike = mock(Predicate.class);
+            Predicate orPredicate = mock(Predicate.class);
+            Predicate andPredicate = mock(Predicate.class);
+
+            // 模拟 cb.like() 调用
+            when(cb.like(titlePath.as(String.class), "%test%")).thenReturn(titleLike);
+            when(cb.like(contentPath.as(String.class), "%test%")).thenReturn(contentLike);
+
+            // 模拟 cb.or() 调用
+            when(cb.or(any(Predicate[].class))).thenReturn(orPredicate);
+
+            // 模拟 cb.and() 调用（外层会包裹 and）
+            when(cb.and(any(Predicate[].class))).thenReturn(andPredicate);
+
+            Predicate result = specification.toPredicate(root, criteriaQuery, cb);
+
+            // 验证结果不为空
+            assertThat(result).isNotNull();
+
+            // 验证 OR 被调用了（说明有效的字段模糊搜索生效）
+            verify(cb).or(any(Predicate[].class));
         }
     }
 }
