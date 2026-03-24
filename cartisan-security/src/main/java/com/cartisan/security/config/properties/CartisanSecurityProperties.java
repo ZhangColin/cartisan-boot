@@ -11,7 +11,7 @@ import java.util.List;
  * 支持配置拦截器生效的路径模式和排除路径模式。
  * </p>
  *
- * @see com.cartisan.security.config.SecurityInterceptorConfig
+ * @see com.cartisan.security.config.CartisanSecurityAutoConfiguration
  */
 @ConfigurationProperties(prefix = "cartisan.security.interceptor")
 public class CartisanSecurityProperties {
