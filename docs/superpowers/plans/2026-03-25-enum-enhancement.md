@@ -912,11 +912,13 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: 修改 JacksonConfiguration**
 
-读取现有文件内容，删除以下行：
+读取现有文件内容：
+1. 删除以下行：
 ```java
 // Enum → 字符串
 .featuresToDisable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
 ```
+2. 更新类 JavaDoc 中 "Enum → 字符串：可读性更好" 为 "BaseEnum → code：业务枚举序列化为整数"
 
 在 `jackson2ObjectMapperBuilderCustomizer` 方法中添加：
 ```java
@@ -1074,6 +1076,11 @@ class EnumIntegrationTest {
 
     @Test
     void shouldPersistEnumAsInteger() {
+        // 创建测试表
+        entityManager.getEntityManager()
+            .createNativeQuery("CREATE TABLE test_users (id BIGINT PRIMARY KEY, status INTEGER)")
+            .executeUpdate();
+
         TestUser user = new TestUser();
         user.id = 1L;
         user.status = TestUserStatus.ACTIVE;
