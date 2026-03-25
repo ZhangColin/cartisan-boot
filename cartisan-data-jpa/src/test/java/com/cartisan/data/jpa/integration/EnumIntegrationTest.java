@@ -1,14 +1,13 @@
 package com.cartisan.data.jpa.integration;
 
-import com.cartisan.core.domain.BaseEnum;
 import com.cartisan.data.jpa.annotation.EnumConvert;
-import com.cartisan.data.jpa.converter.TestUserStatusConverter;
 import jakarta.persistence.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.transaction.annotation.Transactional;
 import static org.assertj.core.api.Assertions.*;
@@ -21,7 +20,6 @@ import static org.assertj.core.api.Assertions.*;
 @DataJpaTest
 @ContextConfiguration(classes = EnumIntegrationTestConfiguration.class)
 @Transactional
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class EnumIntegrationTest {
 
     @Autowired
@@ -91,6 +89,14 @@ class EnumIntegrationTest {
     }
 }
 
+/**
+ * 简单的 Spring Boot 配置。
+ */
+@Configuration
+@EnableJpaRepositories(basePackages = "com.cartisan.data.jpa.repository")
+class EnumIntegrationTestConfiguration {
+}
+
 // 测试实体
 @Entity
 @Table(name = "test_users")
@@ -98,9 +104,7 @@ class TestUser {
     @Id
     Long id;
 
-    @Convert(converter = TestUserStatusConverter.class)
+    @EnumConvert(TestUserStatus.class)
     @Column(name = "status")
     TestUserStatus status;
 }
-
-
