@@ -1,11 +1,13 @@
 package com.cartisan.web.config;
 
+import com.cartisan.core.domain.BaseEnum;
 import com.cartisan.web.TestApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.math.BigDecimal;
@@ -13,6 +15,9 @@ import java.time.LocalDateTime;
 import java.time.Month;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 /**
  * Jackson 全局配置测试。
@@ -105,6 +110,37 @@ class JacksonConfigurationTest {
     }
 
     /**
+     * 验证 BaseEnum 序列化。
+     */
+    @Test
+    void shouldConfigureBaseEnumSerialization() throws Exception {
+        // Given
+        TestColor color = TestColor.RED;
+
+        // When
+        String json = objectMapper.writeValueAsString(color);
+
+        // Then
+        assertThat(json).isEqualTo("1");
+    }
+
+    /**
+     * 验证 BaseEnum 反序列化作为 bean 属性。
+     */
+    @Test
+    void shouldConfigureBaseEnumDeserialization_asBeanProperty() throws Exception {
+        // Given
+        String json = "{\"color\":\"1\"}";
+
+        // When
+        TestDtoWithColor dto = objectMapper.readValue(json, TestDtoWithColor.class);
+
+        // Then
+        assertThat(dto.color()).isEqualTo(TestColor.RED);
+    }
+
+    
+    /**
      * 测试用枚举。
      */
     enum TestEnum {
@@ -116,5 +152,33 @@ class JacksonConfigurationTest {
      * 测试用 DTO。
      */
     record TestDto(String name) {
+    }
+
+    /**
+     * 测试用 DTO（包含 BaseEnum 属性）。
+     */
+    record TestDtoWithColor(TestColor color) {
+    }
+
+    /**
+     * 测试用 BaseEnum 枚举。
+     */
+    enum TestColor implements BaseEnum<TestColor> {
+        RED(1, "红"),
+        BLUE(2, "蓝");
+
+        private final Integer code;
+        private final String name;
+
+        TestColor(Integer code, String name) {
+            this.code = code;
+            this.name = name;
+        }
+
+        @Override
+        public Integer getCode() { return code; }
+
+        @Override
+        public String getName() { return name; }
     }
 }
