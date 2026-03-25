@@ -43,6 +43,7 @@ public class JacksonConfiguration {
 
             // BaseEnum → Integer code
             .serializerByType(com.cartisan.core.domain.BaseEnum.class, new BaseEnumSerializer())
+            .deserializerByType(com.cartisan.core.domain.BaseEnum.class, new BaseEnumDeserializer())
 
             // Enum → 字符串
             .featuresToDisable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
