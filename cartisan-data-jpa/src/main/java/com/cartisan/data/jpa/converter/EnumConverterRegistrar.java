@@ -40,7 +40,7 @@ public class EnumConverterRegistrar {
     /**
      * 扫描类的字段，收集带 @EnumConvert 注解的枚举类型。
      */
-    private void scanFields(Class<?> clazz, Set<Class<?>> enumTypes) {
+    void scanFields(Class<?> clazz, Set<Class<?>> enumTypes) {
         for (Field field : clazz.getDeclaredFields()) {
             if (field.isAnnotationPresent(EnumConvert.class)) {
                 EnumConvert annotation = field.getAnnotation(EnumConvert.class);
