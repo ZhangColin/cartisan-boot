@@ -41,6 +41,9 @@ public class JacksonConfiguration {
             // BigDecimal → 禁用科学计数法
             .featuresToEnable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
 
+            // BaseEnum → Integer code
+            .serializerByType(com.cartisan.core.domain.BaseEnum.class, new BaseEnumSerializer())
+
             // Enum → 字符串
             .featuresToDisable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
 
