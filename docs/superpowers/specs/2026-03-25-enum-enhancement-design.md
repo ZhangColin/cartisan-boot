@@ -43,7 +43,7 @@
 
 ### 3.1 cartisan-core
 
-**新增包**: `com.cartisan.core.model`
+**新增包**: `com.cartisan.core.domain`（已存在）
 
 **新增类**: `BaseEnum<T>`
 
@@ -252,7 +252,7 @@ public void updateStatus(@PathVariable Long id, @RequestParam Integer status) {
 
 | 模块 | 路径 | 说明 |
 |------|------|------|
-| cartisan-core | `model/BaseEnum.java` | 基础枚举接口 |
+| cartisan-core | `domain/BaseEnum.java` | 基础枚举接口 |
 | cartisan-data-jpa | `annotation/EnumConvert.java` | 枚举转换注解 |
 | cartisan-data-jpa | `converter/UniversalEnumConverter.java` | 通用转换器 |
 | cartisan-data-jpa | `converter/BaseEnumDeserializer.java` | Jackson 反序列化器 |
