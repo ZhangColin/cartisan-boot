@@ -29,18 +29,43 @@ public class BaseEnumDeserializer extends JsonDeserializer<BaseEnum<?>>
         this.enumType = (Class<? extends BaseEnum<?>>) enumType;
     }
 
+    /**
+     * 创建上下文相关的反序列化器。
+     * <p>
+     * Jackson 在处理具体字段时会调用此方法，获取目标字段的实际枚举类型，
+     * 并返回一个新的配置了该类型的反序列化器实例。
+     *
+     * @param ctxt 反序列化上下文
+     * @param property 正在反序列化的 Bean 属性
+     * @return 配置了具体枚举类型的反序列化器
+     */
     @Override
     public JsonDeserializer<?> createContextual(DeserializationContext ctxt, com.fasterxml.jackson.databind.BeanProperty property) {
         Class<?> targetType = property.getType().getRawClass();
         return new BaseEnumDeserializer(targetType);
     }
 
+    /**
+     * 将 JSON 值反序列化为 BaseEnum 实例。
+     * <p>
+     * 从 JSON 中读取 Integer 值，并使用 {@link BaseEnum#parseByCode(Class, Integer)}
+     * 查找对应的枚举实例。如果 JSON 值为 null 或未找到匹配的枚举，则返回 null。
+     *
+     * @param p JSON 解析器
+     * @param ctxt 反序列化上下文
+     * @return 反序列化后的 BaseEnum 实例，如果 JSON 值为 null 或未找到匹配项则返回 null
+     * @throws IOException 如果发生 I/O 错误
+     */
     @Override
     public BaseEnum<?> deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-        Integer code = p.getValueAsInt();
-        if (code == null || enumType == null) {
+        if (p.getCurrentToken() == com.fasterxml.jackson.core.JsonToken.VALUE_NULL) {
             return null;
         }
+        if (enumType == null) {
+            return null;
+        }
+
+        Integer code = p.getValueAsInt();
 
         // 使用反射调用 BaseEnum.parseByCode 方法
         try {

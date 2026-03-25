@@ -1,7 +1,15 @@
 package com.cartisan.web.config;
 
+import com.cartisan.core.domain.BaseEnum;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DeserializationConfig;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
+import com.fasterxml.jackson.databind.deser.std.EnumDeserializer;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
@@ -36,19 +44,45 @@ public class JacksonConfiguration {
             .serializerByType(Long.TYPE, new ToStringSerializer())
 
             // LocalDateTime → ISO 8601
-            .modules(new JavaTimeModule())
+            .modules(new JavaTimeModule(), createBaseEnumModule())
 
             // BigDecimal → 禁用科学计数法
             .featuresToEnable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
 
             // BaseEnum → Integer code
-            .serializerByType(com.cartisan.core.domain.BaseEnum.class, new BaseEnumSerializer())
-            .deserializerByType(com.cartisan.core.domain.BaseEnum.class, new BaseEnumDeserializer())
+            .serializerByType(BaseEnum.class, new BaseEnumSerializer())
 
             // Enum → 字符串
             .featuresToDisable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING)
 
             // 忽略未知属性
             .featuresToDisable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+
+    /**
+     * 创建 BaseEnum 模块。
+     * <p>
+     * 使用 BeanDeserializerModifier 拦截所有枚举类型的反序列化，
+     * 如果枚举实现了 BaseEnum 接口，则使用 BaseEnumDeserializer。
+     *
+     * @return SimpleModule 模块
+     */
+    private SimpleModule createBaseEnumModule() {
+        SimpleModule module = new SimpleModule();
+        module.setDeserializerModifier(new BeanDeserializerModifier() {
+            @Override
+            public JsonDeserializer<?> modifyEnumDeserializer(DeserializationConfig config,
+                                                              JavaType type,
+                                                              BeanDescription beanDesc,
+                                                              JsonDeserializer<?> deserializer) {
+                Class<?> rawClass = type.getRawClass();
+                // 如果枚举实现了 BaseEnum 接口，使用 BaseEnumDeserializer
+                if (BaseEnum.class.isAssignableFrom(rawClass)) {
+                    return new BaseEnumDeserializer(rawClass);
+                }
+                return deserializer;
+            }
+        });
+        return module;
     }
 }
