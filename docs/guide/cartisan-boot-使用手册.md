@@ -1,6 +1,6 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.8 | **日期**：2026-03-24
+> **版本**：v0.9 | **日期**：2026-03-25
 > **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
@@ -52,6 +52,7 @@
 | **软删除** | `@SQLRestriction` 自动过滤已删除记录 |
 | **分布式 ID** | TSID 生成器（42 位时间戳 + 22 位随机数） |
 | **@Condition 注解** | 简化 JPA Specification 查询（11 种条件类型） |
+| **枚举增强** | `BaseEnum` + `@EnumConvert` 实现 Enum ↔ Integer 自动转换 |
 
 ### 1.5 cartisan-event 模块
 
@@ -118,6 +119,36 @@
 | | `occurredAt()` | 发生时间 |
 | | `aggregateId()` | 聚合根 ID |
 | | `eventType()` | 事件类型名 |
+
+### 2.1.1 BaseEnum 接口（com.cartisan.core.domain）
+
+| 接口/方法 | 说明 |
+|-----------|------|
+| `BaseEnum<T>` | 业务枚举基础接口，包含 code/name 映射 |
+| `getCode()` | 获取枚举的整数值（存储到数据库） |
+| `getName()` | 获取枚举的显示名称 |
+| `parseByCode(Class, Integer)` | 根据 code 查找枚举（找不到返回 null） |
+| `requireByCode(Class, Integer)` | 根据 code 查找枚举（找不到抛异常） |
+
+### 2.1.2 @EnumConvert 注解（com.cartisan.data.jpa.annotation）
+
+| 注解 | 属性 | 说明 |
+|------|------|------|
+| `@EnumConvert` | `value` | 指定枚举类型，配合 `UniversalEnumConverter` 使用 |
+
+### 2.1.3 UniversalEnumConverter（com.cartisan.data.jpa.converter）
+
+| 类 | 方法 | 说明 |
+|----|------|------|
+| `UniversalEnumConverter<E>` | `convertToDatabaseColumn(E)` | Enum → Integer（写数据库） |
+| | `convertToEntityAttribute(Integer)` | Integer → Enum（读数据库） |
+
+### 2.1.4 BaseEnum 序列化支持（com.cartisan.web.config）
+
+| 类 | 说明 |
+|----|------|
+| `BaseEnumSerializer` | Jackson 序列化器：BaseEnum → Integer code |
+| `BaseEnumDeserializer` | Jackson 反序列化器：Integer → BaseEnum（使用 ContextualDeserializer） |
 
 ### 2.2 异常体系（com.cartisan.core.exception）
 
@@ -559,7 +590,69 @@ public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot
 }
 ```
 
-### 3.2 使用异常体系
+### 3.2 使用 BaseEnum 枚举增强
+
+```java
+// 1. 定义业务枚举，实现 BaseEnum 接口
+@Getter
+@AllArgsConstructor
+public enum UserStatus implements BaseEnum<UserStatus> {
+    ACTIVE(1, "激活"),
+    INACTIVE(0, "未激活");
+
+    private final Integer code;
+    private final String name;
+}
+
+// 2. 实体中使用 @EnumConvert 注解
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    private Long id;
+
+    @EnumConvert(UserStatus.class)
+    @Column(name = "status")
+    private UserStatus status;
+}
+
+// 3. DTO 中直接使用枚举类型
+public record UserResponse(
+    Long id,
+    UserStatus status,        // 自动序列化为 code（Integer）
+    String statusName         // MapStruct 自动调用 getName()
+) {}
+
+// 4. Controller 中自动反序列化
+@PostMapping("/users")
+public ApiResponse<Void> createUser(@RequestBody CreateUserRequest request) {
+    // request.status() 已是 UserStatus 枚举
+    userService.create(request);
+    return ApiResponse.ok();
+}
+
+// JSON 请求示例：
+// {
+//   "name": "张三",
+//   "status": 1          // 自动转换为 UserStatus.ACTIVE
+// }
+//
+// JSON 响应示例：
+// {
+//   "code": 200,
+//   "data": {
+//     "id": 123,
+//     "status": 1,       // UserStatus.ACTIVE.getCode()
+//     "statusName": "激活"
+//   }
+// }
+```
+
+**数据流：**
+- **前端 → 数据库**：JSON `{status: 1}` → Jackson 反序列化为 `UserStatus.ACTIVE` → JPA 转换为 `1` → 数据库
+- **数据库 → 前端**：数据库 `1` → JPA 转换为 `UserStatus.ACTIVE` → Jackson 序列化为 `1` → JSON
+
+### 3.3 使用异常体系
 
 ```java
 // 领域层 - 业务规则违反
@@ -600,7 +693,7 @@ public class OrderApplicationService {
 }
 ```
 
-### 3.3 使用架构注解
+### 3.4 使用架构注解
 
 ```java
 // package-info.java - 标注限界上下文
@@ -625,7 +718,7 @@ public class OrderPricingService {
 }
 ```
 
-### 3.4 使用 ArchUnit 规则
+### 3.5 使用 ArchUnit 规则
 
 ```java
 // 业务项目中继承即可获得全部规则
@@ -646,7 +739,7 @@ public class ArchitectureTest {
 }
 ```
 
-### 3.5 使用 Testcontainers 基类
+### 3.6 使用 Testcontainers 基类
 
 ```java
 // Repository 集成测试
@@ -683,7 +776,7 @@ class OrderControllerTest extends ApiTestBase {
 }
 ```
 
-### 3.6 使用 Fixture 工具
+### 3.7 使用 Fixture 工具
 
 ```java
 class OrderServiceTest {
@@ -723,7 +816,7 @@ class OrderServiceTest {
 }
 ```
 
-### 3.7 使用 ApiResponse 响应体
+### 3.8 使用 ApiResponse 响应体
 
 ```java
 @RestController
@@ -746,7 +839,7 @@ public class OrderController {
 }
 ```
 
-### 3.8 使用 RequestContext
+### 3.9 使用 RequestContext
 
 ```java
 // 在任何地方获取请求上下文
@@ -767,7 +860,7 @@ public class OrderService {
 // 2. 否则生成 UUID
 ```
 
-### 3.9 定义 Repository（泛型约束）
+### 3.10 定义 Repository（泛型约束）
 
 ```java
 // 聚合根
@@ -799,7 +892,7 @@ public class OrderService {
 }
 ```
 
-### 3.10 使用审计和软删除基类
+### 3.11 使用审计和软删除基类
 
 ```java
 // 仅审计
@@ -823,7 +916,7 @@ orderRepository.delete(order);  // UPDATE SET deleted = true
 orderRepository.findAll();      // 自动过滤 deleted = true
 ```
 
-### 3.11 使用 TSID 生成器
+### 3.12 使用 TSID 生成器
 
 ```java
 @Entity
@@ -854,7 +947,7 @@ public class OrderService {
 }
 ```
 
-### 3.12 监听领域事件
+### 3.13 监听领域事件
 
 ```java
 @Component
@@ -875,7 +968,7 @@ public class OrderEventHandler {
 }
 ```
 
-### 3.13 使用权限注解
+### 3.14 使用权限注解
 
 ```java
 // 类级别注解
@@ -929,7 +1022,7 @@ public class PublicController {
 - module: 业务模块（如 user）
 - action: 操作（如 read/write/delete）
 
-### 3.14 使用 SecurityContext
+### 3.15 使用 SecurityContext
 
 ```java
 @Service
@@ -959,7 +1052,7 @@ public class OrderService {
 }
 ```
 
-### 3.15 使用 TenantContext
+### 3.16 使用 TenantContext
 
 ```java
 @Service
@@ -987,7 +1080,7 @@ public class OrderService {
 }
 ```
 
-### 3.16 使用 AuthenticationService
+### 3.17 使用 AuthenticationService
 
 ```java
 @RestController
@@ -1028,7 +1121,7 @@ public class AuthController {
 }
 ```
 
-### 3.17 使用 @CurrentUser 注解
+### 3.18 使用 @CurrentUser 注解
 
 ```java
 // 必需登录场景
@@ -1088,7 +1181,7 @@ public class PreferencesController {
 | `@CurrentUser Long userId` | 参数解析阶段 | 需要使用 userId，未登录抛异常 |
 | `@CurrentUser Optional<Long> userId` | 参数解析阶段 | 允许匿名访问，已登录可获取 userId |
 
-### 3.18 配置拦截器路径
+### 3.19 配置拦截器路径
 
 ```yaml
 # 仅保护 API 路径（默认是 /**）
@@ -1114,7 +1207,7 @@ cartisan:
         - "/actuator/**"
 ```
 
-### 3.19 使用 jOOQ 自动配置
+### 3.20 使用 jOOQ 自动配置
 
 ```java
 // 引入依赖后，DSLContext 自动注入可用
@@ -1150,7 +1243,7 @@ public class UserService {
 }
 ```
 
-### 3.20 启用 SQL 日志
+### 3.21 启用 SQL 日志
 
 ```yaml
 # application.yml
@@ -1160,7 +1253,7 @@ cartisan:
       sql-logging: true  # 启用 SQL 执行日志
 ```
 
-### 3.21 使用多租户查询
+### 3.22 使用多租户查询
 
 ```java
 import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
@@ -1195,7 +1288,7 @@ public class UserService {
 }
 ```
 
-### 3.22 jOOQ 代码生成配置
+### 3.23 jOOQ 代码生成配置
 
 在业务项目 `build.gradle.kts` 中添加：
 
@@ -1245,7 +1338,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
-### 3.23 使用 cartisan-ai 同步调用
+### 3.24 使用 cartisan-ai 同步调用
 
 ```java
 @Service
@@ -1278,7 +1371,7 @@ public class AiService {
 }
 ```
 
-### 3.24 使用 cartisan-ai 流式调用（SSE）
+### 3.25 使用 cartisan-ai 流式调用（SSE）
 
 ```java
 @RestController
@@ -1322,7 +1415,7 @@ public class AiController {
 }
 ```
 
-### 3.25 配置 cartisan-ai Provider
+### 3.26 配置 cartisan-ai Provider
 
 ```yaml
 # application.yml
@@ -1349,7 +1442,7 @@ cartisan:
 - 只有配置了对应 `api-key` 的 Provider 才会被创建
 - 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
 
-### 3.26 实现 ModelUsageListener
+### 3.27 实现 ModelUsageListener
 
 ```java
 @Component
@@ -1367,7 +1460,7 @@ public class TokenUsageLogger implements ModelUsageListener {
 }
 ```
 
-### 3.27 使用 RedisKey 工具
+### 3.28 使用 RedisKey 工具
 
 ```java
 @Service
@@ -1393,7 +1486,7 @@ public class UserService {
 }
 ```
 
-### 3.28 使用 DomainMapper 批量转换
+### 3.29 使用 DomainMapper 批量转换
 
 ```java
 @Mapper(componentModel = "spring")
@@ -1423,7 +1516,7 @@ public class UserService {
 }
 ```
 
-### 3.29 使用 TreeNode 构建树结构
+### 3.30 使用 TreeNode 构建树结构
 
 ```java
 @Service
@@ -1455,7 +1548,7 @@ public class DepartmentService {
 }
 ```
 
-### 3.30 使用 @PreventResubmit 防重提交
+### 3.31 使用 @PreventResubmit 防重提交
 
 ```java
 @RestController
@@ -1480,7 +1573,7 @@ public class UserController {
 }
 ```
 
-### 3.31 使用 @Condition 注解查询
+### 3.32 使用 @Condition 注解查询
 
 ```java
 // 定义查询 DTO
@@ -1499,7 +1592,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 [5.1 @Condition 注解详细说明](#五一详细功能指南)
 
-### 3.32 启用自动响应包装
+### 3.33 启用自动响应包装
 
 ```yaml
 # application.yml
@@ -1543,22 +1636,38 @@ public User getById(@PathVariable Long id) {
 | **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
 | **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
 | **DATA-006** | 自动软删除通过 `instanceof` 判断类型，软删除调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
+| **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` 实现枚举与 Integer 转换 |
+| **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` 获取目标枚举类型 |
 
-### 4.3 Spring Boot / 自动配置
+### 4.3 枚举增强
+
+| 规则 | 说明 |
+|------|------|
+| **ENUM-001** | 业务枚举必须实现 `BaseEnum<T>` 接口，提供 `code`/`name` 映射 |
+| **ENUM-002** | 实体枚举字段使用 `@EnumConvert(枚举类.class)` 注解，自动注册 JPA Converter |
+| **ENUM-003** | BaseEnum 序列化为 Integer code，避免枚举顺序变化导致数据不一致 |
+| **ENUM-004** | `parseByCode()` 找不到返回 null，`requireByCode()` 找不到抛异常 |
+
+**重要设计取舍：**
+- 使用 `@EnumConvert` + `UniversalEnumConverter` 而非 `@Convert` 直接注解：自动注册，业务代码更简洁
+- code 值稳定：不依赖枚举 `ordinal()`，增删枚举值不影响已有数据
+- Jackson 自动配置：全局生效，无需在枚举类上添加 `@JsonFormat` 或 `@JsonCreator`
+
+### 4.4 Spring Boot / 自动配置
 
 | 规则 | 说明 |
 |------|------|
 | **BOOT-001** | 使用 `JpaRepositoryFactoryEntryCustomizer` 全局配置 `repositoryBaseClass` |
 | **TOOL-007** | `@Component` 默认 bean 名称可能与自动配置冲突，需显式指定如 `@Component("cartisanXxx")` |
 
-### 4.4 分布式 ID / TSID
+### 4.5 分布式 ID / TSID
 
 | 规则 | 说明 |
 |------|------|
 | **ID-001** | 纯随机 TSID 测试需要容忍小量重复（≤0.2%），不应要求 100% 唯一 |
 | **ID-002** | 无锁随机数生成使用 `ThreadLocalRandom`，不用 `synchronized` |
 
-### 4.5 工具配置
+### 4.6 工具配置
 
 | 规则 | 说明 |
 |------|------|
@@ -1567,14 +1676,14 @@ public User getById(@PathVariable Long id) {
 | **TOOL-004** | `@TestConfiguration` 不能使用工具类模式（私有构造抛异常） |
 | **TEST-003** | Spring Boot Test 依赖分层：`api` 暴露给业务，`implementation` 本模块使用 |
 
-### 4.6 代码风格
+### 4.7 代码风格
 
 | 规则 | 说明 |
 |------|------|
 | **STYLE-001** | 领域接口应包含完整 JavaDoc 和使用示例 |
 | **STYLE-002** | JavaDoc 中必须转义 HTML 特殊字符：`<` → `&lt;`，`>` → `&gt;` |
 
-### 4.7 测试
+### 4.8 测试
 
 | 规则 | 说明 |
 |------|------|
@@ -1583,7 +1692,7 @@ public User getById(@PathVariable Long id) {
 | **ASRT-001** | `require()` 抛 DomainException（4xx），`ensure()` 抛 IllegalStateException（500） |
 | **ASRT-002** | 工具类私有构造函数应抛出异常，而非返回 null |
 
-### 4.8 Security
+### 4.9 Security
 
 | 规则 | 说明 |
 |------|------|
@@ -1594,7 +1703,7 @@ public User getById(@PathVariable Long id) {
 | **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
 | **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常，与 `SecurityInterceptor` 一致 |
 
-### 4.9 jOOQ / Data-Query
+### 4.10 jOOQ / Data-Query
 
 | 规则 | 说明 |
 |------|------|
@@ -1647,7 +1756,7 @@ dependencies {
 }
 ```
 
-### 4.10 AI / cartisan-ai
+### 4.11 AI / cartisan-ai
 
 | 规则 | 说明 |
 |------|------|
@@ -1656,7 +1765,7 @@ dependencies {
 | **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
 | **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
 
-### 4.11 Web 基础设施
+### 4.12 Web 基础设施
 
 | 规则 | 说明 |
 |------|------|
@@ -1666,7 +1775,7 @@ dependencies {
 | **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
 | **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
 
-### 4.12 数据查询
+### 4.13 数据查询
 
 | 规则 | 说明 |
 |------|------|
@@ -2270,4 +2379,4 @@ implementation 依赖：
 
 ---
 
-**文档结束** | 更新日期：2026-03-24
+**文档结束** | 更新日期：2026-03-25

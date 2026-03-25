@@ -1357,6 +1357,87 @@ public void delete(T entity) {
 
 ---
 
+### 规则 DATA-007：枚举字段使用 @EnumConvert 自动注册 Converter
+
+**问题**：为每个枚举类型手动创建 JPA AttributeConverter 类，代码冗余。
+
+**正确做法**：
+```java
+// ✅ 使用 @EnumConvert 注解，自动注册 UniversalEnumConverter
+@Entity
+public class User {
+    @EnumConvert(UserStatus.class)
+    @Column(name = "status")
+    private UserStatus status;
+}
+
+// ✅ 定义业务枚举实现 BaseEnum
+public enum UserStatus implements BaseEnum<UserStatus> {
+    ACTIVE(1, "激活"),
+    INACTIVE(0, "未激活");
+
+    private final Integer code;
+    private final String name;
+}
+```
+
+**错误做法**：
+```java
+// ❌ 为每个枚举类型手动创建 Converter
+@Converter(autoApply = true)
+public class UserStatusConverter implements AttributeConverter<UserStatus, Integer> {
+    // 大量重复代码...
+}
+```
+
+**记忆口诀**：枚举转换用 @EnumConvert，框架自动注册 Converter。
+
+---
+
+### 规则 DATA-008：枚举 code 值必须唯一且稳定
+
+**问题**：使用枚举 `ordinal()` 作为存储值，增删枚举值会导致已有数据错乱。
+
+**正确做法**：
+```java
+// ✅ 使用稳定的 code 值
+public enum UserStatus implements BaseEnum<UserStatus> {
+    ACTIVE(1, "激活"),
+    INACTIVE(0, "未激活"),
+    PENDING(2, "待审核");  // 新增枚举不影响已有数据
+
+    private final Integer code;
+    private final String name;
+}
+```
+
+**错误做法**：
+```java
+// ❌ 使用 ordinal()，顺序变化导致数据错乱
+public enum UserStatus {
+    INACTIVE,  // ordinal 0
+    ACTIVE,    // ordinal 1
+    PENDING    // ordinal 2 - 如果在中间插入，后续值都变化
+}
+```
+
+**记忆口诀**：枚举存储用 code，不用 ordinal。
+
+---
+
+### 规则 DATA-009：BaseEnum Jackson 反序列化使用 ContextualDeserializer
+
+**问题**：Jackson 反序列化时无法自动识别目标枚举类型。
+
+**解决方案**：
+- `BaseEnumDeserializer` 实现 `ContextualDeserializer` 接口
+- 通过 `createContextual()` 方法获取目标字段的枚举类型
+- 使用 `BaseEnum.parseByCode()` 查找对应枚举
+
+**记忆口诀**：BaseEnum 反序列化用 ContextualDeserializer 获取目标类型。
+
+---
+
 ## Spring Boot / 自动配置
 
 ### 规则 BOOT-001：使用 JpaRepositoryFactoryEntryCustomizer 自动配置 repositoryBaseClass
