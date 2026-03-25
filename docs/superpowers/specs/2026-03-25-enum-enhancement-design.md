@@ -264,3 +264,5 @@ public void updateStatus(@PathVariable Long id, @RequestParam Integer status) {
 |------|------|----------|
 | cartisan-data-jpa | `config/CartisanDataJpaAutoConfiguration.java` | 新增 Converter 注册逻辑 |
 | cartisan-web | `config/JacksonConfiguration.java` | 新增枚举序列化/反序列化配置 |
+| cartisan-web | `config/BaseEnumSerializer.java` | Jackson 序列化器（可选独立文件） |
+| cartisan-web | `config/BaseEnumDeserializer.java` | Jackson 反序列化器（可选独立文件） |
