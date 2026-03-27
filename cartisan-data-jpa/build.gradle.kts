@@ -26,6 +26,9 @@ dependencies {
     compileOnly("org.projectlombok:lombok")
     annotationProcessor(platform(project(":cartisan-dependencies")))
     annotationProcessor("org.projectlombok:lombok")
+
+    // Druid Spring Boot 3 Starter（可选依赖，业务需显式配置 spring.datasource.type 才生效）
+    compileOnly("com.alibaba:druid-spring-boot-3-starter:1.2.23")
 }
 
 tasks.withType<JavaCompile> {
