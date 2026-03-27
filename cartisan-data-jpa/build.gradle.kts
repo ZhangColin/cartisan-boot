@@ -21,6 +21,7 @@ dependencies {
     testImplementation("org.mockito:mockito-core")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
+    testImplementation("com.alibaba:druid-spring-boot-3-starter:1.2.23")
 
     // Lombok（编译时生效，不传递给使用者）
     compileOnly("org.projectlombok:lombok")
