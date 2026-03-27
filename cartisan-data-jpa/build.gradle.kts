@@ -21,15 +21,16 @@ dependencies {
     testImplementation("org.mockito:mockito-core")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.h2database:h2")
-    testImplementation("com.alibaba:druid-spring-boot-3-starter:1.2.23")
+    // Druid（测试需要，版本由 cartisan-dependencies 管理）
+    testImplementation("com.alibaba:druid-spring-boot-3-starter")
 
     // Lombok（编译时生效，不传递给使用者）
     compileOnly("org.projectlombok:lombok")
     annotationProcessor(platform(project(":cartisan-dependencies")))
     annotationProcessor("org.projectlombok:lombok")
 
-    // Druid Spring Boot 3 Starter（可选依赖，业务需显式配置 spring.datasource.type 才生效）
-    compileOnly("com.alibaba:druid-spring-boot-3-starter:1.2.23")
+    // Druid Spring Boot 3 Starter（可选依赖，业务需显式配置 spring.datasource.type 才生效；版本由 cartisan-dependencies 管理）
+    compileOnly("com.alibaba:druid-spring-boot-3-starter")
 }
 
 tasks.withType<JavaCompile> {

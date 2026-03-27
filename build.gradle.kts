@@ -27,7 +27,7 @@ subprojects {
     // Only configure test dependencies for java-library projects
     if (project.name != "cartisan-dependencies") {
         dependencies {
-            "testImplementation"(platform("org.junit:junit-bom:5.11.4"))
+            "testImplementation"(platform(project(":cartisan-dependencies")))
             "testImplementation"("org.junit.jupiter:junit-jupiter")
             "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
         }

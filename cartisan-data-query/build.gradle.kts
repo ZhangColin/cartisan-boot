@@ -27,7 +27,7 @@ dependencies {
     testImplementation(project(":cartisan-security"))
 
     // 配置属性元数据处理器（IDE 自动补全提示）
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:3.4.0")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
     // Lombok（编译时生效，不传递给使用者）
     compileOnly("org.projectlombok:lombok")

@@ -21,7 +21,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // Fastjson2 - JSON serialization
-    implementation("com.alibaba.fastjson2:fastjson2:2.0.53")
+    implementation("com.alibaba.fastjson2:fastjson2")
 
     // MapStruct - 类型安全的对象映射
     implementation("org.mapstruct:mapstruct")
@@ -40,7 +40,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
 
     // MapStruct 注解处理器（必须在 Lombok 之后）
-    annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
+    annotationProcessor("org.mapstruct:mapstruct-processor")
 
     // Lombok + MapStruct 集成（必须在 mapstruct-processor 之后）
     annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
@@ -48,7 +48,7 @@ dependencies {
     // Test annotation processors（测试源码也需要注解处理器）
     testAnnotationProcessor(platform(project(":cartisan-dependencies")))
     testAnnotationProcessor("org.projectlombok:lombok")
-    testAnnotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
+    testAnnotationProcessor("org.mapstruct:mapstruct-processor")
     testAnnotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 }
 

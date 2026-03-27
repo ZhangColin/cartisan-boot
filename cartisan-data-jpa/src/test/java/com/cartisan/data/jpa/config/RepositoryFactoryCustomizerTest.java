@@ -3,6 +3,8 @@ package com.cartisan.data.jpa.config;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.test.context.ContextConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 该配置启用了 {@link CartisanDataJpaAutoConfiguration}。</p>
  */
 @DataJpaTest
+@ContextConfiguration(classes = RepositoryFactoryCustomizerTestApplication.class)
 class RepositoryFactoryCustomizerTest {
 
     @Autowired

@@ -1,7 +1,8 @@
 plugins {
     java
     `java-library`
-    id("info.solidsoft.pitest") version "1.19.0-rc.3"
+    // 版本由 settings.gradle.kts 统一管理
+    id("info.solidsoft.pitest")
 }
 
 dependencies {
@@ -14,8 +15,10 @@ dependencies {
     // 测试依赖
     testImplementation(platform(project(":cartisan-dependencies")))
     testImplementation("org.springframework:spring-context")
-    testImplementation("org.assertj:assertj-core:3.26.3")
-    testImplementation("com.tngtech.archunit:archunit:1.3.0")
+    testImplementation("org.assertj:assertj-core")
+    testImplementation("com.tngtech.archunit:archunit")
+    // Pitest JUnit 5 插件（版本由 cartisan-dependencies 管理）
+    testImplementation("org.pitest:pitest-junit5-plugin")
 
     // Lombok（编译时生效，不传递给使用者）
     compileOnly("org.projectlombok:lombok")
@@ -47,5 +50,6 @@ pitest {
     mutationThreshold.set(70)
     outputFormats.set(listOf("HTML", "XML"))
     timestampedReports.set(false)
-    junit5PluginVersion.set("1.2.1")
+    // 版本由 cartisan-dependencies 统一管理（1.15.0）
+    // pitest 插件会自动从依赖中获取版本
 }

@@ -1,22 +1,21 @@
 package com.cartisan.data.jpa.config;
 
 import com.cartisan.data.jpa.converter.EnumConverterRegistrar;
-import com.cartisan.data.jpa.converter.UniversalEnumConverter;
 import com.cartisan.data.jpa.repository.impl.BaseRepositoryImpl;
 import com.cartisan.data.jpa.repository.impl.DomainEventPublisherHolder;
 import com.cartisan.event.DomainEventPublisher;
 import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
-import org.springframework.data.repository.core.support.RepositoryFactoryBeanSupport;
 
 import java.util.Optional;
 import java.util.Set;
@@ -103,24 +102,28 @@ public class CartisanDataJpaAutoConfiguration {
     }
 
     /**
-     * 注册枚举转换器。
+     * 扫描枚举转换器类型。
      * <p>
-     * 扫描所有带 {@link com.cartisan.data.jpa.annotation.EnumConvert} 的字段，
-     * 为每个枚举类型注册对应的 {@link UniversalEnumConverter}。
+     * 在应用上下文刷新完成后扫描所有带 {@link com.cartisan.data.jpa.annotation.EnumConvert} 的字段，
+     * 记录发现的枚举类型用于调试。
+     * <p>
+     * 使用 {@link ApplicationListener} 延迟到 {@link EntityManagerFactory} 初始化后执行，
+     * 避免 Spring Boot 3.4.x 中的自动配置顺序问题。
      *
-     * @return BeanFactoryPostProcessor
+     * @param entityManagerFactory JPA EntityManagerFactory
+     * @return ApplicationListener
      */
     @Bean
-    public static BeanFactoryPostProcessor enumConverterRegistrar(EntityManagerFactory entityManagerFactory) {
-        return factory -> {
+    public ApplicationListener<ContextRefreshedEvent> enumConverterScanner(EntityManagerFactory entityManagerFactory) {
+        return event -> {
             EnumConverterRegistrar registrar = new EnumConverterRegistrar();
             Set<Class<?>> enumTypes = registrar.scanEnumTypes(entityManagerFactory);
 
-            for (Class<?> enumType : enumTypes) {
-                UniversalEnumConverter<?> converter = registrar.createConverter(enumType);
-                String beanName = enumType.getSimpleName() + "Converter";
-                factory.registerSingleton(beanName, converter);
-                log.info("Registered enum converter: {} for type: {}", beanName, enumType.getSimpleName());
+            if (!enumTypes.isEmpty()) {
+                log.info("Discovered {} enum type(s) with @EnumConvert annotation", enumTypes.size());
+                for (Class<?> enumType : enumTypes) {
+                    log.debug("  - {}", enumType.getSimpleName());
+                }
             }
         };
     }

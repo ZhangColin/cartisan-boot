@@ -6,37 +6,36 @@ plugins {
 dependencies {
     implementation(project(":cartisan-core"))
 
-    // 测试框架（api 配置暴露给业务项目）
-    api(platform(libs.junit.bom))
-    api(libs.junit.jupiter)
-    api(libs.assertj.core)
-    api(libs.mockito.core)
-    api(libs.archunit.junit5)
+    // Platform - 版本由 cartisan-dependencies 统一管理
+    api(platform(project(":cartisan-dependencies")))
 
-    // ArchUnit 编译依赖（本模块需要编译）
-    implementation(libs.archunit.junit5)
+    // 测试框架（api 配置暴露给业务项目）
+    api("org.junit.jupiter:junit-jupiter")
+    api("org.assertj:assertj-core")
+    api("org.mockito:mockito-core")
+    api("com.tngtech.archunit:archunit")
+    api("com.tngtech.archunit:archunit-junit5")
 
     // Spring Boot Test 支持（@TestConfiguration 等注解）
-    api("org.springframework.boot:spring-boot-test:3.4.0")
+    api("org.springframework.boot:spring-boot-test")
 
     // Spring Test（MockMvc、ResultActions、RequestPostProcessor）
-    api("org.springframework:spring-test:6.2.0")
-    implementation("org.springframework:spring-test:6.2.0")
+    api("org.springframework:spring-test")
 
     // Spring Boot Test（MockMvc、@AutoConfigureMockMvc 等）
-    api("org.springframework.boot:spring-boot-starter-test:3.4.0")
-    implementation("org.springframework.boot:spring-boot-starter-test:3.4.0")
+    api("org.springframework.boot:spring-boot-starter-test")
 
     // Spring 依赖（规则类需要引用注解，测试 fixtures 需要）
-    implementation("org.springframework.boot:spring-boot-starter-web:3.4.0")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:3.4.0")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // Jackson（JSON 序列化，ApiTestAssertions 需要）
     implementation("com.fasterxml.jackson.core:jackson-databind")
 
     // Lombok（编译时生效，不传递给使用者）
-    compileOnly("org.projectlombok:lombok:1.18.34")
-    annotationProcessor("org.projectlombok:lombok:1.18.34")
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor(platform(project(":cartisan-dependencies")))
+    annotationProcessor("org.projectlombok:lombok")
 }
 
 tasks.withType<Test> {
