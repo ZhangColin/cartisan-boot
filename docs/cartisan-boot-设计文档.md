@@ -68,7 +68,7 @@ cartisan-boot 是**业务无关的技术基础框架**。它为所有 Java 项�
 | DDD | 聚合根、实体、值对象、领域事件等基础积木 | 具体的聚合根、实体、领域服务 |
 | Web | 统一响应体、全局异常处理、请求上下文 | Controller、DTO |
 | 安全 | 认证/授权抽象、多租户上下文基础设施 | 用户/租户/权限的业务逻辑 |
-| 数据 | Repository 基类、审计字段、软删除 | 具体的 Entity 和 Repository |
+| 数据 | Repository 基类、审计字段、软删除 | 具体的 DomainEntity 和 Repository |
 | 事件 | 领域事件发布/订阅基础设施 | 具体的业务事件定义 |
 | AI | 大模型调用 SPI + 各厂商适配器 + SSE 流式工具 | 路由策略、Token 计费、Agent 编排 |
 | 存储 | 文件上传/下载 SPI + 各厂商适配器 | "附件"的业务概念（关联实体、权限） |
@@ -190,10 +190,10 @@ AggregateRoot                          — 标记接口：标识哪些实体是�
 
 只有实现 `AggregateRoot` 的实体才能拥有 Repository——这通过 `BaseRepository<T extends AggregateRoot>` 的泛型约束在编译期强制。
 
-**Entity 接口：**
+**DomainEntity 接口：**
 
 ```
-Entity<T, ID>
+DomainEntity<T, ID>
   - getId() → ID                       — 获取标识
   - sameIdentityAs(T other) → boolean  — 身份比较
 ```

@@ -112,7 +112,7 @@
 | `AbstractAggregateRoot<T>` | `registerEvent(event)` | 注册领域事件 |
 | | `getDomainEvents()` | 获取待发布事件列表 |
 | | `clearDomainEvents()` | 清空事件列表 |
-| `Entity<T, ID>` | `getId()` | 获取实体 ID |
+| `DomainEntity<T, ID>` | `getId()` | 获取实体 ID |
 | | `sameIdentityAs(other)` | 判断是否为同一实体 |
 | `ValueObject<T>` | `sameValueAs(other)` | 判断值是否相等 |
 | `Identity<T>` | `value()` | 获取标识符值 |
@@ -1624,7 +1624,7 @@ public User getById(@PathVariable Long id) {
 
 | 规则 | 说明 |
 |------|------|
-| **DDD-001** | Entity 接口泛型方法中调泛型参数方法，必须先 `getClass()` 检查再强转 |
+| **DDD-001** | DomainEntity 接口泛型方法中调泛型参数方法，必须先 `getClass()` 检查再强转 |
 | **DDD-002** | ValueObject 的 `sameValueAs` 可直接委托 `equals` |
 | **DDD-003** | 领域事件应自动生成 `eventId` 和 `occurredAt`，`aggregateId` 由子类提供 |
 | **STYLE-003** | 使用 Record 实现 ValueObject 和 Identity |
@@ -1716,7 +1716,7 @@ public class Order extends AbstractAggregateRoot<Order> {
 
 cartisan-boot 的设计理念：**提供能力，不强求风格**。
 
-- 框架提供 DDD 基础设施（`AggregateRoot`、`Entity`、`ValueObject` 等）
+- 框架提供 DDD 基础设施（`AggregateRoot`、`DomainEntity`、`ValueObject` 等）
 - 是否严格遵循 DDD 风格由业务团队决定
 - 代码应该简洁务实，避免为了教条增加不必要的抽象
 

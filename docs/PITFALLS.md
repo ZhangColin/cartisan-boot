@@ -12,7 +12,7 @@
 
 **错误代码**：
 ```java
-public interface Entity<T, ID> {
+public interface DomainEntity<T, ID> {
     ID getId();
 
     default boolean sameIdentityAs(T other) {
@@ -29,7 +29,7 @@ default boolean sameIdentityAs(T other) {
     if (other == null) return false;
     // 需要运行时类型检查 + 强制类型转换
     if (this.getClass() != other.getClass()) return false;
-    ID otherId = ((Entity<T, ID>) other).getId();
+    ID otherId = ((DomainEntity<T, ID>) other).getId();
     return Objects.equals(this.getId(), otherId);
 }
 ```
@@ -52,7 +52,7 @@ public interface ValueObject<T> {
 }
 ```
 
-**对比 Entity**：Entity 需要比较 ID，而 ID 是泛型方法获取的，所以需要额外处理。
+**对比 DomainEntity**：DomainEntity 需要比较 ID，而 ID 是泛型方法获取的，所以需要额外处理。
 
 ---
 
@@ -561,7 +561,7 @@ implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
 
 ### PIT-001 (2026-03-13)：Java 类型擦除导致泛型方法编译失败
 
-**场景**：在 `Entity<T, ID>` 接口的默认方法中调用 `other.getId()` 时编译错误。
+**场景**：在 `DomainEntity<T, ID>` 接口的默认方法中调用 `other.getId()` 时编译错误。
 
 **原因**：Java 泛型类型擦除，运行时 `T` 变为 `Object`。
 
