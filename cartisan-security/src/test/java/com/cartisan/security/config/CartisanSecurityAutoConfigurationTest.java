@@ -5,6 +5,8 @@ import com.cartisan.security.config.properties.CartisanSecurityProperties;
 import com.cartisan.security.permission.PermissionScanner;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 
@@ -13,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 自动配置集成测试，验证所有组件正确装配。
  */
-@SpringBootTest(classes = CartisanSecurityAutoConfiguration.class)
+@SpringBootTest(classes = {CartisanSecurityAutoConfiguration.class, CartisanSecurityAutoConfigurationTest.TestConfig.class})
 class CartisanSecurityAutoConfigurationTest {
 
     @Autowired(required = false)
@@ -54,5 +56,9 @@ class CartisanSecurityAutoConfigurationTest {
         var scannerProvider = applicationContext.getBeanProvider(PermissionScanner.class);
         // Bean is not available in minimal context, which is correct
         assertThat(scannerProvider.getIfAvailable()).isNull();
+    }
+
+    @EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class})
+    static class TestConfig {
     }
 }

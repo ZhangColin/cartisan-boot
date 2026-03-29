@@ -1902,3 +1902,80 @@ private static final RedisKey KEY = RedisKey.of("user:cache", 3600_000);  // 实
 
 ---
 
+## Gradle / 构建配置
+
+### 规则 BUILD-001：java-platform 模块需要单独配置 maven-publish
+
+**问题**：`java-platform` 插件不会自动应用 `maven-publish`，导致 BOM 不会发布到 Maven 仓库。
+
+**错误现象**：
+```bash
+# 业务平台报错
+Could not resolve project :cartisan-boot:cartisan-dependencies
+```
+
+**正确做法**：
+```kotlin
+// cartisan-dependencies/build.gradle.kts
+plugins {
+    `java-platform`
+    `maven-publish`  // ✅ 需要显式添加
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenPlatform") {
+            from(components["javaPlatform"])  // 使用 javaPlatform 组件
+            // ... pom 配置
+        }
+    }
+}
+```
+
+**记忆口诀**：java-platform 模块发布需显式配置 maven-publish。
+
+---
+
+### 规则 BUILD-002：子模块测试依赖不要用 dependencies.add()
+
+**问题**：在 `subprojects` 块中使用 `dependencies.add()` 动态添加依赖，在 includeBuild 场景下会导致依赖解析失败。
+
+**错误做法**：
+```kotlin
+// ❌ 在 includeBuild 场景下解析失败
+dependencies.add("testImplementation", project.dependencies.platform(project(":cartisan-dependencies")))
+```
+
+**正确做法**：
+```kotlin
+// ✅ 使用标准 DSL 写法
+project.dependencies.apply {
+    add("testImplementation", platform(project(":cartisan-dependencies")))
+    add("testImplementation", "org.junit.jupiter:junit-jupiter")
+}
+```
+
+**记忆口诀**：subprojects 中用 project.dependencies.apply，不用 dependencies.add()。
+
+---
+
+### 规则 BUILD-003：非 JPA 模块的测试需要排除数据源自动配置
+
+**问题**：`cartisan-security`、`cartisan-web` 等模块没有数据源依赖，但 `cartisan-dependencies` BOM 引入了 Druid，导致测试时 Druid 自动配置尝试创建数据源而失败。
+
+**错误现象**：
+```
+ClassNotFoundException: org.springframework.jdbc.core.ConnectionCallback
+```
+
+**正确做法**：
+```properties
+# cartisan-security/src/test/resources/application.properties
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,\
+  com.alibaba.druid.spring.boot3.autoconfigure.DruidDataSourceAutoConfigure
+```
+
+**记忆口诀**：无数据源模块测试需排除 Druid 自动配置。
+
+---
+

@@ -1,5 +1,6 @@
 plugins {
     `java-platform`
+    `maven-publish`
 }
 
 dependencies {
@@ -56,4 +57,44 @@ dependencies {
 
 javaPlatform {
     allowDependencies()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenPlatform") {
+            from(components["javaPlatform"])
+            pom {
+                name.set("Cartisan Dependencies")
+                description.set("Cartisan Boot - Dependency Management BOM")
+                url.set("https://github.com/cartisan-boot/cartisan-boot")
+
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("cartisan")
+                        name.set("Cartisan Team")
+                    }
+                }
+
+                scm {
+                    connection.set("scm:git:git://github.com/cartisan-boot/cartisan-boot.git")
+                    developerConnection.set("scm:git:ssh://github.com/cartisan-boot/cartisan-boot.git")
+                    url.set("https://github.com/cartisan-boot/cartisan-boot")
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "local"
+            url = uri("${rootProject.layout.buildDirectory.get()}/local-maven-repo")
+        }
+    }
 }

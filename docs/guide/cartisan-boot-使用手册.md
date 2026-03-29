@@ -1,6 +1,6 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.9 | **日期**：2026-03-25
+> **版本**：v0.9 | **日期**：2026-03-29
 > **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
@@ -1620,12 +1620,105 @@ public User getById(@PathVariable Long id) {
 
 ### 4.1 DDD 相关
 
+#### 4.1.1 架构规则
+
 | 规则 | 说明 |
 |------|------|
 | **DDD-001** | Entity 接口泛型方法中调泛型参数方法，必须先 `getClass()` 检查再强转 |
 | **DDD-002** | ValueObject 的 `sameValueAs` 可直接委托 `equals` |
 | **DDD-003** | 领域事件应自动生成 `eventId` 和 `occurredAt`，`aggregateId` 由子类提供 |
 | **STYLE-003** | 使用 Record 实现 ValueObject 和 Identity |
+
+#### 4.1.2 设计原则
+
+cartisan-boot 提供 DDD 基础设施，但不强制 DDD 教条。以下是务实的设计取舍：
+
+**聚合根是否必须避免使用 @Setter？**
+
+否。cartisan-boot 不强制要求 DDD 封装原则。
+
+- 没有业务逻辑的简单属性，直接用 `@Setter` 即可
+- `changeName(newName)` 与 `setName(newName)` 在没有业务约束时没有本质区别
+- 多参数一起修改时，如果参数间没有业务约束，写 `changeInfo(name, code, description)` 这种方法只会增加重载负担
+- **只有当多个参数间存在业务约束时，才需要单独写业务方法**
+
+```java
+// ✅ 简单属性直接用 @Setter
+@Entity
+public class User extends AbstractAggregateRoot<User> {
+    @Setter private String name;
+    @Setter private String email;
+}
+
+// ✅ 有业务约束时写业务方法
+@Entity
+public class Order extends AbstractAggregateRoot<Order> {
+    private OrderStatus status;
+    private LocalDateTime completedAt;
+
+    // 状态和完成时间有业务约束，必须一起修改
+    public void complete() {
+        require(this.status != OrderStatus.COMPLETED, "订单已完成");
+        this.status = OrderStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+    }
+}
+```
+
+**应用服务层是否可以直接调用聚合根的 setter？**
+
+可以。
+
+- 务实做法，应用服务层直接调用 `role.setName(command.name())` 是允许的
+- cartisan-boot 不强制要求应用服务层必须调用聚合根的业务方法
+
+```java
+// ✅ 允许：应用服务层直接调用 setter
+@Service
+@RequiredArgsConstructor
+public class RoleApplicationService {
+    private final RoleRepository roleRepository;
+
+    public void updateRole(UpdateRoleCommand command) {
+        Role role = roleRepository.findById(command.id()).orElseThrow();
+        role.setName(command.name());     // 直接调用 setter
+        role.setCode(command.code());     // 直接调用 setter
+        roleRepository.save(role);
+    }
+}
+```
+
+**ID 是否必须用强类型值对象（如 record）？**
+
+否，不强求。
+
+- `record AdminUserRoleId(Long adminId, Long roleId)` 这种强类型值对象会增加实现复杂度
+- cartisan-boot 允许直接使用 `Long` 等基本类型作为 ID
+
+```java
+// ✅ 允许：直接使用 Long 作为 ID
+@Entity
+public class User extends AbstractAggregateRoot<User> {
+    @Id
+    private Long id;
+}
+
+// ✅ 也可以：使用强类型值对象（推荐用于复杂 ID 场景）
+@Entity
+public class Order extends AbstractAggregateRoot<Order> {
+    @Id
+    @Column(name = "id")
+    private OrderId id;  // record OrderId(String value) implements Identity<String>
+}
+```
+
+**原则总结**
+
+cartisan-boot 的设计理念：**提供能力，不强求风格**。
+
+- 框架提供 DDD 基础设施（`AggregateRoot`、`Entity`、`ValueObject` 等）
+- 是否严格遵循 DDD 风格由业务团队决定
+- 代码应该简洁务实，避免为了教条增加不必要的抽象
 
 ### 4.2 JPA / 数据访问
 
@@ -1695,6 +1788,8 @@ public User getById(@PathVariable Long id) {
 
 ### 4.9 Security
 
+#### 4.9.1 规则
+
 | 规则 | 说明 |
 |------|------|
 | **SECURITY-001** | Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token` |
@@ -1703,6 +1798,39 @@ public User getById(@PathVariable Long id) {
 | **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller，不能直接调用 `StpUtil.login()` |
 | **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
 | **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常，与 `SecurityInterceptor` 一致 |
+
+#### 4.9.2 scope 参数管理
+
+`@RequirePermission` 的 `scope` 参数在各 Controller 中重复出现时，推荐使用常量类管理：
+
+```java
+// 在限界上下文下定义常量类
+// com.aieducenter.admin.constants.AdminScopes
+public final class AdminScopes {
+    public static final String ADMIN = "admin";
+    public static final String USER = "user";
+    public static final String COURSE = "course";
+}
+
+// Controller 中使用
+@RestController
+@RequestMapping("/admin/users")
+public class AdminUserController {
+
+    @RequirePermission(
+        value = "admin:user:read",
+        name = "平台管理 / 用户管理 / 查看",
+        scope = AdminScopes.ADMIN  // 使用常量
+    )
+    @GetMapping
+    public ApiResponse<List<User>> listUsers() { ... }
+}
+```
+
+**说明：**
+- 常量类放在 `{限界上下文}.constants` 包下，与 domain 平级
+- 每个限界上下文可以定义自己的 scope 常量
+- 避免硬编码字符串散落在各 Controller 中
 
 ### 4.10 jOOQ / Data-Query
 
@@ -1768,6 +1896,8 @@ dependencies {
 
 ### 4.12 Web 基础设施
 
+#### 4.12.1 规则
+
 | 规则 | 说明 |
 |------|------|
 | **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
@@ -1775,6 +1905,43 @@ dependencies {
 | **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
 | **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
 | **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
+
+#### 4.12.2 Controller 返回值设计
+
+**Controller 是否必须返回 `ApiResponse<T>`？**
+
+否，cartisan-boot 支持自动包装。
+
+启用 `AutoResponseAdvice` 后，Controller 可以直接返回数据：
+
+```yaml
+# application.yml
+cartisan:
+  web:
+    auto-response:
+      enabled: true
+```
+
+```java
+// ✅ 启用自动包装后，可以直接返回数据
+@GetMapping("/{id}")
+public User getById(@PathVariable Long id) {
+    return userService.findById(id);
+}
+
+// ✅ 也可以继续使用 ApiResponse（显式声明）
+@GetMapping("/{id}")
+public ApiResponse<User> getById(@PathVariable Long id) {
+    return ApiResponse.ok(userService.findById(id));
+}
+```
+
+**排除路径：** `/swagger-ui`、`/v3/api-docs`、`/actuator`
+
+**设计取舍：**
+- 提供能力，不强求风格
+- 自动包装开启后，代码更简洁
+- 关键接口仍可显式使用 `ApiResponse` 提高可读性
 
 ### 4.13 数据查询
 
@@ -2449,4 +2616,4 @@ implementation 依赖：
 
 ---
 
-**文档结束** | 更新日期：2026-03-25
+**文档结束** | 更新日期：2026-03-29

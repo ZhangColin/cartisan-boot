@@ -25,11 +25,12 @@ subprojects {
     }
 
     // Only configure test dependencies for java-library projects
+    // Use project.dependencies for includeBuild compatibility
     if (project.name != "cartisan-dependencies") {
-        dependencies {
-            "testImplementation"(platform(project(":cartisan-dependencies")))
-            "testImplementation"("org.junit.jupiter:junit-jupiter")
-            "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+        project.dependencies.apply {
+            add("testImplementation", platform(project(":cartisan-dependencies")))
+            add("testImplementation", "org.junit.jupiter:junit-jupiter")
+            add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
         }
 
         tasks.withType<Test> {
@@ -80,7 +81,7 @@ subprojects {
             repositories {
                 maven {
                     name = "local"
-                    url = uri("${rootProject.buildDir}/local-maven-repo")
+                    url = uri("${rootProject.layout.buildDirectory.get()}/local-maven-repo")
                 }
             }
         }

@@ -1,6 +1,9 @@
 package com.cartisan.security.integration;
 
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 /**
@@ -10,7 +13,9 @@ import org.springframework.context.annotation.Import;
  * 所有安全组件由 CartisanSecurityAutoConfiguration 自动配置声明。
  * </p>
  */
-@SpringBootApplication(scanBasePackages = "com.cartisan.security.integration")
+@Configuration
+@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class})
+@ComponentScan(basePackages = "com.cartisan.security.integration")
 @Import(SaTokenTestConfig.class)
 public class IntegrationTestApplication {
     // 无需额外配置，依赖 Spring Boot 自动装配
