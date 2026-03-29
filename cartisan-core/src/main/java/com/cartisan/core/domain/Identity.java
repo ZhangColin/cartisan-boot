@@ -56,7 +56,7 @@ package com.cartisan.core.domain;
  * <h2>与 Entity 配合使用</h2>
  *
  * <pre>{@code
- * public class User implements Entity<User, UserId> {
+ * public class User implements DomainEntity<User, UserId> {
  *     private final UserId id;
  *     private String name;
  *
@@ -73,7 +73,7 @@ package com.cartisan.core.domain;
  * }</pre>
  *
  * @param <T> 标识符的值类型（如 String、Long、UUID 等）
- * @see Entity
+ * @see DomainEntity
  * @since 0.1.0
  */
 public interface Identity<T> {

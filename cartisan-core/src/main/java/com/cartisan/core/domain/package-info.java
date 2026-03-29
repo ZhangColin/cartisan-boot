@@ -5,7 +5,7 @@
  * <ul>
  *   <li>{@link com.cartisan.core.domain.AggregateRoot} - 聚合根标记接口</li>
  *   <li>{@link com.cartisan.core.domain.AbstractAggregateRoot} - 聚合根抽象基类</li>
- *   <li>{@link com.cartisan.core.domain.Entity} - 实体接口</li>
+ *   <li>{@link com.cartisan.core.domain.DomainEntity} - 实体接口</li>
  *   <li>{@link com.cartisan.core.domain.ValueObject} - 值对象接口</li>
  *   <li>{@link com.cartisan.core.domain.Identity} - 标识符接口</li>
  *   <li>{@link com.cartisan.core.domain.DomainEvent} - 领域事件基类</li>

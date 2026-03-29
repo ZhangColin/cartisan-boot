@@ -5,9 +5,9 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Entity 接口测试。
+ * DomainEntity 接口测试。
  *
- * <p>验证 Entity 接口 sameIdentityAs 方法的默认行为。</p>
+ * <p>验证 DomainEntity 接口 sameIdentityAs 方法的默认行为。</p>
  */
 class EntityTest {
 
@@ -20,7 +20,7 @@ class EntityTest {
     /**
      * 测试用实体。
      */
-    private static class TestEntity implements Entity<TestEntity, TestId> {
+    private static class TestEntity implements DomainEntity<TestEntity, TestId> {
         private final TestId id;
 
         TestEntity(TestId id) {
@@ -130,7 +130,7 @@ class EntityTest {
     /**
      * 另一个测试用实体类型 - 用于验证类型安全。
      */
-    private static class OtherEntity implements Entity<OtherEntity, TestId> {
+    private static class OtherEntity implements DomainEntity<OtherEntity, TestId> {
         private final TestId id;
 
         OtherEntity(TestId id) {

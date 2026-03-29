@@ -3,7 +3,7 @@ package com.cartisan.examples.domain;
 import com.cartisan.core.domain.AbstractAggregateRoot;
 import com.cartisan.core.domain.AggregateRoot;
 import com.cartisan.core.domain.DomainEvent;
-import com.cartisan.core.domain.Entity;
+import com.cartisan.core.domain.DomainEntity;
 import com.cartisan.core.domain.Identity;
 import com.cartisan.core.domain.ValueObject;
 
@@ -160,7 +160,7 @@ public class Order extends AbstractAggregateRoot<Order> {
 /**
  * 订单项 - 实体。
  */
-class OrderItem implements Entity<OrderItem, OrderItem.OrderItemId> {
+class OrderItem implements DomainEntity<OrderItem, OrderItem.OrderItemId> {
 
     private final OrderItemId id;
     private final String productId;

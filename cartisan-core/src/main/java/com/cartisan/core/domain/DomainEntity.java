@@ -9,7 +9,7 @@ package com.cartisan.core.domain;
  *
  * <table border="1">
  *   <caption>实体与值对象的核心区别</caption>
- *   <tr><th>实体 (Entity)</th><th>值对象 (ValueObject)</th></tr>
+ *   <tr><th>实体 (DomainEntity)</th><th>值对象 (ValueObject)</th></tr>
  *   <tr><td>有唯一标识</td><td>没有标识，通过属性值比较</td></tr>
  *   <tr><td>标识相同即为同一对象</td><td>所有属性值相同即为同一对象</td></tr>
  *   <tr><td>状态可变</td><td>状态不可变</td></tr>
@@ -19,7 +19,7 @@ package com.cartisan.core.domain;
  * <h2>使用示例</h2>
  *
  * <pre>{@code
- * public class User implements Entity<User, UserId> {
+ * public class User implements DomainEntity<User, UserId> {
  *     private UserId id;
  *     private String name;
  *     private String email;
@@ -57,7 +57,7 @@ package com.cartisan.core.domain;
  * @see Identity
  * @since 0.1.0
  */
-public interface Entity<T, ID> {
+public interface DomainEntity<T, ID> {
 
     /**
      * 获取实体的唯一标识符。
@@ -85,7 +85,7 @@ public interface Entity<T, ID> {
             return false;
         }
         ID thisId = this.getId();
-        ID otherId = ((Entity<T, ID>) other).getId();
+        ID otherId = ((DomainEntity<T, ID>) other).getId();
         return java.util.Objects.equals(thisId, otherId);
     }
 }
