@@ -1,6 +1,6 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.9 | **日期**：2026-03-29
+> **版本**：v0.9 | **日期**：2026-03-30
 > **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
 
 ---
@@ -171,6 +171,31 @@
 | `@DomainService` | TYPE | 标注领域服务 |
 | `@Port(PortType)` | TYPE | 标注端口接口 |
 | `@Adapter(PortType)` | TYPE | 标注适配器实现 |
+
+**PortType 类型**：
+
+| 类型 | 用途 | 示例 |
+|------|------|------|
+| `REPOSITORY` | 仓储端口：聚合根持久化 | `OrderRepository` |
+| `CLIENT` | 客户端端口：调用外部服务 | `PasswordEncoderPort`、`SmsSenderPort` |
+| `PUBLISHER` | 发布者端口：发布领域事件 | `DomainEventPublisher` |
+
+### 2.3.1 Repository 模式 vs Service Port 模式
+
+| 特性 | Repository 模式 | Service Port 模式 |
+|------|-----------------|-------------------|
+| **用途** | 数据持久化 | 技术能力服务 |
+| **PortType** | `PortType.REPOSITORY` | `PortType.CLIENT` |
+| **操作** | CRUD 操作 | 编码/验证/发送等 |
+| **返回值** | 聚合根/值对象 | 基础类型值 |
+| **示例** | `AdminUserRepository` | `PasswordEncoderPort` |
+
+**Service Port 适用场景**：
+- 密码编码/验证
+- 消息/通知发送
+- 文件存储操作
+- 第三方 API 调用
+- 加密/解密操作
 
 ### 2.4 断言工具（com.cartisan.core.util.Assertions）
 
@@ -699,6 +724,8 @@ public class OrderApplicationService {
 
 ### 3.4 使用架构注解
 
+#### 3.4.1 Repository 模式（数据持久化）
+
 ```java
 // package-info.java - 标注限界上下文
 @BoundedContext(name = "OrderManagement", subDomain = SubDomain.CORE)
@@ -721,6 +748,90 @@ public class OrderPricingService {
     // 不属于任何聚合根的定价逻辑
 }
 ```
+
+#### 3.4.2 Service Port 模式（领域服务 + 南向接口）
+
+当领域层需要使用外部基础设施服务（如密码编码、消息发送）时，应使用**领域服务 + 南向接口模式**：
+
+```java
+// ========== 领域层 ==========
+// Step 1: 定义南向接口（端口）
+@Port(PortType.CLIENT)
+public interface PasswordEncoderPort {
+    String encode(String plainPassword);
+    boolean matches(String plainPassword, String encodedPassword);
+}
+
+// Step 2: 创建领域服务
+@DomainService
+public class PasswordEncoderService {
+    private final PasswordEncoderPort encoder;
+
+    public PasswordEncoderService(PasswordEncoderPort encoder) {
+        this.encoder = encoder;
+    }
+
+    public String encodePassword(String plainPassword) {
+        return encoder.encode(plainPassword);
+    }
+
+    public boolean verifyPassword(String plainPassword, String encodedPassword) {
+        return encoder.matches(plainPassword, encodedPassword);
+    }
+}
+
+// ========== 基础设施层 ==========
+// Step 3: 实现适配器
+@Component("adminBCryptPasswordEncoder")  // 必须添加 @Component！
+@Adapter(PortType.CLIENT)
+public class BCryptPasswordEncoderAdapter implements PasswordEncoderPort {
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
+
+    @Override
+    public String encode(String plainPassword) {
+        return encoder.encode(plainPassword);
+    }
+
+    @Override
+    public boolean matches(String plainPassword, String encodedPassword) {
+        return encoder.matches(plainPassword, encodedPassword);
+    }
+}
+
+// ========== 应用层 ==========
+// Step 4: 应用服务使用
+@ApplicationService
+public class AdminUserAuthAppService {
+    private final PasswordEncoderService passwordEncoderService;
+
+    public void updatePassword(Long userId, UpdatePasswordCommand command) {
+        AdminUser adminUser = repository.findById(userId).orElseThrow();
+
+        // 验证旧密码
+        if (!passwordEncoderService.verifyPassword(command.oldPassword(), adminUser.getPassword())) {
+            throw new ApplicationException(AdminMessage.PASSWORD_INCORRECT);
+        }
+
+        // 编码新密码
+        String newEncodedPassword = passwordEncoderService.encodePassword(command.newPassword());
+
+        // 更新聚合根
+        adminUser.changePassword(newEncodedPassword);
+        repository.save(adminUser);
+    }
+}
+```
+
+**关键点**：
+
+| 要点 | 说明 |
+|------|------|
+| `@Port(PortType.CLIENT)` | 标记客户端端口接口 |
+| `@DomainService` | 领域服务封装技术能力 |
+| `@Component` | 适配器必须添加，Spring 才能发现 Bean |
+| `@Adapter(PortType.CLIENT)` | 标记适配器类型 |
+| 构造函数注入 | 所有依赖字段声明为 final |
+| Bean 命名 | 避免冲突，如 `adminBCryptPasswordEncoder` |
 
 ### 3.5 使用 ArchUnit 规则
 
@@ -1762,7 +1873,25 @@ cartisan-boot 的设计理念：**提供能力，不强求风格**。
 - 是否严格遵循 DDD 风格由业务团队决定
 - 代码应该简洁务实，避免为了教条增加不必要的抽象
 
-### 4.2 JPA / 数据访问
+#### 4.1.3 领域服务与南向接口
+
+**何时使用领域服务？**
+
+领域服务用于封装：
+- 不属于任何聚合根的业务逻辑
+- 需要多个聚合根协作的业务逻辑
+- 需要外部技术能力的业务逻辑（通过南向接口）
+
+**何时使用南向接口（Service Port）？**
+
+当领域层需要使用外部基础设施服务时：
+
+| 适合使用 Service Port | 不适合使用 Service Port |
+|----------------------|------------------------|
+| 密码编码/验证 | 领域业务逻辑（应在聚合根中） |
+| 消息/通知发送 | 应用服务编排（应在 Application Service 中） |
+| 文件存储操作 | 简单的工具方法（可直接使用） |
+| 第三方 API 调用 | |
 
 | 规则 | 说明 |
 |------|------|
