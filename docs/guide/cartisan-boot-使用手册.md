@@ -1732,6 +1732,51 @@ cartisan-boot 的设计理念：**提供能力，不强求风格**。
 | **DATA-006** | 自动软删除通过 `instanceof` 判断类型，软删除调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
 | **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` 实现枚举与 Integer 转换 |
 | **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` 获取目标枚举类型 |
+| **REL-001** | 关联表应使用单一代理主键（Long），而非 JPA 复合主键（@IdClass/@EmbeddedId） |
+| **REL-002** | 关联表业务唯一性通过数据库 `@UniqueConstraint` 约束保证 |
+| **REL-003** | 关联表若需实现 `DomainEntity`，必须添加独立主键字段 |
+
+#### 关联表主键设计
+
+**背景**：JPA 关联表（Join Table）需要实现 `DomainEntity<T, ID>` 接口，但复合主键（`@IdClass` 或 `@EmbeddedId`）与 `DomainEntity` 的单一 ID 类型设计不兼容。
+
+**决策**：关联表应使用单一的代理主键，而非 JPA 复合主键。
+
+```java
+@Entity
+@Table(name = "sys_admin_user_roles", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"admin_id", "role_id"})
+})
+public class AdminUserRole implements DomainEntity<AdminUserRole, Long> {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;  // 代理主键
+
+    @Column(name = "admin_id", nullable = false)
+    private Long adminId;
+
+    @Column(name = "role_id", nullable = false)
+    private Long roleId;
+
+    // 业务唯一性由数据库唯一约束保证
+}
+```
+
+**理由**：
+
+| 理由 | 说明 |
+|------|------|
+| **框架兼容性** | `DomainEntity<T, ID>` 的 ID 参数为单一类型，复合主键无法直接映射 |
+| **JPA 支持完整** | 单一主键与 `@GeneratedValue`、软删除、审计、`BaseRepository` 等功能无缝集成 |
+| **性能** | 单字段主键索引更高效，外键关联更简单 |
+| **代码简洁** | 无需自定义 `sameIdentityAs`，框架默认实现即满足需求 |
+| **可维护性** | 独立代理主键便于日志追踪和调试 |
+
+**适用场景**：
+- 所有使用 `@IdClass` 或 `@EmbeddedId` 的 JPA 关联表实体
+- 需要实现 `DomainEntity<T, ID>` 接口的领域实体
+- 业务上需要通过数据库唯一约束保证组合唯一性的场景
 
 ### 4.3 枚举增强
 
