@@ -184,18 +184,21 @@
 
 | 特性 | Repository 模式 | Service Port 模式 |
 |------|-----------------|-------------------|
-| **用途** | 数据持久化 | 技术能力服务 |
+| **用途** | 数据持久化 | 外部服务调用 |
 | **PortType** | `PortType.REPOSITORY` | `PortType.CLIENT` |
-| **操作** | CRUD 操作 | 编码/验证/发送等 |
-| **返回值** | 聚合根/值对象 | 基础类型值 |
-| **示例** | `AdminUserRepository` | `PasswordEncoderPort` |
+| **操作** | CRUD 操作 | 调用/发送/查询等 |
+| **返回值** | 聚合根/值对象 | 响应 DTO 或基础类型 |
+| **示例** | `AdminUserRepository` | `SmsSenderPort`、`PaymentGatewayPort` |
 
 **Service Port 适用场景**：
-- 密码编码/验证
-- 消息/通知发送
-- 文件存储操作
-- 第三方 API 调用
-- 加密/解密操作
+- **跨限界上下文调用**：如订单上下文调用库存上下文
+- **外部 API 调用**：如短信服务、支付网关、OSS 存储
+- **中间件交互**：如消息队列、缓存、搜索引擎
+
+**不适合 Service Port 的场景**：
+- 纯工具类（如 BCryptPasswordEncoder、UUID 生成器）- 直接注入使用
+- 领域业务逻辑 - 应在聚合根或领域服务中
+- 应用服务编排 - 应在 Application Service 中
 
 ### 2.4 断言工具（com.cartisan.core.util.Assertions）
 
@@ -751,73 +754,65 @@ public class OrderPricingService {
 
 #### 3.4.2 Service Port 模式（领域服务 + 南向接口）
 
-当领域层需要使用外部基础设施服务（如密码编码、消息发送）时，应使用**领域服务 + 南向接口模式**：
+当领域层需要调用外部服务（如短信、支付、OSS）或跨限界上下文时，应使用**领域服务 + 南向接口模式**：
 
 ```java
 // ========== 领域层 ==========
 // Step 1: 定义南向接口（端口）
 @Port(PortType.CLIENT)
-public interface PasswordEncoderPort {
-    String encode(String plainPassword);
-    boolean matches(String plainPassword, String encodedPassword);
+public interface SmsSenderPort {
+    void sendVerificationCode(String phoneNumber, String code);
+    void sendNotification(String phoneNumber, String message);
 }
 
 // Step 2: 创建领域服务
 @DomainService
-public class PasswordEncoderService {
-    private final PasswordEncoderPort encoder;
+public class NotificationService {
+    private final SmsSenderPort smsSender;
 
-    public PasswordEncoderService(PasswordEncoderPort encoder) {
-        this.encoder = encoder;
+    public NotificationService(SmsSenderPort smsSender) {
+        this.smsSender = smsSender;
     }
 
-    public String encodePassword(String plainPassword) {
-        return encoder.encode(plainPassword);
-    }
-
-    public boolean verifyPassword(String plainPassword, String encodedPassword) {
-        return encoder.matches(plainPassword, encodedPassword);
+    public void sendLoginCode(User user, String code) {
+        smsSender.sendVerificationCode(user.getPhoneNumber(), code);
     }
 }
 
 // ========== 基础设施层 ==========
-// Step 3: 实现适配器
-@Component("adminBCryptPasswordEncoder")  // 必须添加 @Component！
+// Step 3: 实现适配器（阿里云短信）
+@Component("aliyunSmsSender")
 @Adapter(PortType.CLIENT)
-public class BCryptPasswordEncoderAdapter implements PasswordEncoderPort {
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
+public class AliyunSmsSenderAdapter implements SmsSenderPort {
+    private final AliyunSmsClient client;
 
-    @Override
-    public String encode(String plainPassword) {
-        return encoder.encode(plainPassword);
+    public AliyunSmsSenderAdapter(AliyunSmsClient client) {
+        this.client = client;
     }
 
     @Override
-    public boolean matches(String plainPassword, String encodedPassword) {
-        return encoder.matches(plainPassword, encodedPassword);
+    public void sendVerificationCode(String phoneNumber, String code) {
+        client.sendWithTemplate(phoneNumber, "VERIFY_CODE_TEMPLATE", Map.of("code", code));
+    }
+
+    @Override
+    public void sendNotification(String phoneNumber, String message) {
+        client.send(phoneNumber, message);
     }
 }
 
 // ========== 应用层 ==========
 // Step 4: 应用服务使用
 @ApplicationService
-public class AdminUserAuthAppService {
-    private final PasswordEncoderService passwordEncoderService;
+public class UserAuthAppService {
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
-    public void updatePassword(Long userId, UpdatePasswordCommand command) {
-        AdminUser adminUser = repository.findById(userId).orElseThrow();
-
-        // 验证旧密码
-        if (!passwordEncoderService.verifyPassword(command.oldPassword(), adminUser.getPassword())) {
-            throw new ApplicationException(AdminMessage.PASSWORD_INCORRECT);
-        }
-
-        // 编码新密码
-        String newEncodedPassword = passwordEncoderService.encodePassword(command.newPassword());
-
-        // 更新聚合根
-        adminUser.changePassword(newEncodedPassword);
-        repository.save(adminUser);
+    public void sendLoginCode(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        String code = generateRandomCode();
+        notificationService.sendLoginCode(user, code);
+        // 保存验证码到 Redis...
     }
 }
 ```
@@ -827,11 +822,11 @@ public class AdminUserAuthAppService {
 | 要点 | 说明 |
 |------|------|
 | `@Port(PortType.CLIENT)` | 标记客户端端口接口 |
-| `@DomainService` | 领域服务封装技术能力 |
+| `@DomainService` | 领域服务封装外部服务调用 |
 | `@Component` | 适配器必须添加，Spring 才能发现 Bean |
 | `@Adapter(PortType.CLIENT)` | 标记适配器类型 |
 | 构造函数注入 | 所有依赖字段声明为 final |
-| Bean 命名 | 避免冲突，如 `adminBCryptPasswordEncoder` |
+| 可替换性 | 可轻松切换阿里云/腾讯云/云片短信 |
 
 ### 3.5 使用 ArchUnit 规则
 
@@ -1880,18 +1875,15 @@ cartisan-boot 的设计理念：**提供能力，不强求风格**。
 领域服务用于封装：
 - 不属于任何聚合根的业务逻辑
 - 需要多个聚合根协作的业务逻辑
-- 需要外部技术能力的业务逻辑（通过南向接口）
+- 需要调用外部服务的业务逻辑（通过南向接口）
 
 **何时使用南向接口（Service Port）？**
 
-当领域层需要使用外部基础设施服务时：
-
 | 适合使用 Service Port | 不适合使用 Service Port |
 |----------------------|------------------------|
-| 密码编码/验证 | 领域业务逻辑（应在聚合根中） |
-| 消息/通知发送 | 应用服务编排（应在 Application Service 中） |
-| 文件存储操作 | 简单的工具方法（可直接使用） |
-| 第三方 API 调用 | |
+| 跨限界上下文调用 | 领域业务逻辑（应在聚合根中） |
+| 外部 API 调用（短信、支付、OSS） | 应用服务编排（应在 Application Service 中） |
+| 中间件交互（消息队列、缓存、搜索） | 纯工具类（如 BCryptPasswordEncoder，直接注入使用） |
 
 | 规则 | 说明 |
 |------|------|
