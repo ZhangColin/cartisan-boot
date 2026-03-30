@@ -29,6 +29,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
+    // Spring JDBC（IntegrationTestBase 需要 JdbcTemplate）
+    implementation("org.springframework:spring-jdbc")
+
     // Jackson（JSON 序列化，ApiTestAssertions 需要）
     implementation("com.fasterxml.jackson.core:jackson-databind")
 

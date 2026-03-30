@@ -251,25 +251,43 @@ Caused by: UnsupportedOperationException: Utility class
 
 ---
 
-### 规则 TOOL-005：Testcontainers 与 Docker Desktop 版本兼容性
+### 规则 TOOL-005：集成测试需要手动启动测试环境
 
-**症状**：`Could not find a valid Docker environment` 错误，但 Docker CLI 正常工作。
+**背景**：项目不使用 Testcontainers，避免与本地 Docker 冲突。
 
-**原因**：Testcontainers 1.20.4 及以下版本与 Docker Engine 29 / Docker Desktop 4.59+ 不兼容。
+**解决方案**：手动启动 PostgreSQL 和 Redis 用于测试。
 
-**解决方案**：
-1. 升级到 Testcontainers 1.21.4 或更高版本
-2. 确认版本：`gradle/libs.versions.toml` 中 `testcontainers = "1.21.4"`
-3. 添加 PostgreSQL JDBC 驱动：
-   ```kotlin
-   runtimeOnly("org.postgresql:postgresql:42.7.4")
-   ```
-
-**验证命令**：
 ```bash
-./gradlew :cartisan-test:test --info | grep "Container is started"
-# 应输出：Container postgres:16-alpine started in PT0.6s
+# 启动 PostgreSQL（测试用）
+docker run -d -p 5432:5432 \
+  -e POSTGRES_DB=testdb \
+  -e POSTGRES_USER=test \
+  -e POSTGRES_PASSWORD=test \
+  postgres:16-alpine
+
+# 启动 Redis（测试用）
+docker run -d -p 6379:6379 redis:7-alpine
 ```
+
+**环境变量配置（可选）**：
+```bash
+export TEST_DB_URL=jdbc:postgresql://localhost:5432/testdb
+export TEST_DB_USER=test
+export TEST_DB_PASSWORD=test
+export TEST_REDIS_HOST=localhost
+export TEST_REDIS_PORT=6379
+```
+
+**检查环境**：
+```java
+TestEnvironmentChecker checker = new TestEnvironmentChecker();
+checker.checkFromEnvironment();
+if (checker.hasErrors()) {
+    checker.printReport();
+}
+```
+
+**记忆口诀**：集成测试手动启环境，Testcontainers 不使用。
 
 ---
 
@@ -821,23 +839,7 @@ assertThatThrownBy(constructor::newInstance)
 
 ---
 
-### PIT-009 (2026-03-13)：Docker Desktop Socket 配置问题
-
-**场景**：Testcontainers 在 macOS Docker Desktop 环境下报错 "Could not find a valid Docker environment"。
-
-**原因**：Testcontainers 默认查找 `/var/run/docker.sock`，但 Docker Desktop 使用不同 socket 路径。
-
-**解决方案**：
-1. 确保 Docker Desktop 正在运行
-2. 检查 `docker ps` 命令是否正常
-3. 如仍失败，检查 Ryuk 容器是否被阻止（Docker Desktop 4.25+ 需要配置）
-4. 或设置环境变量：`export DOCKER_HOST=unix:///var/run/docker.sock`
-
-**注意**：这是 Docker Desktop 配置问题，不是代码问题。代码在生产环境 Linux Docker 下可正常工作。
-
----
-
-### PIT-010 (2026-03-13)：测试模块需要 spring-boot-starter-data-redis
+### PIT-009 (2026-03-13)：测试模块需要 spring-boot-starter-data-redis
 
 **场景**：`IntegrationTestBase` 编译失败，提示 `StringRedisTemplate` 找不到符号。
 

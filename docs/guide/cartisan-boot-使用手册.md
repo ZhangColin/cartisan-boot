@@ -22,7 +22,8 @@
 | 能力 | 说明 |
 |------|------|
 | **ArchUnit 规则** | DDD 分层、命名规范、禁止规则的自动验证 |
-| **Testcontainers** | PostgreSQL + Redis 集成测试基类 |
+| **集成测试基类** | IntegrationTestBase（需手动启动测试环境） |
+| **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
 | **Fixture 工具** | 随机数据生成器 + 对象构建器 |
 
@@ -189,19 +190,21 @@
 | `CartesianProhibitionRules` | 3 | 禁止规则 |
 | `CartesianArchRules` | 11 | 聚合全部规则 |
 
-### 2.6 Testcontainers（com.cartisan.test.container）
-
-| 类 | 容器 | 说明 |
-|----|------|------|
-| `PostgresTestContainer` | PostgreSQL 16 | `@ServiceConnection` 自动注入 |
-| `RedisTestContainer` | Redis 7 | `@ServiceConnection` 自动注入 |
-
-### 2.7 测试基类（com.cartisan.test.base）
+### 2.6 测试基类（com.cartisan.test.base）
 
 | 类 | 继承关系 | 提供能力 |
 |----|----------|----------|
-| `IntegrationTestBase` | - | 容器启动 + 数据清理 |
-| `ApiTestBase` | `IntegrationTestBase` | + MockMvc |
+| `IntegrationTestBase` | - | JdbcTemplate + 环境配置 |
+| `ApiTestBase` | - | MockMvc |
+
+### 2.7 环境检查工具（com.cartisan.test.base）
+
+| 类 | 方法 | 说明 |
+|----|------|------|
+| `TestEnvironmentChecker` | `checkPostgreSQL(...)` | 检查 PostgreSQL 连接 |
+| | `checkRedis(...)` | 检查 Redis 连接 |
+| | `checkFromEnvironment()` | 从环境变量读取配置并检查 |
+| `TestEnvironmentCheckerMain` | `main(...)` | 可直接运行的环境检查工具 |
 
 ### 2.8 Fixture 工具（com.cartisan.test.fixture）
 
@@ -740,25 +743,43 @@ public class ArchitectureTest {
 }
 ```
 
-### 3.6 使用 Testcontainers 基类
+### 3.6 使用集成测试基类
+
+**启动测试环境：**
+
+```bash
+# 启动 PostgreSQL（测试用）
+docker run -d -p 5432:5432 \
+  -e POSTGRES_DB=testdb \
+  -e POSTGRES_USER=test \
+  -e POSTGRES_PASSWORD=test \
+  postgres:16-alpine
+
+# 启动 Redis（测试用）
+docker run -d -p 6379:6379 redis:7-alpine
+```
+
+**Repository 集成测试：**
 
 ```java
-// Repository 集成测试
 class OrderRepositoryTest extends IntegrationTestBase {
     @Autowired
     private OrderRepository orderRepository;
 
     @Test
     void shouldSaveOrder() {
-        // 数据库已清理（@BeforeEach TRUNCATE）
+        // 每次测试后自动回滚事务，数据隔离
         Order order = new Order("customer-123", List.of());
         orderRepository.save(order);
 
         assertThat(orderRepository.findById(order.getId())).isPresent();
     }
 }
+```
 
-// Controller API 测试
+**Controller API 测试：**
+
+```java
 class OrderControllerTest extends ApiTestBase {
     @Autowired
     private ObjectMapper objectMapper;
@@ -774,6 +795,27 @@ class OrderControllerTest extends ApiTestBase {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.id").exists());
     }
+}
+```
+
+**环境变量配置（可选）：**
+
+```bash
+export TEST_DB_URL=jdbc:postgresql://localhost:5432/testdb
+export TEST_DB_USER=test
+export TEST_DB_PASSWORD=test
+export TEST_REDIS_HOST=localhost
+export TEST_REDIS_PORT=6379
+```
+
+**检查测试环境：**
+
+```java
+// 编程方式检查
+TestEnvironmentChecker checker = new TestEnvironmentChecker();
+checker.checkFromEnvironment();
+if (checker.hasErrors()) {
+    checker.printReport();
 }
 ```
 
@@ -1810,7 +1852,7 @@ public class AdminUserRole implements DomainEntity<AdminUserRole, Long> {
 
 | 规则 | 说明 |
 |------|------|
-| **TOOL-005** | Testcontainers 与 Docker Engine 29 需要版本 1.21.4+ |
+| **TOOL-005** | 集成测试需要手动启动 PostgreSQL 和 Redis 环境 |
 | **TOOL-006** | PIT 变异测试是 Phase 5 必跑门禁，杀死率 ≥ 70% |
 | **TOOL-004** | `@TestConfiguration` 不能使用工具类模式（私有构造抛异常） |
 | **TEST-003** | Spring Boot Test 依赖分层：`api` 暴露给业务，`implementation` 本模块使用 |
