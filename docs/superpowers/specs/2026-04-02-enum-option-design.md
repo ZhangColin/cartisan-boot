@@ -50,7 +50,7 @@ public record UserResponse(
 ### 2.1 包结构
 
 - `EnumOption` → `com.cartisan.web.response`（与 ApiResponse 等放在一起）
-- `EnumOptionUtils` → `com.cartisan.web.utils`（新建 utils 包）
+- `EnumOptionUtils` → `com.cartisan.web.support`（与 TreeNode 等工具类放在一起，避免创建新包）
 - `EnumRegistry` → `com.cartisan.web.enums`（新建 enums 包）
 - `EnumController` → `com.cartisan.web.controller`（新建 controller 包）
 - `EnumControllerBase` → `com.cartisan.web.controller`（基类）
@@ -113,10 +113,10 @@ public record EnumOption(
 
 ### 3.2 EnumOptionUtils（工具类）
 
-**位置**：`com.cartisan.web.utils.EnumOptionUtils`
+**位置**：`com.cartisan.web.support.EnumOptionUtils`
 
 ```java
-package com.cartisan.web.utils;
+package com.cartisan.web.support;
 
 import com.cartisan.core.domain.BaseEnum;
 import com.cartisan.web.response.EnumOption;
@@ -140,6 +140,21 @@ public class EnumOptionUtils {
      */
     public static <E extends Enum<E> & BaseEnum<E>> List<EnumOption> fromEnum(Class<E> enumClass) {
         return Arrays.stream(enumClass.getEnumConstants())
+            .map(e -> new EnumOption(e.getCode(), e.getName()))
+            .toList();
+    }
+
+    /**
+     * 将枚举类转换为选项列表（通配符版本，供 EnumRegistry 使用）。
+     *
+     * @param enumClass 枚举类
+     * @return 选项列表
+     */
+    @SuppressWarnings("rawtypes")
+    public static List<EnumOption> fromEnum(Class<? extends BaseEnum> enumClass) {
+        Object[] enumConstants = enumClass.getEnumConstants();
+        return Arrays.stream(enumConstants)
+            .map(e -> (BaseEnum) e)
             .map(e -> new EnumOption(e.getCode(), e.getName()))
             .toList();
     }
@@ -190,8 +205,12 @@ public class EnumRegistry {
      *
      * @param name      枚举类名（简单类名）
      * @param enumClass 枚举类
+     * @throws IllegalArgumentException 如果类不是枚举
      */
     public void register(String name, Class<? extends BaseEnum<?>> enumClass) {
+        if (!enumClass.isEnum()) {
+            throw new IllegalArgumentException("Class must be an enum: " + enumClass.getName());
+        }
         enumClassMap.put(name, enumClass);
     }
 
@@ -216,11 +235,10 @@ public class EnumRegistry {
      * @param name 枚举类名
      * @return 选项列表
      */
-    @SuppressWarnings("unchecked")
     public List<EnumOption> getEnumOptions(String name) {
         Class<? extends BaseEnum<?>> enumClass = getEnumClass(name);
-        // 泛型擦除：需要用原始类型调用
-        return EnumOptionUtils.fromEnum((Class<Enum<?>>) enumClass);
+        // 通过反射调用 EnumOptionUtils.fromEnum()
+        return EnumOptionUtils.fromEnum(enumClass);
     }
 
     /**
@@ -244,6 +262,7 @@ package com.cartisan.web.controller;
 import com.cartisan.web.enums.EnumRegistry;
 import com.cartisan.web.response.ApiResponse;
 import com.cartisan.web.response.EnumOption;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -258,12 +277,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("${cartisan.web.enum-controller.path:/api/enums}")
-@ConditionalOnProperty(
-    prefix = "cartisan.web.enum-controller",
-    name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true
-)
 public class EnumController extends EnumControllerBase {
 
     private final EnumRegistry enumRegistry;
@@ -273,13 +286,13 @@ public class EnumController extends EnumControllerBase {
     }
 
     @GetMapping("/{enumName}")
-    public ApiResponse<Map<String, List<EnumOption>>> getEnum(@PathVariable String enumName) {
-        return ApiResponse.ok(Map.of("enums", List.of(enumRegistry.getEnumOptions(enumName))));
+    public ApiResponse<List<EnumOption>> getEnum(@PathVariable String enumName) {
+        return ApiResponse.ok(enumRegistry.getEnumOptions(enumName));
     }
 
     @PostMapping("/batch")
     public ApiResponse<Map<String, List<EnumOption>>> batchEnums(
-            @RequestBody EnumBatchRequest request) {
+            @RequestBody @Valid EnumBatchRequest request) {
         Map<String, List<EnumOption>> result = super.batchEnums(request.enums());
         return ApiResponse.ok(Map.of("enums", result));
     }
@@ -338,6 +351,8 @@ public abstract class EnumControllerBase {
 ```java
 package com.cartisan.web.controller;
 
+import jakarta.validation.constraints.NotEmpty;
+
 import java.util.List;
 
 /**
@@ -347,7 +362,7 @@ import java.util.List;
  * @since 0.9.0
  */
 public record EnumBatchRequest(
-    List<String> enums
+    @NotEmpty List<String> enums
 ) {}
 ```
 
@@ -450,6 +465,60 @@ public class EnumScanner {
     }
 }
 ```
+
+### 3.9 自动配置集成
+
+**位置**：`com.cartisan.web.config.CartisanWebAutoConfiguration`（修改现有类）
+
+在 `CartisanWebAutoConfiguration` 类中添加以下 Bean 定义：
+
+```java
+// 在类的字段声明区域添加
+/**
+ * 枚举 Controller 配置属性。
+ */
+@Bean
+@EnableConfigurationProperties(EnumControllerProperties.class)
+public EnumControllerProperties enumControllerProperties() {
+    return new EnumControllerProperties();
+}
+
+/**
+ * 注册枚举扫描器。
+ *
+ * @param enumRegistry 枚举注册表
+ * @return EnumScanner 实例
+ */
+@Bean
+public EnumScanner enumScanner(EnumRegistry enumRegistry) {
+    return new EnumScanner(enumRegistry);
+}
+
+/**
+ * 注册枚举 Controller（默认实现）。
+ *
+ * <p>可通过配置项 {@code cartisan.web.enum-controller.enabled} 禁用。
+ *
+ * @param enumRegistry 枚举注册表
+ * @return EnumController 实例
+ */
+@Bean
+@ConditionalOnProperty(
+    prefix = "cartisan.web.enum-controller",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true
+)
+public EnumController enumController(EnumRegistry enumRegistry) {
+    return new EnumController(enumRegistry);
+}
+```
+
+**说明**：
+- `EnumRegistry` 已经在 `EnumScanner` 类上标注了 `@Component`，Spring 会自动注册
+- `EnumController` 通过 `@ConditionalOnProperty` 控制是否启用
+- 配置属性通过 `@EnableConfigurationProperties` 启用
+- 路径配置通过 `@RequestMapping` 中的 `${cartisan.web.enum-controller.path:/api/enums}` 占位符实现
 
 ## 四、配置说明
 
