@@ -1,6 +1,9 @@
 package com.cartisan.web.config;
 
 import com.cartisan.web.context.RequestContextFilter;
+import com.cartisan.web.controller.EnumController;
+import com.cartisan.web.enums.EnumRegistry;
+import com.cartisan.web.enums.EnumScanner;
 import com.cartisan.web.exception.GlobalExceptionHandler;
 import com.cartisan.web.filter.RequestLogFilter;
 import com.cartisan.web.response.AutoResponseConfiguration;
@@ -10,6 +13,7 @@ import com.cartisan.web.resubmit.ResubmitLock;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -127,5 +131,35 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
     @Override
     public void addFormatters(FormatterRegistry registry) {
         registry.addConverterFactory(new BaseEnumConverter());
+    }
+
+    /**
+     * 注册枚举扫描器。
+     *
+     * @param enumRegistry 枚举注册表（由 @Component 自动注册）
+     * @return EnumScanner 实例
+     */
+    @Bean
+    public EnumScanner enumScanner(EnumRegistry enumRegistry) {
+        return new EnumScanner(enumRegistry);
+    }
+
+    /**
+     * 注册枚举 Controller（默认实现）。
+     *
+     * <p>可通过配置项 {@code cartisan.web.enum-controller.enabled} 禁用。
+     *
+     * @param enumRegistry 枚举注册表（由 @Component 自动注册）
+     * @return EnumController 实例
+     */
+    @Bean
+    @ConditionalOnProperty(
+        prefix = "cartisan.web.enum-controller",
+        name = "enabled",
+        havingValue = "true",
+        matchIfMissing = true
+    )
+    public EnumController enumController(EnumRegistry enumRegistry) {
+        return new EnumController(enumRegistry);
     }
 }
