@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.format.FormatterRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * cartisan-web 模块的 Spring Boot 自动配置。
@@ -44,7 +46,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @AutoConfiguration
 @ConditionalOnWebApplication
 @Import(AutoResponseConfiguration.class)
-public class CartisanWebAutoConfiguration {
+public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
 
     /**
      * 注册请求上下文 Filter。
@@ -113,5 +115,17 @@ public class CartisanWebAutoConfiguration {
     @ConditionalOnMissingBean
     public ResubmitAspect resubmitAspect(ResubmitLock resubmitLock) {
         return new ResubmitAspect(resubmitLock);
+    }
+
+    /**
+     * 注册 BaseEnum Converter Factory。
+     *
+     * 支持 @RequestParam、@PathVariable 直接使用 BaseEnum 类型参数。
+     *
+     * @see com.cartisan.web.config.BaseEnumConverter
+     */
+    @Override
+    public void addFormatters(FormatterRegistry registry) {
+        registry.addConverterFactory(new BaseEnumConverter());
     }
 }
