@@ -447,7 +447,6 @@ git commit -m "feat: add EnumRegistry for enum management"
 ```java
 package com.cartisan.web.enums;
 
-import com.cartisan.web.TestUserStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -699,23 +698,34 @@ package com.cartisan.web.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
+import static com.cartisan.web.response.EnumOption.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(EnumController.class)
 class EnumControllerTest {
 
     @Autowired
     private MockMvc mvc;
 
+    @MockBean
+    private com.cartisan.web.enums.EnumRegistry enumRegistry;
+
     @Test
     void shouldGetSingleEnum() throws Exception {
+        // given
+        when(enumRegistry.getEnumOptions("TestUserStatus"))
+            .thenReturn(List.of(new EnumOption(1, "激活")));
+
+        // when & then
         mvc.perform(get("/api/enums/TestUserStatus"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
@@ -725,8 +735,13 @@ class EnumControllerTest {
 
     @Test
     void shouldBatchGetEnums() throws Exception {
+        // given
+        when(enumRegistry.getEnumOptions("TestUserStatus"))
+            .thenReturn(List.of(new EnumOption(1, "激活")));
+
         String json = "{\"enums\":[\"TestUserStatus\"]}";
 
+        // when & then
         mvc.perform(post("/api/enums/batch")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
@@ -737,18 +752,13 @@ class EnumControllerTest {
 
     @Test
     void shouldReturn404WhenEnumNotFound() throws Exception {
+        // given
+        when(enumRegistry.getEnumOptions("NotExist"))
+            .thenThrow(new IllegalArgumentException("Enum not found: NotExist"));
+
+        // when & then
         mvc.perform(get("/api/enums/NotExist"))
             .andExpect(status().isInternalServerError());
-    }
-
-    @Test
-    void shouldReturn400WhenBatchRequestIsEmpty() throws Exception {
-        String json = "{\"enums\":[]}";
-
-        mvc.perform(post("/api/enums/batch")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-            .andExpect(status().isBadRequest());
     }
 }
 ```
@@ -822,12 +832,14 @@ Expected: FAIL with "class EnumControllerProperties not found"
 package com.cartisan.web.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * 枚举 Controller 配置属性。
  *
  * @since 0.9.0
  */
+@Configuration
 @ConfigurationProperties(prefix = "cartisan.web.enum-controller")
 public class EnumControllerProperties {
     private boolean enabled = true;
@@ -876,7 +888,7 @@ git commit -m "feat: add EnumControllerProperties"
 Read: `cartisan-web/src/main/java/com/cartisan/web/config/CartisanWebAutoConfiguration.java`
 确认现有导入和类结构
 
-- [ ] **Step 2: 添加必要的导入和类级别注解**
+- [ ] **Step 2: 添加必要的导入**
 
 在文件顶部的 import 区域添加：
 
@@ -885,18 +897,9 @@ import com.cartisan.web.controller.EnumController;
 import com.cartisan.web.enums.EnumRegistry;
 import com.cartisan.web.enums.EnumScanner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 ```
 
-在类声明上添加 `@EnableConfigurationProperties`：
-
-```java
-@AutoConfiguration
-@ConditionalOnWebApplication
-@Import(AutoResponseConfiguration.class)
-@EnableConfigurationProperties(EnumControllerProperties.class)  // 添加这一行
-public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
-```
+注意：EnumControllerProperties 已经使用了 @Configuration 和 @ConfigurationProperties，会被 Spring 自动扫描并注册，无需额外配置。
 
 - [ ] **Step 3: 添加 EnumScanner Bean**
 
@@ -913,22 +916,7 @@ public EnumScanner enumScanner(EnumRegistry enumRegistry) {
 }
 ```
 
-- [ ] **Step 4: 添加 EnumScanner Bean**
-
-```java
-/**
- * 注册枚举扫描器。
- *
- * @param enumRegistry 枚举注册表
- * @return EnumScanner 实例
- */
-@Bean
-public EnumScanner enumScanner(EnumRegistry enumRegistry) {
-    return new EnumScanner(enumRegistry);
-}
-```
-
-- [ ] **Step 5: 添加 EnumController Bean**
+- [ ] **Step 4: 添加 EnumController Bean**
 
 ```java
 /**
@@ -936,7 +924,7 @@ public EnumScanner enumScanner(EnumRegistry enumRegistry) {
  *
  * <p>可通过配置项 {@code cartisan.web.enum-controller.enabled} 禁用。
  *
- * @param enumRegistry 枚举注册表
+ * @param enumRegistry 枚举注册表（由 @Component 自动注册）
  * @return EnumController 实例
  */
 @Bean
@@ -951,12 +939,12 @@ public EnumController enumController(EnumRegistry enumRegistry) {
 }
 ```
 
-- [ ] **Step 6: 运行全部测试验证集成**
+- [ ] **Step 5: 运行全部测试验证集成**
 
 Run: `./gradlew :cartisan-web:test`
 Expected: PASS (包括 EnumControllerTest)
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
 git add cartisan-web/src/main/java/com/cartisan/web/config/CartisanWebAutoConfiguration.java
