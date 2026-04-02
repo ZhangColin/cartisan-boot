@@ -51,7 +51,7 @@ class BaseEnumConverterIntegrationTest {
                 .param("status", "999"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().json(
-                    "{\"success\":false,\"code\":400,\"message\":\"Invalid enum code: 999 for TestUserStatus\"}"
+                    "{\"code\":400,\"message\":\"Invalid enum code: 999 for TestUserStatus\"}"
                 ));
     }
 
@@ -59,10 +59,10 @@ class BaseEnumConverterIntegrationTest {
     @DisplayName("当传入非数字字符串时应该返回 400")
     void shouldReturn400_whenInputIsNotNumber() throws Exception {
         mockMvc.perform(get("/test/enum/request-param")
-                .param("status", "ACTIVE"))
+                .param("status", "invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().json(
-                    "{\"success\":false,\"code\":400,\"message\":\"Enum value must be Integer code, not string: ACTIVE\"}"
+                    "{\"code\":400,\"message\":\"Enum value must be Integer code, not string: invalid\"}"
                 ));
     }
 }

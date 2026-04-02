@@ -125,8 +125,36 @@ public class GlobalExceptionHandler {
                         (supportedMethods.isEmpty() ? "" : ". Supported: " + supportedMethods)));
     }
 
-    @ExceptionHandler({NoHandlerFoundException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String paramName = ex.getName();
+        String paramValue = ex.getValue() != null ? ex.getValue().toString() : "null";
+
+        // 如果是 BaseEnum 转换失败，给出更友好的提示
+        // Spring wraps the conversion exception, so we need to check the root cause
+        Throwable cause = ex.getCause();
+        if (cause instanceof IllegalArgumentException illegalArgEx) {
+            log.warn("Invalid parameter value: {} = {}", paramName, paramValue);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, illegalArgEx.getMessage()));
+        }
+
+        // Also check if there's an IllegalArgumentException deeper in the chain
+        Throwable rootCause = ex.getMostSpecificCause();
+        if (rootCause instanceof IllegalArgumentException illegalArgEx) {
+            log.warn("Invalid parameter value: {} = {}", paramName, paramValue);
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, illegalArgEx.getMessage()));
+        }
+
+        // 其他类型不匹配（如路径变量类型错误），仍返回 404
+        log.warn("Type mismatch: {}", paramName);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND));
     }
