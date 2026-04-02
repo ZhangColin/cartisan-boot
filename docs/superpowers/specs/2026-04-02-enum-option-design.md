@@ -147,11 +147,14 @@ public class EnumOptionUtils {
     /**
      * 将枚举类转换为选项列表（通配符版本，供 EnumRegistry 使用）。
      *
+     * <p>注意：由于 Java 类型擦除，此方法不能与 fromEnum(Class<E>) 重载，
+     * 因此使用不同的方法名以避免编译错误。
+     *
      * @param enumClass 枚举类
      * @return 选项列表
      */
     @SuppressWarnings("rawtypes")
-    public static List<EnumOption> fromEnum(Class<? extends BaseEnum> enumClass) {
+    public static List<EnumOption> fromEnumGeneric(Class<? extends BaseEnum> enumClass) {
         Object[] enumConstants = enumClass.getEnumConstants();
         return Arrays.stream(enumConstants)
             .map(e -> (BaseEnum) e)
