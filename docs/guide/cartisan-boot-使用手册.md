@@ -151,6 +151,43 @@
 |----|------|
 | `BaseEnumSerializer` | Jackson 序列化器：BaseEnum → Integer code |
 | `BaseEnumDeserializer` | Jackson 反序列化器：Integer → BaseEnum（使用 ContextualDeserializer） |
+| `BaseEnumConverter` | Spring MVC Converter：String(Integer code) → BaseEnum，支持 `@RequestParam`、`@PathVariable` |
+
+**BaseEnum 参数绑定**：
+
+业务枚举实现 `BaseEnum` 接口后，**零配置**即可在 Controller 中直接使用枚举类型：
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    // GET /api/users?status=1  → status 自动转换为 UserStatus.ACTIVE
+    @GetMapping
+    public List<UserDTO> getUsers(@RequestParam UserStatus status) {
+        return userService.getUsersByStatus(status);
+    }
+
+    // PUT /api/users/123?status=0  → status 自动转换为 UserStatus.DISABLED
+    @PutMapping("/{id}")
+    public void updateUserStatus(
+            @PathVariable Long id,
+            @RequestParam UserStatus status) {
+        userService.updateStatus(id, status);
+    }
+}
+```
+
+**特性**：
+- ✅ **零配置**：引入 `cartisan-web` 依赖即生效
+- ✅ **只支持 Integer code**：如 `?status=1`，不支持 name 格式（如 `?status=ACTIVE`）
+- ✅ **null 处理**：null/空字符串返回 null，由 `@NotNull` 等校验处理
+- ✅ **错误处理**：无效 code 返回 400 Bad Request（而非 404）
+
+**设计取舍**：
+1. **只支持 code 不支持 name**：API 传输应该是稳定的 code 值，而不是可能变化的 name
+2. **null 返回 null**：Converter 负责类型转换，校验由业务层注解处理（职责分离）
+3. **自动注册**：通过 `CartisanWebAutoConfiguration` 实现 `WebMvcConfigurer` 自动注册
 
 ### 2.2 异常体系（com.cartisan.core.exception）
 

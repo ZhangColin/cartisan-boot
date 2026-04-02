@@ -1440,6 +1440,56 @@ public enum UserStatus {
 
 ---
 
+### 规则 DATA-010：BaseEnum 参数绑定只支持 Integer code
+
+**问题**：在 `@RequestParam`、`@PathVariable` 中使用枚举时，传递 name 而非 code 导致转换失败。
+
+**正确做法**：
+```java
+// ✅ 使用 Integer code
+@GetMapping("/users")
+public List<UserDTO> getUsers(@RequestParam UserStatus status) {
+    // 请求: GET /users?status=1  → status = UserStatus.ACTIVE
+}
+
+// ✅ 可选参数支持 null
+@GetMapping("/users")
+public List<UserDTO> getUsers(@RequestParam(required = false) UserStatus status) {
+    // 请求: GET /users  → status = null
+}
+```
+
+**错误做法**：
+```java
+// ❌ 不要传递 name 格式
+// 请求: GET /users?status=ACTIVE  → 400 Bad Request
+// 错误: "Enum value must be Integer code, not string: ACTIVE"
+```
+
+**异常处理**：
+- **无效 code**（如 `?status=999`）：返回 400 Bad Request，错误信息 `"Invalid enum code: 999 for UserStatus"`
+- **非数字字符串**（如 `?status=ACTIVE`）：返回 400 Bad Request，错误信息 `"Enum value must be Integer code, not string: ACTIVE"`
+- **null/空字符串**：返回 null，由 `@NotNull` 等业务校验处理
+
+**记忆口诀**：BaseEnum 参数绑定只认 code，name 格式不支持。
+
+**原理**：`BaseEnumConverter` 实现了 Spring MVC 的 `ConverterFactory<String, BaseEnum<?>>`，通过 `CartisanWebAutoConfiguration` 自动注册，零配置生效。
+
+---
+
+### 规则 DATA-011
+
+**问题**：Jackson 反序列化时无法自动识别目标枚举类型。
+
+**解决方案**：
+- `BaseEnumDeserializer` 实现 `ContextualDeserializer` 接口
+- 通过 `createContextual()` 方法获取目标字段的枚举类型
+- 使用 `BaseEnum.parseByCode()` 查找对应枚举
+
+**记忆口诀**：BaseEnum 反序列化用 ContextualDeserializer 获取目标类型。
+
+---
+
 ## Spring Boot / 自动配置
 
 ### 规则 BOOT-001：使用 JpaRepositoryFactoryEntryCustomizer 自动配置 repositoryBaseClass
