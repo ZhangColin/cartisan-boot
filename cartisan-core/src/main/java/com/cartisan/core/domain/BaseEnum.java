@@ -5,8 +5,9 @@ package com.cartisan.core.domain;
  * <p>
  * 业务枚举实现此接口后，框架自动完成：
  * <ul>
- *   <li>JPA：int ↔ enum 转换</li>
+ *   <li>JPA：int ↔ enum 转换（需 @EnumConvert 注解）</li>
  *   <li>Jackson：enum ↔ int 序列化</li>
+ *   <li>Spring MVC：String → enum 参数绑定（@RequestParam、@PathVariable）</li>
  * </ul>
  */
 public interface BaseEnum<T extends Enum<T> & BaseEnum<T>> {
