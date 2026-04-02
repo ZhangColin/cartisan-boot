@@ -42,6 +42,7 @@
 | **Jackson 配置** | 全局序列化配置（Long→String、日期格式等） |
 | **自动响应包装** | `AutoResponseAdvice` 可选功能 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+| **枚举选项** | `EnumOption`、`EnumOptionUtils`、`EnumController` 支持前端获取枚举选项列表 |
 
 ### 1.4 cartisan-data-jpa 模块
 
@@ -590,6 +591,26 @@ public class PermissionInitService {
 | `ConditionSpecifications.fromAnnotation(query)` | 从注解生成 Specification |
 
 **详细使用指南**：[condition-annotation.md](condition-annotation.md)
+
+### 2.36 枚举选项支持（com.cartisan.web.response）
+
+| 类/方法 | 说明 |
+|--------|------|
+| `EnumOption` | 枚举选项 DTO，包含 code 和 name 字段 |
+| `EnumOptionUtils.fromEnum(Class)` | 将枚举类转换为选项列表 |
+| `EnumOptionUtils.fromEnumGeneric(Class)` | 将枚举类转换为选项列表（通配符版本） |
+| `EnumOptionUtils.fromEnums(E...)` | 将枚举数组转换为选项列表 |
+| `EnumRegistry` | 枚举注册表，维护枚举类名到 Class 的映射 |
+| `EnumController` | 默认 Controller，提供 `/api/enums/{enumName}` 和 `/api/enums/batch` 端点 |
+| `EnumControllerBase` | Controller 基类，可继承自定义 |
+
+**配置属性**：
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `cartisan.web.enum-controller.enabled` | `boolean` | `true` | 是否启用默认 Controller |
+| `cartisan.web.enum-controller.path` | `String` | `/api/enums` | Controller 路径 |
+| `cartisan.web.enum-controller.scan-packages` | `String[]` | - | 要扫描的包列表（默认：com.cartisan, com.example） |
 
 ### 2.36 AutoResponseAdvice（com.cartisan.web.response）
 
@@ -1798,6 +1819,95 @@ public User getById(@PathVariable Long id) {
 ```
 
 > **详细说明**：参见 [5.9 AutoResponseAdvice 详细说明](#五一详细功能指南)
+
+### 3.34 使用枚举选项工具
+
+```java
+// 转换单个枚举
+List<EnumOption> options = EnumOptionUtils.fromEnum(UserStatus.class);
+
+// 转换枚举数组
+List<EnumOption> options = EnumOptionUtils.fromEnums(
+    UserStatus.ACTIVE,
+    UserStatus.INACTIVE
+);
+
+// 在 Response 中包含选项
+public record UserResponse(
+    Long id,
+    UserStatus status,
+    List<EnumOption> statusOptions
+) {}
+
+@Mapper(componentModel = "spring")
+public interface UserMapper extends DomainMapper<User, UserResponse> {
+    @Mapping(target = "statusOptions",
+             expression = "java(EnumOptionUtils.fromEnum(UserStatus.class))")
+    UserResponse toResponse(User user);
+}
+```
+
+### 3.35 使用默认枚举 Controller
+
+```yaml
+# application.yml（默认配置）
+cartisan:
+  web:
+    enum-controller:
+      enabled: true
+      path: /api/enums
+```
+
+```javascript
+// 前端调用示例
+const fetchEnums = async () => {
+  // 单个枚举
+  const response1 = await fetch('/api/enums/UserStatus');
+  const data1 = await response1.json();
+  // data1.data = [{code: 1, name: "启用"}, {code: 0, name: "禁用"}]
+
+  // 批量获取
+  const response2 = await fetch('/api/enums/batch', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enums: ['UserStatus', 'OrderStatus']})
+  });
+  const data2 = await response2.json();
+  // data2.data.enums = {UserStatus: [...], OrderStatus: [...]}
+};
+```
+
+### 3.36 自定义枚举 Controller
+
+```yaml
+# 禁用默认实现
+cartisan:
+  web:
+    enum-controller:
+      enabled: false
+```
+
+```java
+@RestController
+@RequestMapping("/api/v2/dict")
+public class DictController extends EnumControllerBase {
+
+    public DictController(EnumRegistry enumRegistry) {
+        super(enumRegistry);
+    }
+
+    @GetMapping("/{enumName}")
+    public ApiResponse<List<EnumOption>> getEnum(@PathVariable String enumName) {
+        return ApiResponse.ok(enumRegistry.getEnumOptions(enumName));
+    }
+
+    @PostMapping("/batch")
+    public ApiResponse<Map<String, List<EnumOption>>> batch(
+            @RequestBody EnumBatchRequest request) {
+        return ApiResponse.ok(batchEnums(request.enums()));
+    }
+}
+```
 
 ---
 
