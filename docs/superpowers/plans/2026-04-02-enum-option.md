@@ -117,13 +117,13 @@ git commit -m "feat: add EnumOption DTO for enum options"
 
 **Files:**
 - Create: `cartisan-web/src/main/java/com/cartisan/web/support/EnumOptionUtils.java`
-- Create: `cartisan-web/src/test/java/com/cartisan/web/TestUserStatus.java` (测试用枚举)
+- Create: `cartisan-web/src/test/java/com/cartisan/web/enums/TestUserStatus.java` (测试用枚举)
 - Test: `cartisan-web/src/test/java/com/cartisan/web/support/EnumOptionUtilsTest.java`
 
 - [ ] **Step 1: 创建测试用枚举 TestUserStatus**
 
 ```java
-package com.cartisan.web;
+package com.cartisan.web.enums;
 
 import com.cartisan.core.domain.BaseEnum;
 import lombok.Getter;
@@ -145,7 +145,7 @@ public enum TestUserStatus implements BaseEnum<TestUserStatus> {
 ```java
 package com.cartisan.web.support;
 
-import com.cartisan.web.TestUserStatus;
+import com.cartisan.web.enums.TestUserStatus;
 import com.cartisan.web.response.EnumOption;
 import org.junit.jupiter.api.Test;
 
@@ -256,7 +256,7 @@ Expected: PASS
 ```bash
 git add cartisan-web/src/main/java/com/cartisan/web/support/EnumOptionUtils.java \
         cartisan-web/src/test/java/com/cartisan/web/support/EnumOptionUtilsTest.java \
-        cartisan-web/src/test/java/com/cartisan/web/TestUserStatus.java
+        cartisan-web/src/test/java/com/cartisan/web/enums/TestUserStatus.java
 git commit -m "feat: add EnumOptionUtils for enum conversion"
 ```
 
@@ -273,7 +273,6 @@ git commit -m "feat: add EnumOptionUtils for enum conversion"
 ```java
 package com.cartisan.web.enums;
 
-import com.cartisan.web.TestUserStatus;
 import com.cartisan.web.response.EnumOption;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -466,6 +465,7 @@ class EnumScannerTest {
     @Test
     void shouldScanAndRegisterEnums() {
         EnumScanner scanner = new EnumScanner(registry);
+        // 扫描 com.cartisan.web 包，其中包含 TestUserStatus 枚举
         scanner.scanBaseEnums("com.cartisan.web");
 
         List<String> enums = registry.listRegisteredEnums();
@@ -494,6 +494,7 @@ Expected: FAIL with "class EnumScanner not found"
 package com.cartisan.web.enums;
 
 import com.cartisan.core.domain.BaseEnum;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.util.ClassUtils;
@@ -510,6 +511,9 @@ import java.util.Set;
 public class EnumScanner {
 
     private final EnumRegistry registry;
+
+    @Value("${cartisan.web.enum-controller.scan-packages:}")
+    private String[] scanPackages;
 
     public EnumScanner(EnumRegistry registry) {
         this.registry = registry;
@@ -549,8 +553,10 @@ public class EnumScanner {
      */
     @PostConstruct
     public void autoScan() {
-        scanBaseEnums("com.cartisan");
-        scanBaseEnums("com.example");
+        String[] packagesToScan = scanPackages.length > 0 ? scanPackages : new String[]{"com.cartisan", "com.example"};
+        for (String pkg : packagesToScan) {
+            scanBaseEnums(pkg);
+        }
     }
 }
 ```
@@ -750,7 +756,13 @@ class EnumControllerTest {
 - [ ] **Step 5: 运行测试验证失败**
 
 Run: `./gradlew :cartisan-web:test --tests EnumControllerTest`
-Expected: FAIL (需要先完成后续配置任务)
+Expected: FAIL - 这是预期的失败，因为：
+1. EnumController 需要 EnumRegistry Bean（由 EnumScanner 的 @Component 提供）
+2. Spring Boot Test 会启动应用上下文
+3. EnumScanner 的 @PostConstruct 会自动扫描并注册枚举
+4. 但需要等待 Task 7 完成自动配置后才能正常工作
+
+这个测试会在 Task 7 完成后通过。
 
 - [ ] **Step 6: 提交**
 
@@ -864,7 +876,7 @@ git commit -m "feat: add EnumControllerProperties"
 Read: `cartisan-web/src/main/java/com/cartisan/web/config/CartisanWebAutoConfiguration.java`
 确认现有导入和类结构
 
-- [ ] **Step 2: 添加必要的导入**
+- [ ] **Step 2: 添加必要的导入和类级别注解**
 
 在文件顶部的 import 区域添加：
 
@@ -876,20 +888,28 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 ```
 
-- [ ] **Step 3: 添加 EnumControllerProperties Bean**
+在类声明上添加 `@EnableConfigurationProperties`：
 
-在类中添加（在现有方法之后）：
+```java
+@AutoConfiguration
+@ConditionalOnWebApplication
+@Import(AutoResponseConfiguration.class)
+@EnableConfigurationProperties(EnumControllerProperties.class)  // 添加这一行
+public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
+```
+
+- [ ] **Step 3: 添加 EnumScanner Bean**
 
 ```java
 /**
- * 枚举 Controller 配置属性。
+ * 注册枚举扫描器。
  *
- * @return EnumControllerProperties 实例
+ * @param enumRegistry 枚举注册表
+ * @return EnumScanner 实例
  */
 @Bean
-@EnableConfigurationProperties(EnumControllerProperties.class)
-public EnumControllerProperties enumControllerProperties() {
-    return new EnumControllerProperties();
+public EnumScanner enumScanner(EnumRegistry enumRegistry) {
+    return new EnumScanner(enumRegistry);
 }
 ```
 
@@ -1097,7 +1117,7 @@ Expected: ALL PASS
 
 - [ ] **Step 2: 检查测试覆盖率**
 
-Run: `./gradlew :cartesian-web:test jacocoTestReport`
+Run: `./gradlew :cartisan-web:test jacocoTestReport`
 Expected: 覆盖率 ≥ 80%
 
 - [ ] **Step 3: 手动验证（可选）**
