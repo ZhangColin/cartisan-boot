@@ -18,11 +18,8 @@ import java.util.Map;
 @RequestMapping("${cartisan.web.enum-controller.path:/api/enums}")
 public class EnumController extends EnumControllerBase {
 
-    private final EnumRegistry enumRegistry;
-
     public EnumController(EnumRegistry enumRegistry) {
         super(enumRegistry);
-        this.enumRegistry = enumRegistry;
     }
 
     @GetMapping("/{enumName}")
