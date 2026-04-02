@@ -117,35 +117,16 @@ git commit -m "feat: add EnumOption DTO for enum options"
 
 **Files:**
 - Create: `cartisan-web/src/main/java/com/cartisan/web/support/EnumOptionUtils.java`
-- Create: `cartisan-web/src/test/java/com/cartisan/web/enums/TestUserStatus.java` (测试用枚举)
 - Test: `cartisan-web/src/test/java/com/cartisan/web/support/EnumOptionUtilsTest.java`
 
-- [ ] **Step 1: 创建测试用枚举 TestUserStatus**
+**注意**: 使用现有的测试枚举 `com.cartisan.web.config.TestUserStatus`（ACTIVE, DISABLED, PENDING），无需创建新的测试枚举。
 
-```java
-package com.cartisan.web.enums;
-
-import com.cartisan.core.domain.BaseEnum;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-
-@Getter
-@RequiredArgsConstructor
-public enum TestUserStatus implements BaseEnum<TestUserStatus> {
-    ACTIVE(1, "激活"),
-    INACTIVE(0, "未激活");
-
-    private final Integer code;
-    private final String name;
-}
-```
-
-- [ ] **Step 2: 编写 EnumOptionUtilsTest 测试**
+- [ ] **Step 1: 编写 EnumOptionUtilsTest 测试**
 
 ```java
 package com.cartisan.web.support;
 
-import com.cartisan.web.enums.TestUserStatus;
+import com.cartisan.web.config.TestUserStatus;
 import com.cartisan.web.response.EnumOption;
 import org.junit.jupiter.api.Test;
 
@@ -159,18 +140,20 @@ class EnumOptionUtilsTest {
     void shouldConvertEnumToOptions() {
         List<EnumOption> options = EnumOptionUtils.fromEnum(TestUserStatus.class);
 
-        assertThat(options).hasSize(2);
+        assertThat(options).hasSize(3);
         assertThat(options.get(0).code()).isEqualTo(1);
-        assertThat(options.get(0).name()).isEqualTo("激活");
+        assertThat(options.get(0).name()).isEqualTo("启用");
         assertThat(options.get(1).code()).isEqualTo(0);
-        assertThat(options.get(1).name()).isEqualTo("未激活");
+        assertThat(options.get(1).name()).isEqualTo("禁用");
+        assertThat(options.get(2).code()).isEqualTo(2);
+        assertThat(options.get(2).name()).isEqualTo("待审核");
     }
 
     @Test
     void shouldConvertEnumArrayToOptions() {
         List<EnumOption> options = EnumOptionUtils.fromEnums(
             TestUserStatus.ACTIVE,
-            TestUserStatus.INACTIVE
+            TestUserStatus.DISABLED
         );
 
         assertThat(options).hasSize(2);
@@ -268,11 +251,18 @@ git commit -m "feat: add EnumOptionUtils for enum conversion"
 - Create: `cartisan-web/src/main/java/com/cartisan/web/enums/EnumRegistry.java`
 - Test: `cartisan-web/src/test/java/com/cartisan/web/enums/EnumRegistryTest.java`
 
+- [ ] **Step 0: 创建测试目录**
+
+```bash
+mkdir -p cartisan-web/src/test/java/com/cartisan/web/enums
+```
+
 - [ ] **Step 1: 编写 EnumRegistryTest 测试**
 
 ```java
 package com.cartisan.web.enums;
 
+import com.cartisan.web.config.TestUserStatus;
 import com.cartisan.web.response.EnumOption;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -295,7 +285,8 @@ class EnumRegistryTest {
     void shouldRegisterAndGetEnum() {
         registry.register("TestUserStatus", TestUserStatus.class);
 
-        Class<? extends Enum<?>> enumClass = registry.getEnumClass("TestUserStatus");
+        Class<? extends com.cartisan.core.domain.BaseEnum<?>> enumClass =
+            registry.getEnumClass("TestUserStatus");
         assertThat(enumClass).isEqualTo(TestUserStatus.class);
     }
 
@@ -305,7 +296,7 @@ class EnumRegistryTest {
 
         List<EnumOption> options = registry.getEnumOptions("TestUserStatus");
 
-        assertThat(options).hasSize(2);
+        assertThat(options).hasSize(3);
         assertThat(options.get(0).code()).isEqualTo(1);
     }
 
@@ -464,8 +455,8 @@ class EnumScannerTest {
     @Test
     void shouldScanAndRegisterEnums() {
         EnumScanner scanner = new EnumScanner(registry);
-        // 扫描 com.cartisan.web 包，其中包含 TestUserStatus 枚举
-        scanner.scanBaseEnums("com.cartisan.web");
+        // 扫描 com.cartisan.web.config 包，其中包含 TestUserStatus 枚举
+        scanner.scanBaseEnums("com.cartisan.web.config");
 
         List<String> enums = registry.listRegisteredEnums();
         assertThat(enums).contains("TestUserStatus");
@@ -723,21 +714,21 @@ class EnumControllerTest {
     void shouldGetSingleEnum() throws Exception {
         // given
         when(enumRegistry.getEnumOptions("TestUserStatus"))
-            .thenReturn(List.of(new EnumOption(1, "激活")));
+            .thenReturn(List.of(new EnumOption(1, "启用")));
 
         // when & then
         mvc.perform(get("/api/enums/TestUserStatus"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data").isArray())
             .andExpect(jsonPath("$.data[0].code").value(1))
-            .andExpect(jsonPath("$.data[0].name").value("激活"));
+            .andExpect(jsonPath("$.data[0].name").value("启用"));
     }
 
     @Test
     void shouldBatchGetEnums() throws Exception {
         // given
         when(enumRegistry.getEnumOptions("TestUserStatus"))
-            .thenReturn(List.of(new EnumOption(1, "激活")));
+            .thenReturn(List.of(new EnumOption(1, "启用")));
 
         String json = "{\"enums\":[\"TestUserStatus\"]}";
 
@@ -766,11 +757,7 @@ class EnumControllerTest {
 - [ ] **Step 5: 运行测试验证失败**
 
 Run: `./gradlew :cartisan-web:test --tests EnumControllerTest`
-Expected: FAIL - 这是预期的失败，因为：
-1. EnumController 需要 EnumRegistry Bean（由 EnumScanner 的 @Component 提供）
-2. Spring Boot Test 会启动应用上下文
-3. EnumScanner 的 @PostConstruct 会自动扫描并注册枚举
-4. 但需要等待 Task 7 完成自动配置后才能正常工作
+Expected: FAIL - @WebMvcTest 需要 EnumRegistry Bean，但该 Bean 在 Task 7 的自动配置中才会正确注册。
 
 这个测试会在 Task 7 完成后通过。
 
