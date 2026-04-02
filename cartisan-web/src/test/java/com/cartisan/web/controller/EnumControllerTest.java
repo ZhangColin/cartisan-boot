@@ -50,8 +50,8 @@ class EnumControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.enums.TestUserStatus").isArray())
-            .andExpect(jsonPath("$.data.enums.TestUserStatus[0].code").value(1));
+                        .andExpect(jsonPath("$.data.TestUserStatus").isArray())
+            .andExpect(jsonPath("$.data.TestUserStatus[0].code").value(1));
     }
 
     @Test
