@@ -32,5 +32,8 @@ class EnumOptionUtilsTest {
 
         assertThat(options).hasSize(2);
         assertThat(options.get(0).code()).isEqualTo(1);
+        assertThat(options.get(0).name()).isEqualTo("启用");
+        assertThat(options.get(1).code()).isEqualTo(0);
+        assertThat(options.get(1).name()).isEqualTo("禁用");
     }
 }
