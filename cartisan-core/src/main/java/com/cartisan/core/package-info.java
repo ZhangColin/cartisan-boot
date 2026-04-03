@@ -16,7 +16,6 @@
  *   <li>提供纯粹的领域抽象，可被其他模块继承和扩展</li>
  * </ul>
  *
- * @package com.cartisan.core
  * @since 0.1.0
  */
 package com.cartisan.core;

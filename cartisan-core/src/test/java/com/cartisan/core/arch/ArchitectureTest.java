@@ -87,6 +87,7 @@ class ArchitectureTest {
         ArchRule rule = classes()
                 .that().areInterfaces()
                 .and().resideInAPackage(DOMAIN_PACKAGE)
+                .and().haveSimpleNameNotContaining("package-info")
                 .should().bePublic()
                 .because("domain interfaces should be public for external use");
 

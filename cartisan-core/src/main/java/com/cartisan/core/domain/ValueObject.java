@@ -99,7 +99,7 @@ package com.cartisan.core.domain;
  * }</pre>
  *
  * @param <T> 值对象类型
- * @see Entity
+ * @see com.cartisan.core.domain.DomainEntity
  * @since 0.1.0
  */
 public interface ValueObject<T> {
