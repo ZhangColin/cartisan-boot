@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- Java 21 / Spring Boot 3.4.x / Gradle Kotlin DSL
+- Java 21 / Spring Boot 3.4.x / Maven
 - 持久化：Spring Data JPA（写）+ jOOQ（读）
 - 安全：Sa-Token（抽象层封装，可替换）
 - 测试：JUnit 5 + AssertJ + Mockito + ArchUnit + Testcontainers
@@ -25,10 +25,12 @@
 
 ## 常用命令
 
-- 编译：`./gradlew compileJava`
-- 单元测试（无需 Docker）：`./gradlew :模块名:test`
-- 全量测试（需 Docker）：`./gradlew test`
-- 变异测试：`./gradlew :cartisan-core:pitest`（杀死率 >= 70%）
+- 编译：`mvn compile`
+- 单元测试（无需 Docker）：`mvn test -pl 模块名`
+- 全量测试（需 Docker）：`mvn test`
+- 变异测试：`mvn org.pitest:pitest-maven:mutationCoverage -pl cartisan-core`（杀死率 >= 70%）
+- 安装到本地仓库：`mvn install`
+- 打包：`mvn package`
 
 ## 开发流程
 

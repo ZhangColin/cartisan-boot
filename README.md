@@ -8,27 +8,33 @@
 
 - **JDK**: 21+
 - **Docker**: 可选（集成测试需要）
-- **Gradle**: 9.0+（项目使用 Gradle Wrapper）
+- **Maven**: 3.9+（项目使用 Maven）
 
 ### 克隆与构建
 
 ```bash
 git clone <repository-url>
 cd cartisan-boot
-./gradlew build
+mvn package
 ```
 
 ### 运行测试
 
 ```bash
 # 仅单元测试（无需 Docker）
-./gradlew :cartisan-core:test
+mvn test -pl cartisan-core
 
 # 全部测试（需要 Docker）
-./gradlew test
+mvn test
 
 # 变异测试（Phase 5 门禁）
-./gradlew :cartisan-core:pitest
+mvn org.pitest:pitest-maven:mutationCoverage -pl cartisan-core
+```
+
+### 安装到本地仓库
+
+```bash
+mvn install
 ```
 
 > **注意**：`cartisan-test` 模块使用 Testcontainers 启动真实的 PostgreSQL/Redis 容器进行集成测试，运行前请确保 Docker 已安装并启动。
@@ -89,7 +95,7 @@ cartisan-boot/
 |------|------|
 | 语言 | Java 21 |
 | 框架 | Spring Boot 3.4.x |
-| 构建 | Gradle (Kotlin DSL) |
+| 构建 | Maven |
 | 持久化 | Spring Data JPA (写) + jOOQ (读) |
 | 安全 | Sa-Token 1.45.0（可替换抽象层） |
 | 测试 | JUnit 5 + AssertJ + ArchUnit + Testcontainers |
