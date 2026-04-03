@@ -57,6 +57,7 @@
         <druid.version>1.2.23</druid.version>
         <pitest.version>1.19.0</pitest.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <byte-buddy-agent.version>1.15.10</byte-buddy-agent.version>
     </properties>
 
     <modules>
@@ -224,6 +225,9 @@
                         <source>21</source>
                         <target>21</target>
                         <parameters>true</parameters>
+                        <compilerArgs>
+                            <arg>--enable-preview</arg>
+                        </compilerArgs>
                     </configuration>
                 </plugin>
 
@@ -232,7 +236,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.2</version>
                     <configuration>
-                        <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                        <argLine>--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED -javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${byte-buddy-agent.version}/byte-buddy-agent-${byte-buddy-agent.version}.jar</argLine>
                     </configuration>
                 </plugin>
 

@@ -2031,3 +2031,238 @@ spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSou
 
 ---
 
+### 规则 BUILD-004：AutoConfiguration 不应依赖 @ComponentScan
+
+**问题**：AutoConfiguration 类中的 `@Bean` 方法依赖 `@Component` 注解的类，导致子模块测试时 Bean 找不到。
+
+**错误表现**：
+```
+Unsatisfied dependency expressed through method 'enumScanner' parameter 0:
+No qualifying bean of type 'com.cartisan.web.enums.EnumRegistry' available
+```
+
+**错误代码**：
+```java
+// ❌ EnumRegistry 使用 @Component，依赖 @ComponentScan
+@Component
+public class EnumRegistry {
+    // ...
+}
+
+@AutoConfiguration
+public class CartisanWebAutoConfiguration {
+    @Bean
+    public EnumScanner enumScanner(EnumRegistry enumRegistry) {
+        // ❌ 子模块的 @ComponentScan 不扫描 cartisan.web 包
+        return new EnumScanner(enumRegistry);
+    }
+}
+```
+
+**正确做法**：
+```java
+// ✅ 移除 @Component，改为 @Bean 声明
+public class EnumRegistry {
+    // ...
+}
+
+@AutoConfiguration
+public class CartisanWebAutoConfiguration {
+    @Bean
+    public EnumRegistry enumRegistry() {
+        return new EnumRegistry();  // ✅ 自动配置独立声明所有 Bean
+    }
+
+    @Bean
+    public EnumScanner enumScanner(EnumRegistry enumRegistry) {
+        return new EnumScanner(enumRegistry);
+    }
+}
+```
+
+**原因**：
+- AutoConfiguration 应"引入即用"，不依赖 `@ComponentScan`
+- 子模块的测试类有自己的 `@ComponentScan`，不会扫描框架模块的包
+- 所有依赖的 Bean 都应在 AutoConfiguration 中用 `@Bean` 显式声明
+
+**记忆口诀**：AutoConfiguration 自给自足，不依赖 @ComponentScan。
+
+---
+
+### 规则 BUILD-005：测试依赖统一使用 spring-boot-starter-test
+
+**问题**：各模块重复声明 JUnit、AssertJ、Mockito 依赖，导致版本冲突和维护成本高。
+
+**错误做法**：
+```xml
+<!-- ❌ 重复声明，容易遗漏 logback -->
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.assertj</groupId>
+    <artifactId>assertj-core</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-core</artifactId>
+</dependency>
+```
+
+**正确做法**：
+```xml
+<!-- ✅ 统一使用 spring-boot-starter-test -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+**优点**：
+- 自动包含 JUnit、AssertJ、Mockito、Logback
+- 版本由 Spring Boot 统一管理，无冲突
+- 消除 SLF4J 警告（logback-classic 已包含）
+
+**记忆口诀**：测试依赖一个 starter 搞定。
+
+---
+
+### 规则 BUILD-006：Mockito 在 JDK 21+ 需配置为 Java Agent
+
+**问题**：Mockito 动态加载 Java Agent 产生警告，未来 JDK 版本将禁止。
+
+**警告信息**：
+```
+Mockito is currently self-attaching to enable the inline-mock-maker.
+WARNING: A Java agent has been loaded dynamically
+WARNING: Dynamic loading of agents will be disallowed in a future release
+```
+
+**正确做法**：
+```xml
+<!-- pom.xml（根 POM 统一配置） -->
+<properties>
+    <byte-buddy-agent.version>1.15.10</byte-buddy-agent.version>
+</properties>
+
+<build>
+    <pluginManagement>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        --enable-preview
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        -javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${byte-buddy-agent.version}/byte-buddy-agent-${byte-buddy-agent.version}.jar
+                    </argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </pluginManagement>
+</build>
+```
+
+**原因**：
+- Mockito 使用 inline-mock-maker 需要 Java Agent
+- JDK 21+ 限制动态加载 Agent，需在启动时指定
+- byte-buddy-agent 版本需与 Mockito 依赖一致
+
+**记忆口诀**：Mockito Agent 提前配置，JDK 21+ 动态加载禁。
+
+---
+
+### 规则 BUILD-007：Maven 配置统一在根 POM 管理
+
+**原则**：所有模块共享的配置应集中在根 POM 的 `pluginManagement` 中，子模块无需自定义。
+
+**正确做法**：
+```xml
+<!-- ✅ 根 POM 统一配置 -->
+<build>
+    <pluginManagement>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--enable-preview ...</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </pluginManagement>
+</build>
+```
+
+**子模块**：
+```xml
+<!-- ❌ 移除所有自定义配置 -->
+<build>
+    <plugins>
+        <!-- ✅ 只需声明需要特殊处理的插件 -->
+        <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <annotationProcessorPaths>
+                    <!-- 仅配置注解处理器路径 -->
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+**优点**：
+- 避免子模块配置冲突
+- 统一版本管理
+- 降低维护成本
+
+**记忆口诀**：共享配置根 POM 管，子模块只配特殊项。
+
+---
+
+### 规则 ID-003：TSID 纯随机实现的碰撞概率计算
+
+**问题**：22 位随机数在同一毫秒内生成大量 ID 时，碰撞数超出预期。
+
+**理论计算**（生日悖论）：
+```
+碰撞数 ≈ n² / (2 × 空间大小)
+       = 10000² / (2 × 4194304)
+       ≈ 11.9 个
+```
+
+**正确断言**：
+```java
+// ✅ 允许 ≤0.3% 重复（30/10000），包含安全余量
+int duplicateCount = 10000 - generatedIds.size();
+assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9970);
+assertThat(duplicateCount)
+    .withFailMessage("Too many duplicates: %d out of 10000", duplicateCount)
+    .isLessThanOrEqualTo(30);
+```
+
+**设计权衡**：
+- 纯随机：无锁、高性能（>500万/秒），接受 ~0.12% 实际冲突率
+- 计数器 + synchronized：保证唯一，但违反性能约束
+
+**适用场景**：
+- 极高频场景（如同一毫秒 >10000 个 ID）：考虑使用雪花算法
+- 普通场景（<10000/毫秒）：纯随机实现足够
+
+**记忆口诀**：TSID 碰撞算概率，预期 n²/2m，阈值放宽 0.3%。
+
+---
+

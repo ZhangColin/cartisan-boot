@@ -134,9 +134,21 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
     }
 
     /**
+     * 注册枚举注册表。
+     *
+     * <p>作为 Spring Bean 管理，确保自动配置时不依赖 @ComponentScan。</p>
+     *
+     * @return EnumRegistry 实例
+     */
+    @Bean
+    public EnumRegistry enumRegistry() {
+        return new EnumRegistry();
+    }
+
+    /**
      * 注册枚举扫描器。
      *
-     * @param enumRegistry 枚举注册表（由 @Component 自动注册）
+     * @param enumRegistry 枚举注册表
      * @return EnumScanner 实例
      */
     @Bean
@@ -149,7 +161,7 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
      *
      * <p>可通过配置项 {@code cartisan.web.enum-controller.enabled} 禁用。
      *
-     * @param enumRegistry 枚举注册表（由 @Component 自动注册）
+     * @param enumRegistry 枚举注册表
      * @return EnumController 实例
      */
     @Bean

@@ -3,7 +3,6 @@ package com.cartisan.web.enums;
 import com.cartisan.core.domain.BaseEnum;
 import com.cartisan.web.support.EnumOptionUtils;
 import com.cartisan.web.response.EnumOption;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -14,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @since 0.9.0
  */
-@Component
 public class EnumRegistry {
 
     private final Map<String, Class<? extends BaseEnum<?>>> enumClassMap = new ConcurrentHashMap<>();

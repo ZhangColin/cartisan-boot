@@ -48,12 +48,13 @@ class TsidGeneratorTest {
             generatedIds.add(generator.generate());
         }
 
-        // Then: 纯随机实现允许极少量冲突（理论概率 ~0.000024%）
-        // 实际测试中可能因时间戳相同产生 1-10 个重复，这是可接受的
+        // Then: 22位随机数在同一毫秒内理论空间为 4,194,304
+        // 10,000个ID的预期碰撞数 = 10000² / (2 × 4194304) ≈ 12 个
+        // 允许 30 个重复（0.3%）以适应测试环境波动
         int duplicateCount = 10000 - generatedIds.size();
-        assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9990);
+        assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9970);
         assertThat(duplicateCount).withFailMessage("Too many duplicates: %d out of 10000", duplicateCount)
-                .isLessThanOrEqualTo(20);
+                .isLessThanOrEqualTo(30);
     }
 
     @Test
@@ -159,11 +160,13 @@ class TsidGeneratorTest {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        // Then: 纯随机实现允许极少量冲突
+        // Then: 22位随机数在同一毫秒内理论空间为 4,194,304
+        // 10,000个ID的预期碰撞数 = 10000² / (2 × 4194304) ≈ 12 个
+        // 允许 30 个重复（0.3%）以适应测试环境波动
         int duplicateCount = expectedTotal - generatedIds.size();
-        assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9990);
+        assertThat(generatedIds).hasSizeGreaterThanOrEqualTo(9970);
         assertThat(duplicateCount).withFailMessage("Too many duplicates: %d out of %d", duplicateCount, expectedTotal)
-                .isLessThanOrEqualTo(20);
+                .isLessThanOrEqualTo(30);
     }
 
     // ========== 辅助方法 ==========
