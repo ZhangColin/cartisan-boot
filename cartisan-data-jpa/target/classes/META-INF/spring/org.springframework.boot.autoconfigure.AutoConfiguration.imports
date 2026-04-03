@@ -1,0 +1,2 @@
+com.cartisan.data.jpa.config.CartisanDataJpaAutoConfiguration
+com.cartisan.data.jpa.config.DruidAutoConfiguration

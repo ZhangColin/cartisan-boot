@@ -1,0 +1,3 @@
+com/cartisan/event/config/CartisanEventAutoConfiguration.class
+com/cartisan/event/DomainEventPublisher.class
+com/cartisan/event/SpringDomainEventPublisher.class

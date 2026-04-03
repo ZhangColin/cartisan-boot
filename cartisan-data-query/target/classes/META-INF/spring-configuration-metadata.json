@@ -1,0 +1,19 @@
+{
+  "groups": [
+    {
+      "name": "cartisan.data-query.jooq",
+      "type": "com.cartisan.data.query.config.JooqProperties",
+      "sourceType": "com.cartisan.data.query.config.JooqProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "cartisan.data-query.jooq.sql-logging",
+      "type": "java.lang.Boolean",
+      "description": "是否启用 SQL 执行日志。 <p>默认 {@code false}。设置为 {@code true} 后， jOOQ 执行的 SQL 语句会通过 SLF4J 输出（logger: org.jooq.tools.LoggerListener）。 @return 是否启用 SQL 日志",
+      "sourceType": "com.cartisan.data.query.config.JooqProperties",
+      "defaultValue": false
+    }
+  ],
+  "hints": []
+}
