@@ -128,8 +128,9 @@ cartisan-boot/
 11. Fastjson2 2.0.53
 12. JUnit BOM 5.11.4
 13. Hutool 5.8.34
-14. PIT 1.2.3
-15. Druid 1.2.23
+14. PIT Maven Plugin 1.19.0
+15. PIT JUnit 5 Plugin 1.2.3
+16. Druid 1.2.23
 
 ### 3.4 模块间依赖关系
 
@@ -278,7 +279,7 @@ cartisan-data-query / cartisan-ai
 ### 4.4 验证阶段
 1. 运行完整测试套件
 2. 执行 `mvn clean install` 发布到本地仓库
-3. 模拟下游项目依赖测试
+3. 验证下游项目依赖（创建临时测试项目或使用现有业务平台）
 4. PIT 变异测试（cartisan-core）
 
 ### 4.5 发布阶段
@@ -319,8 +320,8 @@ cartisan-data-query / cartisan-ai
 |--------|-------|------|
 | `java-platform` | `<packaging>pom</packaging>` + `<dependencyManagement>` | BOM 机制 |
 | `api(platform(...))` | 在 BOM 中声明版本，子模块不写版本号 | 依赖版本管理 |
-| `api(...)` | `<dependency>` + `<scope>compile</scope>` | 编译时依赖 |
-| `implementation(...)` | `<dependency>` + `<scope>compile</scope>` | 实现依赖 |
+| `api(...)` | `<dependency>` + `<scope>compile</scope>` | 编译时依赖（Gradle 中会传递给消费者） |
+| `implementation(...)` | `<dependency>` + `<scope>compile</scope>` | 实现依赖（Gradle 中不传递，但 Maven 无此区分） |
 | `compileOnly(...)` | `<dependency>` + `<scope>provided</scope>` | 编译期依赖 |
 | `testImplementation(...)` | `<dependency>` + `<scope>test</scope>` | 测试依赖 |
 | `-parameters` | `<parameters>true</parameters>` | 保留参数名 |
