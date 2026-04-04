@@ -108,6 +108,18 @@ cartisan:
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 | **枚举选项** | `EnumOption`、`EnumOptionUtils`、`EnumController` 支持前端获取枚举选项列表 |
 
+**注意事项**：
+
+| 规则 | 说明 |
+|------|------|
+| **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
+| **WEB-002** | `AutoResponseAdvice` 对 String 类型特殊处理，避免二次序列化 |
+| **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
+| **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
+| **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
+
+> **完整规则列表**参见 PITFALLS.md 第四章。
+
 ##### @Condition 注解详细说明
 
 `@Condition` 注解用于标注查询 DTO 字段，指定查询条件类型，配合 JPA Specification 使用。
@@ -172,6 +184,21 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细使用示例**参见《限界上下文代码编写规范》3.6.1 节。
 
+**注意事项**：
+
+| 规则 | 说明 |
+|------|------|
+| **DATA-001** | JPA `save()` 后必须用原始 entity 发布事件，而非返回值 |
+| **DATA-002** | Repository 不是 Spring Bean，依赖注入用静态持有者模式 |
+| **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
+| **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
+| **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
+| **DATA-006** | 自动软删除通过 `instanceof` 判断类型 |
+| **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` |
+| **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` |
+
+> **完整规则列表**参见 PITFALLS.md 第四章。
+
 ### 1.5 cartisan-event 模块
 
 | 能力 | 说明 |
@@ -195,6 +222,19 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **@CurrentUser 注解** | Controller 方法参数直接注入当前用户 ID |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
+**注意事项**：
+
+| 规则 | 说明 |
+|------|------|
+| **SECURITY-001** | Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token` |
+| **SECURITY-002** | Sa-Token Session 类是 `SaSession`，不是 `Session` |
+| **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
+| **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller |
+| **SECURITY-005** | `@Component` Bean 名称需显式指定避免冲突 |
+| **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常 |
+
+> **完整规则列表**参见 PITFALLS.md 第四章。
+
 ### 1.7 cartisan-data-query 模块
 
 | 能力 | 说明 |
@@ -202,6 +242,20 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **jOOQ 自动配置** | `DSLContext` Bean 自动配置（PostgreSQL 方言、SQL 日志） |
 | **多租户查询** | `JooqTenantSupport.eqTenantId()` 租户过滤条件生成 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+**注意事项**：
+
+| 规则 | 说明 |
+|------|------|
+| **QUERY-001** | `generateJooq` 任务必须依赖 `flywayMigrate` |
+| **QUERY-002** | jOOQ 代码生成目录为 `build/generated/jooq` |
+| **QUERY-003** | `JooqTenantSupport` 需要 `cartisan-security` 可选依赖 |
+| **QUERY-004** | jOOQ 版本由 `cartisan-dependencies` BOM 管理 |
+| **QUERY-005** | `@Condition` 注解 BigDecimal 类型有类型推断限制 |
+| **QUERY-006** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 |
+| **QUERY-007** | `@Condition` 注解 null 和空字符串自动跳过 |
+
+> **完整规则列表**参见 PITFALLS.md 第四章。
 
 ### 1.8 cartisan-ai 模块
 
@@ -216,6 +270,17 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **SSE 流式工具** | `SseHelper` 将 `Flux<ChatStreamEvent>` 转换为 `SseEmitter` |
 | **ModelUsageListener** | Token 使用量监听扩展点 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
+
+**注意事项**：
+
+| 规则 | 说明 |
+|------|------|
+| **AI-001** | `ChatRequest.withStream()` 创建副本，避免修改原请求 |
+| **AI-002** | `ModelProviderRegistry` 的 Listener 异常不中断流程 |
+| **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
+| **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
+
+> **完整规则列表**参见 PITFALLS.md 第四章。
 
 ---
 
@@ -2024,413 +2089,16 @@ public class DictController extends EnumControllerBase {
 
 ---
 
-## 五、注意事项
+## 五、CQRS 架构说明
 
-### 4.1 DDD 相关
-
-#### 4.1.1 架构规则
-
-| 规则 | 说明 |
-|------|------|
-| **DDD-001** | DomainEntity 接口泛型方法中调泛型参数方法，必须先 `getClass()` 检查再强转 |
-| **DDD-002** | ValueObject 的 `sameValueAs` 可直接委托 `equals` |
-| **DDD-003** | 领域事件应自动生成 `eventId` 和 `occurredAt`，`aggregateId` 由子类提供 |
-| **STYLE-003** | 使用 Record 实现 ValueObject 和 Identity |
-
-#### 4.1.2 设计原则
-
-cartisan-boot 提供 DDD 基础设施，但不强制 DDD 教条。以下是务实的设计取舍：
-
-**聚合根是否必须避免使用 @Setter？**
-
-否。cartisan-boot 不强制要求 DDD 封装原则。
-
-- 没有业务逻辑的简单属性，直接用 `@Setter` 即可
-- `changeName(newName)` 与 `setName(newName)` 在没有业务约束时没有本质区别
-- 多参数一起修改时，如果参数间没有业务约束，写 `changeInfo(name, code, description)` 这种方法只会增加重载负担
-- **只有当多个参数间存在业务约束时，才需要单独写业务方法**
-
-```java
-// ✅ 简单属性直接用 @Setter
-@Entity
-public class User extends AbstractAggregateRoot<User> {
-    @Setter private String name;
-    @Setter private String email;
-}
-
-// ✅ 有业务约束时写业务方法
-@Entity
-public class Order extends AbstractAggregateRoot<Order> {
-    private OrderStatus status;
-    private LocalDateTime completedAt;
-
-    // 状态和完成时间有业务约束，必须一起修改
-    public void complete() {
-        require(this.status != OrderStatus.COMPLETED, "订单已完成");
-        this.status = OrderStatus.COMPLETED;
-        this.completedAt = LocalDateTime.now();
-    }
-}
-```
-
-**应用服务层是否可以直接调用聚合根的 setter？**
-
-可以。
-
-- 务实做法，应用服务层直接调用 `role.setName(command.name())` 是允许的
-- cartisan-boot 不强制要求应用服务层必须调用聚合根的业务方法
-
-```java
-// ✅ 允许：应用服务层直接调用 setter
-@Service
-@RequiredArgsConstructor
-public class RoleApplicationService {
-    private final RoleRepository roleRepository;
-
-    public void updateRole(UpdateRoleCommand command) {
-        Role role = roleRepository.findById(command.id()).orElseThrow();
-        role.setName(command.name());     // 直接调用 setter
-        role.setCode(command.code());     // 直接调用 setter
-        roleRepository.save(role);
-    }
-}
-```
-
-**ID 是否必须用强类型值对象（如 record）？**
-
-否，不强求。
-
-- `record AdminUserRoleId(Long adminId, Long roleId)` 这种强类型值对象会增加实现复杂度
-- cartisan-boot 允许直接使用 `Long` 等基本类型作为 ID
-
-```java
-// ✅ 允许：直接使用 Long 作为 ID
-@Entity
-public class User extends AbstractAggregateRoot<User> {
-    @Id
-    private Long id;
-}
-
-// ✅ 也可以：使用强类型值对象（推荐用于复杂 ID 场景）
-@Entity
-public class Order extends AbstractAggregateRoot<Order> {
-    @Id
-    @Column(name = "id")
-    private OrderId id;  // record OrderId(String value) implements Identity<String>
-}
-```
-
-**原则总结**
-
-cartisan-boot 的设计理念：**提供能力，不强求风格**。
-
-- 框架提供 DDD 基础设施（`AggregateRoot`、`DomainEntity`、`ValueObject` 等）
-- 是否严格遵循 DDD 风格由业务团队决定
-- 代码应该简洁务实，避免为了教条增加不必要的抽象
-
-#### 4.1.3 领域服务与南向接口
-
-**何时使用领域服务？**
-
-领域服务用于封装：
-- 不属于任何聚合根的业务逻辑
-- 需要多个聚合根协作的业务逻辑
-- 需要调用外部服务的业务逻辑（通过南向接口）
-
-**何时使用南向接口（Service Port）？**
-
-| 适合使用 Service Port | 不适合使用 Service Port |
-|----------------------|------------------------|
-| 跨限界上下文调用 | 领域业务逻辑（应在聚合根中） |
-| 外部 API 调用（短信、支付、OSS） | 应用服务编排（应在 Application Service 中） |
-| 中间件交互（消息队列、缓存、搜索） | 纯工具类（如 BCryptPasswordEncoder，直接注入使用） |
-
-| 规则 | 说明 |
-|------|------|
-| **DATA-001** | JPA `save()` 后必须用原始 entity 发布事件，而非返回值 |
-| **DATA-002** | Repository 不是 Spring Bean，依赖注入用静态持有者模式 |
-| **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
-| **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
-| **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
-| **DATA-006** | 自动软删除通过 `instanceof` 判断类型，软删除调用 `markAsDeleted()` + `save()`，非软删除实体物理删除 |
-| **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` 实现枚举与 Integer 转换 |
-| **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` 获取目标枚举类型 |
-| **REL-001** | 关联表应使用单一代理主键（Long），而非 JPA 复合主键（@IdClass/@EmbeddedId） |
-| **REL-002** | 关联表业务唯一性通过数据库 `@UniqueConstraint` 约束保证 |
-| **REL-003** | 关联表若需实现 `DomainEntity`，必须添加独立主键字段 |
-
-#### 关联表主键设计
-
-**背景**：JPA 关联表（Join Table）需要实现 `DomainEntity<T, ID>` 接口，但复合主键（`@IdClass` 或 `@EmbeddedId`）与 `DomainEntity` 的单一 ID 类型设计不兼容。
-
-**决策**：关联表应使用单一的代理主键，而非 JPA 复合主键。
-
-```java
-@Entity
-@Table(name = "sys_admin_user_roles", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"admin_id", "role_id"})
-})
-public class AdminUserRole implements DomainEntity<AdminUserRole, Long> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // 代理主键
-
-    @Column(name = "admin_id", nullable = false)
-    private Long adminId;
-
-    @Column(name = "role_id", nullable = false)
-    private Long roleId;
-
-    // 业务唯一性由数据库唯一约束保证
-}
-```
-
-**理由**：
-
-| 理由 | 说明 |
-|------|------|
-| **框架兼容性** | `DomainEntity<T, ID>` 的 ID 参数为单一类型，复合主键无法直接映射 |
-| **JPA 支持完整** | 单一主键与 `@GeneratedValue`、软删除、审计、`BaseRepository` 等功能无缝集成 |
-| **性能** | 单字段主键索引更高效，外键关联更简单 |
-| **代码简洁** | 无需自定义 `sameIdentityAs`，框架默认实现即满足需求 |
-| **可维护性** | 独立代理主键便于日志追踪和调试 |
-
-**适用场景**：
-- 所有使用 `@IdClass` 或 `@EmbeddedId` 的 JPA 关联表实体
-- 需要实现 `DomainEntity<T, ID>` 接口的领域实体
-- 业务上需要通过数据库唯一约束保证组合唯一性的场景
-
-### 4.3 枚举增强
-
-| 规则 | 说明 |
-|------|------|
-| **ENUM-001** | 业务枚举必须实现 `BaseEnum<T>` 接口，提供 `code`/`name` 映射 |
-| **ENUM-002** | 实体枚举字段使用 `@EnumConvert(枚举类.class)` 注解，自动注册 JPA Converter |
-| **ENUM-003** | BaseEnum 序列化为 Integer code，避免枚举顺序变化导致数据不一致 |
-| **ENUM-004** | `parseByCode()` 找不到返回 null，`requireByCode()` 找不到抛异常 |
-
-**重要设计取舍：**
-- 使用 `@EnumConvert` + `UniversalEnumConverter` 而非 `@Convert` 直接注解：自动注册，业务代码更简洁
-- code 值稳定：不依赖枚举 `ordinal()`，增删枚举值不影响已有数据
-- Jackson 自动配置：全局生效，无需在枚举类上添加 `@JsonFormat` 或 `@JsonCreator`
-
-### 4.4 Spring Boot / 自动配置
-
-| 规则 | 说明 |
-|------|------|
-| **BOOT-001** | 使用 `JpaRepositoryFactoryEntryCustomizer` 全局配置 `repositoryBaseClass` |
-| **TOOL-007** | `@Component` 默认 bean 名称可能与自动配置冲突，需显式指定如 `@Component("cartisanXxx")` |
-
-### 4.5 分布式 ID / TSID
-
-| 规则 | 说明 |
-|------|------|
-| **ID-001** | 纯随机 TSID 测试需要容忍小量重复（≤0.2%），不应要求 100% 唯一 |
-| **ID-002** | 无锁随机数生成使用 `ThreadLocalRandom`，不用 `synchronized` |
-
-### 4.6 工具配置
-
-| 规则 | 说明 |
-|------|------|
-| **TOOL-005** | 集成测试需要手动启动 PostgreSQL 和 Redis 环境 |
-| **TOOL-006** | PIT 变异测试是 Phase 5 必跑门禁，杀死率 ≥ 70% |
-| **TOOL-004** | `@TestConfiguration` 不能使用工具类模式（私有构造抛异常） |
-| **TEST-003** | Spring Boot Test 依赖分层：`api` 暴露给业务，`implementation` 本模块使用 |
-
-### 4.7 代码风格
-
-| 规则 | 说明 |
-|------|------|
-| **STYLE-001** | 领域接口应包含完整 JavaDoc 和使用示例 |
-| **STYLE-002** | JavaDoc 中必须转义 HTML 特殊字符：`<` → `&lt;`，`>` → `&gt;` |
-
-### 4.8 测试
-
-| 规则 | 说明 |
-|------|------|
-| **TEST-001** | 使用 AssertJ 而非 JUnit 断言 |
-| **TEST-002** | 测试方法命名遵循 `given_{条件}_when_{操作}_then_{预期结果}` |
-| **ASRT-001** | `require()` 抛 DomainException（4xx），`ensure()` 抛 IllegalStateException（500） |
-| **ASRT-002** | 工具类私有构造函数应抛出异常，而非返回 null |
-
-### 4.9 Security
-
-#### 4.9.1 规则
-
-| 规则 | 说明 |
-|------|------|
-| **SECURITY-001** | Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token` |
-| **SECURITY-002** | Sa-Token Session 类是 `SaSession`，不是 `Session` |
-| **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
-| **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller，不能直接调用 `StpUtil.login()` |
-| **SECURITY-005** | `@Component` Bean 名称需显式指定（如 `@Component("cartisanXxx")`）避免冲突 |
-| **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常，与 `SecurityInterceptor` 一致 |
-
-#### 4.9.2 scope 参数管理
-
-`@RequirePermission` 的 `scope` 参数在各 Controller 中重复出现时，推荐使用常量类管理：
-
-```java
-// 在限界上下文下定义常量类
-// com.aieducenter.admin.constants.AdminScopes
-public final class AdminScopes {
-    public static final String ADMIN = "admin";
-    public static final String USER = "user";
-    public static final String COURSE = "course";
-}
-
-// Controller 中使用
-@RestController
-@RequestMapping("/admin/users")
-public class AdminUserController {
-
-    @RequirePermission(
-        value = "admin:user:read",
-        name = "平台管理 / 用户管理 / 查看",
-        scope = AdminScopes.ADMIN  // 使用常量
-    )
-    @GetMapping
-    public ApiResponse<List<User>> listUsers() { ... }
-}
-```
-
-**说明：**
-- 常量类放在 `{限界上下文}.constants` 包下，与 domain 平级
-- 每个限界上下文可以定义自己的 scope 常量
-- 避免硬编码字符串散落在各 Controller 中
-
-### 4.10 jOOQ / Data-Query
-
-| 规则 | 说明 |
-|------|------|
-| **QUERY-001** | `generateJooq` 任务必须依赖 `flywayMigrate`，确保先生成 schema 再生成代码 |
-| **QUERY-002** | jOOQ 代码生成目录为 `build/generated/jooq`，需在 IDEA 中标记为 Generated Sources Root |
-| **QUERY-003** | `JooqTenantSupport` 需要 `cartisan-security` 可选依赖，无租户上下文时返回 `noCondition()` |
-| **QUERY-004** | jOOQ 版本由 `cartisan-dependencies` BOM 管理，业务项目无需显式指定版本 |
-
-#### QUERY-001：代码生成任务依赖
-
-```kotlin
-// ❌ 错误：缺少任务依赖，可能生成与当前 schema 不一致的代码
-tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
-    // 空配置
-}
-
-// ✅ 正确：先生成 schema，再生成代码
-tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
-    dependsOn("flywayMigrate")
-}
-```
-
-#### QUERY-002：IDEA 识别生成目录
-
-```bash
-# 方式一：通过 Gradle 同步
-./gradlew cleanIdea idea
-
-# 方式二：IDEA 中手动标记
-# 右键 build/generated/jooq → Mark Directory as → Generated Sources Root
-```
-
-#### QUERY-003：JooqTenantSupport 可选依赖
-
-```kotlin
-// cartisan-data-query/build.gradle.kts
-dependencies {
-    // 可选依赖：运行时由使用方提供
-    compileOnly(project(":cartisan-security"))
-}
-```
-
-使用时需引入 security：
-
-```kotlin
-// 业务项目/build.gradle.kts
-dependencies {
-    implementation(project(":cartisan-data-query"))
-    implementation(project(":cartisan-security"))  // 使用 JooqTenantSupport 时需要
-}
-```
-
-### 4.11 AI / cartisan-ai
-
-| 规则 | 说明 |
-|------|------|
-| **AI-001** | `ChatRequest.withStream()` 创建副本，避免修改原请求 |
-| **AI-002** | `ModelProviderRegistry` 的 Listener 异常不中断流程，仅记录 WARN |
-| **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
-| **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
-
-### 4.12 Web 基础设施
-
-#### 4.12.1 规则
-
-| 规则 | 说明 |
-|------|------|
-| **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
-| **WEB-002** | `AutoResponseAdvice` 对 String 类型特殊处理，避免二次序列化 |
-| **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
-| **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
-| **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
-
-#### 4.12.2 Controller 返回值设计
-
-**Controller 是否必须返回 `ApiResponse<T>`？**
-
-否，cartisan-boot 支持自动包装。
-
-启用 `AutoResponseAdvice` 后，Controller 可以直接返回数据：
-
-```yaml
-# application.yml
-cartisan:
-  web:
-    auto-response:
-      enabled: true
-```
-
-```java
-// ✅ 启用自动包装后，可以直接返回数据
-@GetMapping("/{id}")
-public User getById(@PathVariable Long id) {
-    return userService.findById(id);
-}
-
-// ✅ 也可以继续使用 ApiResponse（显式声明）
-@GetMapping("/{id}")
-public ApiResponse<User> getById(@PathVariable Long id) {
-    return ApiResponse.ok(userService.findById(id));
-}
-```
-
-**排除路径：** `/swagger-ui`、`/v3/api-docs`、`/actuator`
-
-**设计取舍：**
-- 提供能力，不强求风格
-- 自动包装开启后，代码更简洁
-- 关键接口仍可显式使用 `ApiResponse` 提高可读性
-
-### 4.13 数据查询
-
-| 规则 | 说明 |
-|------|------|
-| **QUERY-005** | `@Condition` 注解 BigDecimal 类型有类型推断限制，建议使用 Integer/Long |
-| **QUERY-006** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 LIKE 查询 |
-| **QUERY-007** | `@Condition` 注解 null 和空字符串自动跳过，不生成查询条件 |
-
----
-
-## 六、CQRS 架构说明
-
-### 6.1 读写分离设计
+### 5.1 读写分离设计
 
 | 模块 | 职责 | 技术 |
 |------|------|------|
 | **cartisan-data-jpa** | 写侧（Command） | JPA + Hibernate |
 | **cartisan-data-query** | 读侧（Query） | jOOQ + DSL |
 
-### 6.2 典型使用场景
+### 5.2 典型使用场景
 
 ```java
 // 写：使用 JPA 保存聚合根
@@ -2546,15 +2214,15 @@ void test() throws Exception {
 
 ---
 
-## 七、模块依赖关系
+## 六、模块依赖关系
 
-### 8.1 cartisan-core
+### 6.1 cartisan-core
 
 ```
 零外部依赖，仅使用 JDK 标准库
 ```
 
-### 5.2 cartisan-test
+### 6.2 cartisan-test
 
 ```
 api 依赖：
@@ -2570,7 +2238,7 @@ implementation 依赖：
 - Spring Boot Starter Data Redis
 ```
 
-### 5.3 cartisan-web
+### 6.3 cartisan-web
 
 ```
 api 依赖：
@@ -2581,7 +2249,7 @@ implementation 依赖：
 - Spring Boot Starter Validation
 ```
 
-### 5.4 cartisan-data-jpa
+### 6.4 cartisan-data-jpa
 
 ```
 api 依赖：
@@ -2595,7 +2263,7 @@ compileOnly 依赖：
 - Druid Spring Boot 3 Starter 1.2.23（可选，业务需显式配置才生效）
 ```
 
-### 5.5 cartisan-event
+### 6.5 cartisan-event
 
 ```
 api 依赖：
@@ -2606,7 +2274,7 @@ implementation 依赖：
 - Spring Boot AutoConfigure
 ```
 
-### 5.6 cartisan-security
+### 6.6 cartisan-security
 
 ```
 api 依赖：
@@ -2617,7 +2285,7 @@ implementation 依赖：
 - Sa-Token 1.45.0（sa-token-spring-boot3-starter）
 ```
 
-### 5.7 cartisan-data-query
+### 6.7 cartisan-data-query
 
 ```
 api 依赖：
@@ -2630,7 +2298,7 @@ compileOnly 依赖：
 - cartisan-security（可选，用于 JooqTenantSupport）
 ```
 
-### 5.8 cartisan-ai
+### 6.8 cartisan-ai
 
 ```
 api 依赖：
@@ -2647,13 +2315,13 @@ implementation 依赖：
 
 ---
 
-## 八、参考文档
+## 七、参考文档
 
-### 6.1 设计文档
+### 7.1 设计文档
 
 - [cartisan-boot-设计文档.md](../cartisan-boot-设计文档.md)
 
-### 6.2 开发指南
+### 7.2 开发指南
 
 - [AI协作开发SOP.md](../sop/AI协作开发SOP.md)
 - [团队踩坑经验库 (PITFALLS.md)](../PITFALLS.md)
