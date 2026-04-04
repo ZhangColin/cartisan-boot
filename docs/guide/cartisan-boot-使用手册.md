@@ -91,6 +91,35 @@ cartisan:
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
 | **Fixture 工具** | 随机数据生成器 + 对象构建器 |
 
+**迁移策略（v1.1 新规则）**：
+
+如果您是现有项目，新规则可能会导致测试失败。以下是迁移建议：
+
+**1. 分阶段启用**：
+- Week 1：在本地环境运行新规则，发现违规
+- Week 2：修复关键违规，对历史代码添加 `@ArchIgnore` 豁免
+- Week 3：在 CI 中启用新规则，强制执行
+
+**2. 豁免机制**（用于历史代码）：
+
+```java
+@ArchIgnore(reason = "Legacy code, will be refactored in v2.0")
+@ArchTest
+static final ArchRule some_rule = ...;
+```
+
+**3. 选择性继承**：
+
+```java
+// 业务项目可以选择性继承规则
+public class ArchitectureTest extends CartisanLayeringRules {
+    // 不继承命名规范规则
+    // 不继承编码规范规则
+}
+```
+
+> **详细迁移指南**参见设计文档《cartisan-boot 文档重构设计方案》第七章。
+
 ### 1.3 cartisan-web 模块
 
 | 能力 | 说明 |
