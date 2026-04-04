@@ -24,6 +24,7 @@ import com.tngtech.archunit.lang.ArchRule;
  * @see com.cartisan.test.archunit.CartisanLayeringRules
  * @see com.cartisan.test.archunit.CartisanNamingRules
  * @see com.cartisan.test.archunit.CartisanProhibitionRules
+ * @see com.cartisan.test.archunit.CartisanCodingStandardsRules
  */
 public class CartisanArchRules {
 
@@ -103,4 +104,11 @@ public class CartisanArchRules {
     @ArchTest
     static final ArchRule noFloatingPointForMoney =
         CartisanProhibitionRules.noFloatingPointForMoney;
+
+    /**
+     * 领域层枚举必须实现 BaseEnum
+     */
+    @ArchTest
+    static final ArchRule domainEnumsShouldImplementBaseEnum =
+        CartisanCodingStandardsRules.domainEnumsShouldImplementBaseEnum;
 }
