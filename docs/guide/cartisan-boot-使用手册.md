@@ -1025,7 +1025,7 @@ public class ArchitectureTest {
 }
 ```
 
-### 3.6 使用审计和软删除基类
+### 3.5 使用审计和软删除基类
 
 ```java
 // 仅审计
@@ -1049,7 +1049,7 @@ orderRepository.delete(order);  // UPDATE SET deleted = true
 orderRepository.findAll();      // 自动过滤 deleted = true
 ```
 
-### 3.7 使用 TSID 生成器
+### 3.6 使用 TSID 生成器
 
 ```java
 @Entity
@@ -1080,7 +1080,7 @@ public class OrderService {
 }
 ```
 
-### 3.8 监听领域事件
+### 3.7 监听领域事件
 
 ```java
 @Component
@@ -1101,7 +1101,7 @@ public class OrderEventHandler {
 }
 ```
 
-### 3.9 使用权限注解
+### 3.8 使用权限注解
 
 ```java
 // 类级别注解
@@ -1155,7 +1155,7 @@ public class PublicController {
 - module: 业务模块（如 user）
 - action: 操作（如 read/write/delete）
 
-### 3.10 使用 SecurityContext
+### 3.9 使用 SecurityContext
 
 ```java
 @Service
@@ -1185,7 +1185,7 @@ public class OrderService {
 }
 ```
 
-### 3.11 使用 TenantContext
+### 3.10 使用 TenantContext
 
 ```java
 @Service
@@ -1213,7 +1213,7 @@ public class OrderService {
 }
 ```
 
-### 3.12 使用 AuthenticationService
+### 3.11 使用 AuthenticationService
 
 ```java
 @RestController
@@ -1254,7 +1254,7 @@ public class AuthController {
 }
 ```
 
-### 3.13 使用 @CurrentUser 注解
+### 3.12 使用 @CurrentUser 注解
 
 ```java
 // 必需登录场景
@@ -1314,7 +1314,7 @@ public class PreferencesController {
 | `@CurrentUser Long userId` | 参数解析阶段 | 需要使用 userId，未登录抛异常 |
 | `@CurrentUser Optional<Long> userId` | 参数解析阶段 | 允许匿名访问，已登录可获取 userId |
 
-### 3.14 配置拦截器路径
+### 3.13 配置拦截器路径
 
 ```yaml
 # 仅保护 API 路径（默认是 /**）
@@ -1340,7 +1340,7 @@ cartisan:
         - "/actuator/**"
 ```
 
-### 3.15 使用 jOOQ 自动配置
+### 3.14 使用 jOOQ 自动配置
 
 ```java
 // 引入依赖后，DSLContext 自动注入可用
@@ -1376,7 +1376,7 @@ public class UserService {
 }
 ```
 
-### 3.16 启用 SQL 日志
+### 3.15 启用 SQL 日志
 
 ```yaml
 # application.yml
@@ -1386,7 +1386,7 @@ cartisan:
       sql-logging: true  # 启用 SQL 执行日志
 ```
 
-### 3.17 使用多租户查询
+### 3.16 使用多租户查询
 
 ```java
 import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
@@ -1421,7 +1421,7 @@ public class UserService {
 }
 ```
 
-### 3.18 jOOQ 代码生成配置
+### 3.17 jOOQ 代码生成配置
 
 在业务项目 `build.gradle.kts` 中添加：
 
@@ -1471,7 +1471,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
-### 3.19 使用 cartisan-ai 同步调用
+### 3.18 使用 cartisan-ai 同步调用
 
 ```java
 @Service
@@ -1504,7 +1504,7 @@ public class AiService {
 }
 ```
 
-### 3.20 使用 cartisan-ai 流式调用（SSE）
+### 3.19 使用 cartisan-ai 流式调用（SSE）
 
 ```java
 @RestController
@@ -1548,7 +1548,7 @@ public class AiController {
 }
 ```
 
-### 3.21 配置 cartisan-ai Provider
+### 3.20 配置 cartisan-ai Provider
 
 ```yaml
 # application.yml
@@ -1575,7 +1575,7 @@ cartisan:
 - 只有配置了对应 `api-key` 的 Provider 才会被创建
 - 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
 
-### 3.22 实现 ModelUsageListener
+### 3.21 实现 ModelUsageListener
 
 ```java
 @Component
@@ -1593,7 +1593,7 @@ public class TokenUsageLogger implements ModelUsageListener {
 }
 ```
 
-### 3.23 使用 RedisKey 工具
+### 3.22 使用 RedisKey 工具
 
 ```java
 @Service
@@ -1619,7 +1619,7 @@ public class UserService {
 }
 ```
 
-### 3.24 使用 DomainMapper 批量转换
+### 3.23 使用 DomainMapper 批量转换
 
 ```java
 @Mapper(componentModel = "spring")
@@ -1649,7 +1649,7 @@ public class UserService {
 }
 ```
 
-### 3.25 使用 TreeNode 构建树结构
+### 3.24 使用 TreeNode 构建树结构
 
 ```java
 @Service
@@ -1681,7 +1681,7 @@ public class DepartmentService {
 }
 ```
 
-### 3.26 使用 @PreventResubmit 防重提交
+### 3.25 使用 @PreventResubmit 防重提交
 
 ```java
 @RestController
@@ -1706,7 +1706,7 @@ public class UserController {
 }
 ```
 
-### 3.27 使用 @Condition 注解查询
+### 3.26 使用 @Condition 注解查询
 
 ```java
 // 定义查询 DTO
@@ -1725,7 +1725,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 cartisan-web 模块章节中的 @Condition 注解详细说明
 
-### 3.28 启用自动响应包装
+### 3.27 启用自动响应包装
 
 ```yaml
 # application.yml
@@ -1744,7 +1744,7 @@ public User getById(@PathVariable Long id) {
 }
 ```
 
-### 3.29 使用枚举选项工具
+### 3.28 使用枚举选项工具
 
 ```java
 // 转换单个枚举
@@ -1771,7 +1771,7 @@ public interface UserMapper extends DomainMapper<User, UserResponse> {
 }
 ```
 
-### 3.30 使用默认枚举 Controller
+### 3.29 使用默认枚举 Controller
 
 ```yaml
 # application.yml（默认配置）
@@ -1801,7 +1801,7 @@ const fetchEnums = async () => {
 };
 ```
 
-### 3.31 自定义枚举 Controller
+### 3.30 自定义枚举 Controller
 
 ```yaml
 # 禁用默认实现
