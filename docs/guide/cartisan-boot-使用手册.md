@@ -118,7 +118,7 @@ cartisan:
 | **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
 | **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
 
-> **完整规则列表**参见 PITFALLS.md 第四章。
+> **更多规则和详细说明**参见 PITFALLS.md。
 
 ##### @Condition 注解详细说明
 
@@ -197,7 +197,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` |
 | **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` |
 
-> **完整规则列表**参见 PITFALLS.md 第四章。
+> **更多规则和详细说明**参见 PITFALLS.md。
 
 ### 1.5 cartisan-event 模块
 
@@ -233,7 +233,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **SECURITY-005** | `@Component` Bean 名称需显式指定避免冲突 |
 | **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常 |
 
-> **完整规则列表**参见 PITFALLS.md 第四章。
+> **更多规则和详细说明**参见 PITFALLS.md。
 
 ### 1.7 cartisan-data-query 模块
 
@@ -255,7 +255,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **QUERY-006** | `@Condition` 的 `blurry` 属性使用 OR 连接多字段 |
 | **QUERY-007** | `@Condition` 注解 null 和空字符串自动跳过 |
 
-> **完整规则列表**参见 PITFALLS.md 第四章。
+> **更多规则和详细说明**参见 PITFALLS.md。
 
 ### 1.8 cartisan-ai 模块
 
@@ -280,7 +280,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
 | **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
 
-> **完整规则列表**参见 PITFALLS.md 第四章。
+> **更多规则和详细说明**参见 PITFALLS.md。
 
 ---
 
