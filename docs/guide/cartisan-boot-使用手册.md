@@ -1,11 +1,75 @@
 # cartisan-boot 使用手册
 
-> **版本**：v0.9 | **日期**：2026-03-30
-> **模块**：Core + Test + Web + Data-JPA + Event + Security + Data-Query + AI
+> **版本**：v1.0 | **日期**：2026-04-05
+> **定位**：框架使用指南（怎么用）
+> **目标读者**：使用 cartisan-boot 框架的业务项目开发者
 
 ---
 
-## 一、模块能力清单
+## 一、快速开始
+
+### 1.1 依赖引入
+
+在业务项目的 `build.gradle.kts` 或 `pom.xml` 中引入 cartisan-boot BOM：
+
+```kotlin
+// Gradle Kotlin DSL
+implementation(platform("com.cartisan:cartisan-dependencies:0.1.0"))
+implementation("com.cartisan:cartisan-core")
+implementation("com.cartisan:cartisan-web")
+implementation("com.cartisan:cartisan-data-jpa")
+// 根据需要添加其他模块
+```
+
+```xml
+<!-- Maven -->
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-dependencies</artifactId>
+            <version>0.1.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-data-jpa</artifactId>
+    </dependency>
+    <!-- 根据需要添加其他模块 -->
+</dependencies>
+```
+
+### 1.2 自动配置
+
+cartisan-boot 模块支持 Spring Boot 自动配置，引入依赖后自动启用，无需手动配置。
+
+### 1.3 基础配置
+
+在 `application.yml` 中添加基础配置（可选）：
+
+```yaml
+cartisan:
+  web:
+    enum-controller:
+      enabled: true  # 启用默认枚举 Controller
+```
+
+---
+
+## 二、模块能力清单
 
 ### 1.1 cartisan-core 模块
 
@@ -104,7 +168,7 @@
 
 ---
 
-## 二、核心概念和 API
+## 三、核心概念和 API
 
 ### 2.1 DDD 基础类型（com.cartisan.core.domain）
 
@@ -624,7 +688,7 @@ public class PermissionInitService {
 
 ---
 
-## 三、使用示例
+## 四、使用示例
 
 ### 3.1 定义聚合根
 
@@ -1911,7 +1975,7 @@ public class DictController extends EnumControllerBase {
 
 ---
 
-## 四、注意事项
+## 五、注意事项
 
 ### 4.1 DDD 相关
 
@@ -2308,7 +2372,7 @@ public ApiResponse<User> getById(@PathVariable Long id) {
 
 ---
 
-## 五、详细功能指南
+## 六、详细功能指南
 
 ### 5.1 @Condition 注解详细说明
 
@@ -2730,7 +2794,7 @@ tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
 
 ---
 
-## 六、CQRS 架构说明
+## 七、CQRS 架构说明
 
 ### 6.1 读写分离设计
 
@@ -2855,9 +2919,9 @@ void test() throws Exception {
 
 ---
 
-## 七、依赖说明
+## 八、依赖说明
 
-### 5.1 cartisan-core
+### 8.1 cartisan-core
 
 ```
 零外部依赖，仅使用 JDK 标准库
