@@ -85,7 +85,7 @@ cartisan:
 
 | 能力 | 说明 |
 |------|------|
-| **ArchUnit 规则** | DDD 分层、命名规范、禁止规则的自动验证 |
+| **ArchUnit 规则（v1.1）** | DDD 分层、命名规范、禁止规则、编码规范规则的自动验证 |
 | **集成测试基类** | IntegrationTestBase（需手动启动测试环境） |
 | **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
@@ -431,10 +431,11 @@ public class UserController {
 
 | 类 | 规则数 | 说明 |
 |----|--------|------|
-| `CartesianLayeringRules` | 4 | DDD 分层规则 |
-| `CartesianNamingRules` | 4 | 命名规范规则 |
-| `CartesianProhibitionRules` | 3 | 禁止规则 |
-| `CartesianArchRules` | 11 | 聚合全部规则 |
+| `CartisanLayeringRules` | 5 | DDD 分层规则（新增：Controller 不应依赖聚合根） |
+| `CartisanNamingRules` | 5 | 命名规范规则（新增：外部 API Controller 版本号） |
+| `CartisanProhibitionRules` | 3 | 禁止规则 |
+| `CartisanCodingStandardsRules` | 1 | 编码规范规则（新增：领域层枚举实现 BaseEnum） |
+| `CartisanArchRules` | 14 | 聚合全部规则 |
 
 ### 2.6 测试基类（com.cartisan.test.base）
 
@@ -1020,8 +1021,8 @@ public class ArchitectureTest {
     static final ArchRules layering = ArchRules.in(CartisanLayeringRules.class);
 
     @ArchTest
-    static final ArchRules prohibition = ArchRules.in(CartisanProhibitionRules.class);
-    // 不要 naming 规则
+    static final ArchRules codingStandards = ArchRules.in(CartisanCodingStandardsRules.class);
+    // 不使用 naming 和 prohibition 规则
 }
 ```
 
