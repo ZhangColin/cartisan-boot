@@ -860,69 +860,7 @@ public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot
 }
 ```
 
-### 3.2 使用 BaseEnum 枚举增强
-
-```java
-// 1. 定义业务枚举，实现 BaseEnum 接口
-@Getter
-@AllArgsConstructor
-public enum UserStatus implements BaseEnum<UserStatus> {
-    ACTIVE(1, "激活"),
-    INACTIVE(0, "未激活");
-
-    private final Integer code;
-    private final String name;
-}
-
-// 2. 实体中使用 @EnumConvert 注解
-@Entity
-@Table(name = "users")
-public class User {
-    @Id
-    private Long id;
-
-    @EnumConvert(UserStatus.class)
-    @Column(name = "status")
-    private UserStatus status;
-}
-
-// 3. DTO 中直接使用枚举类型
-public record UserResponse(
-    Long id,
-    UserStatus status,        // 自动序列化为 code（Integer）
-    String statusName         // MapStruct 自动调用 getName()
-) {}
-
-// 4. Controller 中自动反序列化
-@PostMapping("/users")
-public ApiResponse<Void> createUser(@RequestBody CreateUserRequest request) {
-    // request.status() 已是 UserStatus 枚举
-    userService.create(request);
-    return ApiResponse.ok();
-}
-
-// JSON 请求示例：
-// {
-//   "name": "张三",
-//   "status": 1          // 自动转换为 UserStatus.ACTIVE
-// }
-//
-// JSON 响应示例：
-// {
-//   "code": 200,
-//   "data": {
-//     "id": 123,
-//     "status": 1,       // UserStatus.ACTIVE.getCode()
-//     "statusName": "激活"
-//   }
-// }
-```
-
-**数据流：**
-- **前端 → 数据库**：JSON `{status: 1}` → Jackson 反序列化为 `UserStatus.ACTIVE` → JPA 转换为 `1` → 数据库
-- **数据库 → 前端**：数据库 `1` → JPA 转换为 `UserStatus.ACTIVE` → Jackson 序列化为 `1` → JSON
-
-### 3.3 使用异常体系
+### 3.2 使用异常体系
 
 ```java
 // 领域层 - 业务规则违反
@@ -1087,199 +1025,7 @@ public class ArchitectureTest {
 }
 ```
 
-### 3.6 使用集成测试基类
-
-**启动测试环境：**
-
-```bash
-# 启动 PostgreSQL（测试用）
-docker run -d -p 5432:5432 \
-  -e POSTGRES_DB=testdb \
-  -e POSTGRES_USER=test \
-  -e POSTGRES_PASSWORD=test \
-  postgres:16-alpine
-
-# 启动 Redis（测试用）
-docker run -d -p 6379:6379 redis:7-alpine
-```
-
-**Repository 集成测试：**
-
-```java
-class OrderRepositoryTest extends IntegrationTestBase {
-    @Autowired
-    private OrderRepository orderRepository;
-
-    @Test
-    void shouldSaveOrder() {
-        // 每次测试后自动回滚事务，数据隔离
-        Order order = new Order("customer-123", List.of());
-        orderRepository.save(order);
-
-        assertThat(orderRepository.findById(order.getId())).isPresent();
-    }
-}
-```
-
-**Controller API 测试：**
-
-```java
-class OrderControllerTest extends ApiTestBase {
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Test
-    void shouldCreateOrder() throws Exception {
-        CreateOrderRequest request = new CreateOrderRequest("customer-123");
-        String json = objectMapper.writeValueAsString(request);
-
-        mvc.perform(post("/api/v1/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.id").exists());
-    }
-}
-```
-
-**环境变量配置（可选）：**
-
-```bash
-export TEST_DB_URL=jdbc:postgresql://localhost:5432/testdb
-export TEST_DB_USER=test
-export TEST_DB_PASSWORD=test
-export TEST_REDIS_HOST=localhost
-export TEST_REDIS_PORT=6379
-```
-
-**检查测试环境：**
-
-```java
-// 编程方式检查
-TestEnvironmentChecker checker = new TestEnvironmentChecker();
-checker.checkFromEnvironment();
-if (checker.hasErrors()) {
-    checker.printReport();
-}
-```
-
-### 3.7 使用 Fixture 工具
-
-```java
-class OrderServiceTest {
-    @Test
-    void shouldCreateOrder() {
-        // 字符串生成
-        String orderId = FixtureStrings.randomString("ORDER-");
-        String email = FixtureStrings.randomEmail();
-
-        // 数字生成
-        Long customerId = FixtureNumbers.randomId();
-        BigDecimal amount = FixtureNumbers.randomAmount();
-
-        // 日期生成
-        LocalDateTime orderDate = FixtureDates.now();
-        LocalDateTime dueDate = FixtureDates.futureDays(7);
-
-        // 对象构建
-        Order order = FixtureBuilder.of(Order.class)
-            .with("id", new OrderId(orderId))
-            .with("customerId", customerId)
-            .build();
-    }
-
-    @Test
-    void shouldGenerateRepeatableData_whenSeedSet() {
-        // 设置种子，测试可重复
-        FixtureSeeds.setGlobalSeed(12345L);
-
-        String str1 = FixtureStrings.randomString();
-        String str2 = FixtureStrings.randomString();
-
-        assertThat(str1).isEqualTo(str2);  // 相同种子 → 相同序列
-
-        FixtureSeeds.resetSeed();
-    }
-}
-```
-
-### 3.8 使用 ApiResponse 响应体
-
-```java
-@RestController
-@RequestMapping("/api/v1/orders")
-public class OrderController {
-
-    // 成功响应（带数据）
-    @GetMapping("/{id}")
-    public ApiResponse<OrderDto> getOrder(@PathVariable Long id) {
-        Order order = orderService.findById(id);
-        return ApiResponse.ok(OrderDto.from(order));
-    }
-
-    // 成功响应（无数据）
-    @DeleteMapping("/{id}")
-    public ApiResponse<Void> deleteOrder(@PathVariable Long id) {
-        orderService.delete(id);
-        return ApiResponse.ok();
-    }
-}
-```
-
-### 3.9 使用 RequestContext
-
-```java
-// 在任何地方获取请求上下文
-@Service
-public class OrderService {
-
-    public void createOrder(CreateOrderRequest request) {
-        String requestId = RequestContext.getRequestId();
-        String clientIp = RequestContext.getClientIp();
-
-        log.info("Creating order, requestId={}, clientIp={}", requestId, clientIp);
-        // ...
-    }
-}
-
-// requestId 生成逻辑（RequestContextFilter 自动执行）：
-// 1. 优先从 X-Request-Id Header 读取
-// 2. 否则生成 UUID
-```
-
-### 3.10 定义 Repository（泛型约束）
-
-```java
-// 聚合根
-@Entity
-public class Order extends AbstractAggregateRoot<Order> {
-    @Id
-    private Long id;
-
-    public void ship() {
-        registerEvent(new OrderShippedEvent(id));
-    }
-}
-
-// Repository 接口（T 必须是 AggregateRoot<?>）
-public interface OrderRepository extends BaseRepository<Order, Long> {
-    // 继承全部 JPA 方法 + Specification
-    // save() 时自动发布领域事件
-}
-
-// 使用
-@Service
-public class OrderService {
-    private final OrderRepository orderRepository;
-
-    public void createOrder(Order order) {
-        order.registerEvent(new OrderCreatedEvent(order.getId()));
-        orderRepository.save(order);  // 自动发布事件
-    }
-}
-```
-
-### 3.11 使用审计和软删除基类
+### 3.6 使用审计和软删除基类
 
 ```java
 // 仅审计
@@ -1303,7 +1049,7 @@ orderRepository.delete(order);  // UPDATE SET deleted = true
 orderRepository.findAll();      // 自动过滤 deleted = true
 ```
 
-### 3.12 使用 TSID 生成器
+### 3.7 使用 TSID 生成器
 
 ```java
 @Entity
@@ -1334,7 +1080,7 @@ public class OrderService {
 }
 ```
 
-### 3.13 监听领域事件
+### 3.8 监听领域事件
 
 ```java
 @Component
@@ -1355,7 +1101,7 @@ public class OrderEventHandler {
 }
 ```
 
-### 3.14 使用权限注解
+### 3.9 使用权限注解
 
 ```java
 // 类级别注解
@@ -1409,7 +1155,7 @@ public class PublicController {
 - module: 业务模块（如 user）
 - action: 操作（如 read/write/delete）
 
-### 3.15 使用 SecurityContext
+### 3.10 使用 SecurityContext
 
 ```java
 @Service
@@ -1439,7 +1185,7 @@ public class OrderService {
 }
 ```
 
-### 3.16 使用 TenantContext
+### 3.11 使用 TenantContext
 
 ```java
 @Service
@@ -1467,7 +1213,7 @@ public class OrderService {
 }
 ```
 
-### 3.17 使用 AuthenticationService
+### 3.12 使用 AuthenticationService
 
 ```java
 @RestController
@@ -1508,7 +1254,7 @@ public class AuthController {
 }
 ```
 
-### 3.18 使用 @CurrentUser 注解
+### 3.13 使用 @CurrentUser 注解
 
 ```java
 // 必需登录场景
@@ -1568,7 +1314,7 @@ public class PreferencesController {
 | `@CurrentUser Long userId` | 参数解析阶段 | 需要使用 userId，未登录抛异常 |
 | `@CurrentUser Optional<Long> userId` | 参数解析阶段 | 允许匿名访问，已登录可获取 userId |
 
-### 3.19 配置拦截器路径
+### 3.14 配置拦截器路径
 
 ```yaml
 # 仅保护 API 路径（默认是 /**）
@@ -1594,7 +1340,7 @@ cartisan:
         - "/actuator/**"
 ```
 
-### 3.20 使用 jOOQ 自动配置
+### 3.15 使用 jOOQ 自动配置
 
 ```java
 // 引入依赖后，DSLContext 自动注入可用
@@ -1630,7 +1376,7 @@ public class UserService {
 }
 ```
 
-### 3.21 启用 SQL 日志
+### 3.16 启用 SQL 日志
 
 ```yaml
 # application.yml
@@ -1640,7 +1386,7 @@ cartisan:
       sql-logging: true  # 启用 SQL 执行日志
 ```
 
-### 3.22 使用多租户查询
+### 3.17 使用多租户查询
 
 ```java
 import static com.cartisan.data.query.support.JooqTenantSupport.eqTenantId;
@@ -1675,7 +1421,7 @@ public class UserService {
 }
 ```
 
-### 3.23 jOOQ 代码生成配置
+### 3.18 jOOQ 代码生成配置
 
 在业务项目 `build.gradle.kts` 中添加：
 
@@ -1725,7 +1471,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
-### 3.24 使用 cartisan-ai 同步调用
+### 3.19 使用 cartisan-ai 同步调用
 
 ```java
 @Service
@@ -1758,7 +1504,7 @@ public class AiService {
 }
 ```
 
-### 3.25 使用 cartisan-ai 流式调用（SSE）
+### 3.20 使用 cartisan-ai 流式调用（SSE）
 
 ```java
 @RestController
@@ -1802,7 +1548,7 @@ public class AiController {
 }
 ```
 
-### 3.26 配置 cartisan-ai Provider
+### 3.21 配置 cartisan-ai Provider
 
 ```yaml
 # application.yml
@@ -2330,4 +2076,140 @@ implementation 依赖：
 
 ---
 
-**文档结束** | 更新日期：2026-03-29
+---
+
+## 八、设计理念
+
+### 8.1 六边形架构（端口适配器）
+
+cartisan-boot 基于 DDD 六边形架构（端口适配器架构），清晰划分层次职责：
+
+```
+北向接口（Driving Side）：
+- REST API | GraphQL | gRPC | MQ
+
+应用层（Application Layer）：
+- 北向接口适配层 | 上下文出入口
+
+领域层（Domain Layer）：
+- 核心业务逻辑 | 南向端口接口
+
+南向接口（Driven Side）：
+- 密码加密 | 持久化 | 缓存 | 外部服务
+
+基础设施层（Infrastructure）：
+- 南向接口的适配器实现
+```
+
+**依赖方向**：
+- 北向接口 → 应用层 → 领域层
+- 领域层定义南向端口接口
+- 基础设施层实现南向端口接口
+
+> **详细设计说明**参见《cartisan-boot-设计文档》
+
+### 8.2 CQRS 架构（读写分离）
+
+cartisan-boot 支持 CQRS 架构，读写分离：
+
+| 模块 | 职责 | 技术 |
+|------|------|------|
+| **cartisan-data-jpa** | 写侧（Command） | JPA + Hibernate |
+| **cartisan-data-query** | 读侧（Query） | jOOQ + DSL |
+
+**典型使用场景**：
+- 写：使用 JPA 保存聚合根，自动发布领域事件
+- 读：使用 jOOQ 高效查询，类型安全的 DSL
+
+### 8.3 DDD 设计原则（精简版）
+
+cartisan-boot 提供 DDD 基础设施，但不强制 DDD 教条。
+
+**务实的设计取舍**：
+- 聚合根是否必须避免使用 `@Setter`？否，简单属性直接用 `@Setter`
+- 应用服务层可以直接调用聚合根的 setter？可以，务实做法
+- ID 是否必须用强类型值对象？否，不强求
+
+**原则总结**：提供能力，不强求风格。
+
+> **详细编码规范**参见《限界上下文代码编写规范》
+
+---
+
+## 九、配置说明
+
+### 9.1 application.yml 配置项
+
+```yaml
+cartisan:
+  web:
+    enum-controller:
+      enabled: true  # 启用默认枚举 Controller
+      path: /api/enums  # Controller 路径
+      scan-packages:  # 要扫描的包列表
+        - com.cartisan
+        - com.example
+    auto-response:
+      enabled: false  # 启用自动响应包装
+  data-query:
+    jooq:
+      sql-logging: false  # 启用 SQL 执行日志
+  ai:
+    sse:
+      timeout: 30s  # SSE 超时配置
+```
+
+### 9.2 可选功能开关
+
+| 功能 | 配置项 | 默认值 |
+|------|--------|--------|
+| 枚举 Controller | `cartisan.web.enum-controller.enabled` | `true` |
+| 自动响应包装 | `cartisan.web.auto-response.enabled` | `false` |
+| jOOQ SQL 日志 | `cartisan.data-query.jooq.sql-logging` | `false` |
+
+### 9.3 Druid 数据源配置
+
+```yaml
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:postgresql://localhost:5432/mydb
+    username: user
+    password: pass
+    druid:
+      stat-view-servlet:
+        enabled: true
+        login-username: admin
+        login-password: admin
+```
+
+---
+
+## 十、常见问题
+
+### 10.1 如何运行 ArchUnit 测试？
+
+```bash
+# 在 cartisan-core 模块
+cd cartisan-core
+mvn test -Dtest=ArchitectureTest
+
+# 在业务项目中
+mvn test -Dtest=ArchitectureTest
+```
+
+### 10.2 如何配置 jOOQ 代码生成？
+
+参见使用手册 3.23 节和 PITFALLS.md QUERY-001。
+
+### 10.3 如何枚举实现 BaseEnum？
+
+参见使用手册 2.1.1 节和《限界上下文代码编写规范》3.6.1 节。
+
+### 10.4 更多问题？
+
+参见《PITFALLS.md - 团队踩坑经验库》
+
+---
+
+**文档结束** | **版本**：v1.0 | **更新日期**：2026-04-05
