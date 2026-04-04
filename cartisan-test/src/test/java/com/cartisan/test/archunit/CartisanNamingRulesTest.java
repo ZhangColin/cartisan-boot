@@ -89,4 +89,21 @@ class CartisanNamingRulesTest {
         ).isInstanceOf(AssertionError.class)
          .hasMessageContaining("Repository");
     }
+
+    @Test
+    @DisplayName("externalApiControllersMustContainVersion - 合规代码应该通过")
+    void externalApiControllersMustContainVersion_passes_forCompliantCode() {
+        assertThatCode(() ->
+            CartisanNamingRules.externalApiControllersMustContainVersion.check(compliantClasses)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("externalApiControllersMustContainVersion - 违规代码应该失败")
+    void externalApiControllersMustContainVersion_fails_forViolatingCode() {
+        assertThatThrownBy(() ->
+            CartisanNamingRules.externalApiControllersMustContainVersion.check(violatingClasses)
+        ).isInstanceOf(AssertionError.class)
+         .hasMessageContaining("V");
+    }
 }

@@ -78,4 +78,21 @@ public class CartisanNamingRules {
             .should()
             .haveSimpleNameEndingWith("Repository")
             .because("Repositories should be suffixed with 'Repository'");
+
+    /**
+     * 外部 API Controller 必须包含版本号
+     *
+     * <p>避免多版本共存时 Spring Bean 名称冲突。</p>
+     * <p>类名必须包含 V{数字} 格式，如 {@code UserApiV1Controller}。</p>
+     */
+    @ArchTest
+    static final ArchRule externalApiControllersMustContainVersion =
+        classes()
+            .that()
+            .areAnnotatedWith(RestController.class)
+            .and()
+            .resideInAPackage("..endpoints.api..")
+            .should()
+            .haveNameMatching(".*V\\d+.*")
+            .because("External API controllers must include version number to avoid bean name conflicts");
 }
