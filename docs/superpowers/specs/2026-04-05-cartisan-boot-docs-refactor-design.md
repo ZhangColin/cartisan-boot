@@ -1,8 +1,11 @@
 # cartisan-boot 文档重构设计方案
 
-> **版本**：v1.0
+> **版本**：v1.1
 > **日期**：2026-04-05
 > **目标**：重构 cartisan-boot 文档，明确使用手册与编码规范的边界，增强 ArchUnit 规则
+> **变更历史**：
+> - v1.1（2026-04-05）：根据审查反馈简化 ArchUnit 规则，添加迁移策略
+> - v1.0（2026-04-05）：初始版本
 
 ---
 
@@ -37,7 +40,22 @@
 
 2. **优化文档结构**：便于阅读查询及使用
 
-3. **增强 ArchUnit**：根据编码规范更新架构测试规则
+3. **增强 ArchUnit**：根据编码规范更新架构测试规则（专注于可验证的架构约束）
+
+### 1.3 文档边界明确
+
+为确保各文档职责清晰，避免重复，制定以下边界原则：
+
+| 文档 | 定位 | 典型内容 | 不包含 |
+|------|------|---------|--------|
+| **cartisan-boot-使用手册** | 框架使用指南（怎么用） | - 各模块 API 说明<br>- 使用示例<br>- 配置选项<br>- 常见问题 | - DDD 设计理念<br>- 业务代码编写规范<br>- 框架设计决策 |
+| **限界上下文代码编写规范** | 业务代码编写规则（应该怎么写） | - 包结构设计<br>- 聚合根设计原则<br>- 分层架构规则<br>- 命名规范 | - 框架 API 使用<br>- 配置说明<br>- 框架功能介绍 |
+| **cartisan-boot-设计文档** | 框架设计原理（为什么这样设计） | - 架构设计决策<br>- 技术选型说明<br>- 设计模式应用 | - 使用指南<br>- 编码规范<br>- API 文档 |
+
+**交叉引用原则**：
+- 使用手册引用编码规范："详细设计原则参见《限界上下文代码编写规范》"
+- 使用手册引用设计文档："自动配置原理参见《cartisan-boot-设计文档》"
+- 编码规范引用使用手册："枚举使用示例参见《cartisan-boot-使用手册》2.4 节"
 
 ---
 
@@ -156,73 +174,95 @@ cartisan-boot-使用手册.md
 1. **限界上下文代码编写规范.md**：业务项目编码规范
 2. **cartisan-boot 框架要求**：框架层的架构约束
 
-### 3.2 新增/增强规则
+### 3.2 技术可行性分析
 
-#### 3.2.1 DDD 最佳实践规则（新增）
+**复杂度评估**：
+- **架构规则**（分层、命名）：✅ 技术成熟，ArchUnit 原生支持
+- **编码规范规则**（枚举、常量）：✅ 简单明确，易于实现
+- **DDD 最佳实践规则**（小聚合、ID 引用）：⚠️ 过于复杂，难以自动化验证
 
-```java
-// 小聚合原则
-@ArchTest
-static final ArchRule aggregate_should_be_small =
-    classes().that().areAssignableTo(AggregateRoot.class)
-        .should(new AggregateSizePredicate());
+**决策**：专注于**可验证的架构约束**，而非**复杂的 DDD 最佳实践**
 
-// 聚合根实体引用规则（ID 引用 > 对象引用）
-@ArchTest
-static final ArchRule aggregate_should_use_id_reference =
-    noClasses().that().areAssignableTo(AggregateRoot.class)
-        .should().dependOnClassesThat().areAssignableTo(AggregateRoot.class)
-        .exceptField("id");
+### 3.3 新增/增强规则
 
-// 应用服务不应暴露领域模型
-@ArchTest
-static final ArchRule app_service_should_not_expose_domain_model =
-    classes().that().areAnnotatedWith(Service.class)
-        .and().haveNameMatching(".*AppService")
-        .should().onlyDependOnClassesThat()
-            .areNotAssignableTo(AggregateRoot.class);
-```
-
-#### 3.2.2 分层规则增强
+#### 3.3.1 分层规则增强
 
 ```java
-// Controller 不应导入领域模型
+// Controller 不应直接依赖领域聚合根
+// 说明：Controller 应通过 AppService 访问领域逻辑，不应直接导入 AggregateRoot
 @ArchTest
-static final ArchRule controller_should_not_import_domain_model =
+static final ArchRule controller_should_not_depend_on_aggregates =
     noClasses().that().areAnnotatedWith(RestController.class)
         .should().dependOnClassesThat()
-            .resideInAPackage("..domain..")
-            .exceptAnnotation("*Mapping"); // 允许 @Mapping 注解
+            .areAssignableTo(AggregateRoot.class)
+            .or().resideInAPackage("..domain.aggregate..")
+            .or().resideInAPackage("..domain.entity..");
 ```
 
-#### 3.2.3 命名规范增强
+**技术说明**：
+- 依赖关系检查是 ArchUnit 的核心能力，技术成熟
+- 通过 `@ArchTest` 注解，规则会在测试时自动执行
+- 可以通过 `@AnalyzeClasses` 配置包扫描范围
+
+#### 3.3.2 命名规范增强
 
 ```java
 // 外部 API Controller 必须包含版本号
+// 说明：避免多版本共存时 Spring Bean 名称冲突
 @ArchTest
 static final ArchRule external_api_controller_must_contain_version =
     classes().that().areAnnotatedWith(RestController.class)
-        .and().resideInAPackage("..api..")
+        .and().resideInAPackage("..endpoints.api..")
         .should().haveNameMatching(".*V\\d+.*");
 ```
 
-#### 3.2.4 编码规范规则
+**技术说明**：
+- 正则匹配是 ArchUnit 内置功能
+- 包路径和命名规范检查简单可靠
+
+#### 3.3.3 编码规范规则
 
 ```java
-// 枚举必须实现 BaseEnum
+// 领域层枚举必须实现 BaseEnum
+// 说明：确保枚举与 Integer 的自动转换
 @ArchTest
-static final ArchRule enum_should_implement_base_enum =
+static final ArchRule domain_enum_should_implement_base_enum =
     classes().that().areEnums()
         .and().resideInAPackage("..domain..")
         .should().implement(BaseEnum.class);
+```
 
-// 常量使用 public static final
-@ArchTest
-static final ArchRule constants_should_be_public_static_final =
-    fields().that().haveNameMatching("[A-Z_]+")
-        .should().bePublic()
-        .and().shouldBeStatic()
-        .and().shouldBeFinal();
+**技术说明**：
+- 接口实现检查是 ArchUnit 的基础能力
+- 包路径限定确保只检查领域层枚举
+
+### 3.4 不实施的规则（保留为编码指南）
+
+以下规则**过于复杂**，保留在编码规范中作为**人工检查项**，不作为 ArchUnit 自动规则：
+
+| 规则 | 原因 | 替代方案 |
+|------|------|---------|
+| 小聚合原则 | 需要复杂的 AST 分析，难以定义"小"的阈值 | Code Review 检查 |
+| ID 引用规则 | 过于简化，无法区分聚合间引用和内部引用 | Code Review 检查 |
+| 应用服务暴露领域模型 | 难以定义"暴露"的具体含义 | 返回值类型检查（部分覆盖） |
+
+### 3.5 规则组织
+
+```
+CartisanArchRules（总入口）
+├── CartisanLayeringRules（分层规则）
+│   ├── 现有规则（4 个）
+│   └── 新增：Controller 不应依赖聚合根
+│
+├── CartisanNamingRules（命名规范）
+│   ├── 现有规则（4 个）
+│   └── 新增：外部 API Controller 版本号
+│
+├── CartisanProhibitionRules（禁止规则）
+│   └── 现有规则（3 个）
+│
+└── CartisanCodingStandardsRules（新增：编码规范规则）
+    └── 领域层枚举实现 BaseEnum
 ```
 
 ### 3.3 规则组织
@@ -269,24 +309,28 @@ CartisanArchRules（总入口）
 
 ### 阶段二：ArchUnit 更新
 
-**目标**：根据编码规范和框架要求增强 ArchUnit 规则
+**目标**：根据编码规范和框架要求增强 ArchUnit 规则（专注于可验证的架构约束）
 
 **任务清单**：
-1. [ ] 新增 `CartisanDddRules` 规则类
-2. [ ] 实现小聚合检查谓词（`AggregateSizePredicate`）
-3. [ ] 增强分层规则（Controller 不应导入领域模型）
-4. [ ] 增强命名规范规则（外部 API Controller 版本号）
-5. [ ] 新增编码规范规则（枚举、常量）
-6. [ ] 编写规则测试用例
-7. [ ] 更新 `CartisanArchRules` 总入口
+1. [ ] 新增 `CartisanCodingStandardsRules` 规则类
+2. [ ] 增强分层规则（Controller 不应依赖聚合根）
+3. [ ] 增强命名规范规则（外部 API Controller 版本号）
+4. [ ] 新增编码规范规则（领域层枚举实现 BaseEnum）
+5. [ ] 编写规则测试用例（验证规则能正确发现违规）
+6. [ ] 更新 `CartisanArchRules` 总入口
+7. [ ] 在使用手册中更新 ArchUnit 使用说明
 
 **产出物**：
-- 新增 `cartisan-test/src/main/java/.../archunit/CartisanDddRules.java`
-- 新增 `cartisan-test/src/main/java/.../archunit/predicate/AggregateSizePredicate.java`
+- 新增 `cartisan-test/src/main/java/.../archunit/CartisanCodingStandardsRules.java`
 - 修改 `cartisan-test/src/main/java/.../archunit/CartisanLayeringRules.java`
 - 修改 `cartisan-test/src/main/java/.../archunit/CartisanNamingRules.java`
-- 修改 `cartisan-test/src/main/java/.../archunit/CartisanProhibitionRules.java`
 - 修改 `cartisan-test/src/main/java/.../archunit/CartisanArchRules.java`
+- 更新 `docs/guide/cartisan-boot-使用手册.md` 中的 ArchUnit 章节
+
+**技术要点**：
+- 使用 ArchUnit 原生 API，避免自定义谓词
+- 规则应该简单明确，避免歧义
+- 为每个规则编写测试用例，确保规则有效性
 
 ### 阶段三：验证与调整
 
@@ -347,17 +391,25 @@ CartisanArchRules（总入口）
 
 ### 5.4 ArchUnit 规则增强
 
-**决策**：新增 DDD 最佳实践规则
+**决策**：专注于**可验证的架构约束**，而非复杂的 DDD 最佳实践
 
 **理由**：
-- 编码规范中包含大量 DDD 最佳实践
-- ArchUnit 可以自动验证这些规范
-- 帮助业务团队保持代码质量
+- ArchUnit 擅长检查依赖关系、命名规范等**明确规则**
+- DDD 最佳实践（如小聚合原则）需要**上下文判断**，难以自动化
+- 专注于技术可行的规则，确保规则准确性和可维护性
 
 **权衡**：
-- 规则数量增加，复杂度提高
-- 需要额外的谓词实现（如小聚合检查）
-- 可能需要为业务项目提供豁免机制
+- ✅ 规则简单明确，误报率低
+- ✅ 实施成本低，3-5 天即可完成
+- ⚠️ 无法自动验证所有 DDD 最佳实践（依赖 Code Review）
+
+**不实施的规则及原因**：
+
+| 规则 | 不实施原因 | 替代方案 |
+|------|-----------|---------|
+| 小聚合检查 | 需要复杂 AST 分析，难以定义阈值 | Code Review + 编码规范文档 |
+| ID 引用检查 | 过于简化，无法区分合法引用 | Code Review + 编码规范文档 |
+| AppService 暴露检查 | 难以定义"暴露"的具体含义 | 返回值类型检查（部分覆盖） |
 
 ---
 
@@ -383,17 +435,22 @@ CartisanArchRules（总入口）
 
 ### 6.2 ArchUnit 更新成功标准
 
-1. **规则完整**：
-   - 覆盖编码规范中的关键规则
-   - 覆盖框架要求的架构约束
+1. **规则完整**（可量化）：
+   - ✅ 新增 3-4 个可验证的架构规则
+   - ✅ 覆盖编码规范中的 80%+ 可自动验证的规则
 
-2. **规则有效**：
-   - 能够发现实际的架构问题
-   - 误报率控制在合理范围
+2. **规则有效**（可量化）：
+   - ✅ 规则测试用例覆盖率 100%（每个规则至少一个测试）
+   - ✅ 在 cartisan-core 框架本身运行无违规
+   - ✅ 在业务项目中运行，误报率 < 10%
 
 3. **组织合理**：
-   - 规则分类清晰
-   - 便于业务项目选择性使用
+   - ✅ 规则分类清晰（4 个规则类）
+   - ✅ 业务项目可以选择性继承使用
+
+4. **性能影响**（可量化）：
+   - ✅ ArchUnit 测试执行时间 < 30 秒（增量）
+   - ✅ 对 CI/CD 流水线影响 < 5%
 
 ---
 
@@ -417,19 +474,78 @@ CartisanArchRules（总入口）
 
 ### 7.2 ArchUnit 更新风险
 
-**风险 1**：规则过于严格影响开发效率
+**风险 1**：新规则导致现有代码测试失败
 
 **缓解措施**：
-- 分阶段实施，先观察规则效果
-- 为业务项目提供豁免机制
-- 允许通过注解禁用特定规则
+- **迁移策略**（详见下文"迁移策略"章节）
+- 提供 `@ArchTest` 条件注解，允许选择性启用规则
+- 先在 cartisan-core 内部验证，再推广到业务项目
 
-**风险 2**：谓词实现复杂度高（如小聚合检查）
+**风险 2**：规则影响 CI/CD 流水线性能
 
 **缓解措施**：
-- 从简单规则开始实施
-- 复杂规则使用启发式检查
-- 提供规则配置选项
+- 设置性能监控目标（测试时间 < 30 秒）
+- 可以考虑只在 PR 触发时运行完整规则，主分支运行简化规则
+
+**风险 3**：业务项目需要适配新规则
+
+**缓解措施**：
+- 提供详细的迁移指南
+- 在规则发布前，提供 2 周的反馈期
+- 对于历史项目，允许使用 `@SuppressWarnings("archrule")` 风格的豁免机制
+
+---
+
+### 7.3 迁移策略
+
+#### 7.3.1 分阶段实施
+
+**阶段 1：框架内部验证（Week 1）**
+- 在 cartisan-core 框架本身运行新规则
+- 确保规则能正确发现违规
+- 调整规则阈值和描述
+
+**阶段 2：试点项目验证（Week 2）**
+- 选择 1-2 个试点业务项目
+- 运行新规则，收集反馈
+- 修复规则误报和调整描述
+
+**阶段 3：正式发布（Week 3）**
+- 在文档中发布新规则说明
+- 业务项目可以选择性启用
+- 提供 2 周反馈期
+
+**阶段 4：强制执行（Week 5+）**
+- 将关键规则设为必须通过
+- 为历史项目提供豁免机制
+
+#### 7.3.2 豁免机制
+
+**临时豁免**（用于历史项目）：
+```java
+@ArchTest
+@ArchIgnore(reason = "Legacy code, will be refactored in v2.0")
+static final ArchRule some_rule = ...;
+```
+
+**条件豁免**（用于特殊情况）：
+```java
+// 业务项目可以选择性继承规则
+public class ArchitectureTest extends CartisanLayeringRules {
+    // 不继承命名规范规则
+    // 不继承编码规范规则
+}
+```
+
+#### 7.3.3 迁移检查清单
+
+业务项目迁移到新规则时：
+- [ ] 阅读新规则说明文档
+- [ ] 在本地环境运行新规则
+- [ ] 修复发现的违规问题
+- [ ] 如需豁免，添加 `@ArchIgnore` 注解并说明原因
+- [ ] 提交 PR，CI 自动运行新规则
+- [ ] 如果规则导致阻塞，联系框架团队
 
 ---
 
@@ -442,4 +558,4 @@ CartisanArchRules（总入口）
 
 ---
 
-**文档结束** | **版本**：v1.0 | **日期**：2026-04-05
+**文档结束** | **版本**：v1.1 | **日期**：2026-04-05 | **状态**：待审查
