@@ -901,7 +901,7 @@ public class OrderApplicationService {
 }
 ```
 
-### 3.4 使用架构注解
+### 3.3 使用架构注解
 
 #### 3.4.1 Repository 模式（数据持久化）
 
@@ -1004,7 +1004,7 @@ public class UserAuthAppService {
 | 构造函数注入 | 所有依赖字段声明为 final |
 | 可替换性 | 可轻松切换阿里云/腾讯云/云片短信 |
 
-### 3.5 使用 ArchUnit 规则
+### 3.4 使用 ArchUnit 规则
 
 ```java
 // 业务项目中继承即可获得全部规则
@@ -1575,7 +1575,7 @@ cartisan:
 - 只有配置了对应 `api-key` 的 Provider 才会被创建
 - 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
 
-### 3.27 实现 ModelUsageListener
+### 3.22 实现 ModelUsageListener
 
 ```java
 @Component
@@ -1593,7 +1593,7 @@ public class TokenUsageLogger implements ModelUsageListener {
 }
 ```
 
-### 3.28 使用 RedisKey 工具
+### 3.23 使用 RedisKey 工具
 
 ```java
 @Service
@@ -1619,7 +1619,7 @@ public class UserService {
 }
 ```
 
-### 3.29 使用 DomainMapper 批量转换
+### 3.24 使用 DomainMapper 批量转换
 
 ```java
 @Mapper(componentModel = "spring")
@@ -1649,7 +1649,7 @@ public class UserService {
 }
 ```
 
-### 3.30 使用 TreeNode 构建树结构
+### 3.25 使用 TreeNode 构建树结构
 
 ```java
 @Service
@@ -1681,7 +1681,7 @@ public class DepartmentService {
 }
 ```
 
-### 3.31 使用 @PreventResubmit 防重提交
+### 3.26 使用 @PreventResubmit 防重提交
 
 ```java
 @RestController
@@ -1706,7 +1706,7 @@ public class UserController {
 }
 ```
 
-### 3.32 使用 @Condition 注解查询
+### 3.27 使用 @Condition 注解查询
 
 ```java
 // 定义查询 DTO
@@ -1725,7 +1725,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 cartisan-web 模块章节中的 @Condition 注解详细说明
 
-### 3.33 启用自动响应包装
+### 3.28 启用自动响应包装
 
 ```yaml
 # application.yml
@@ -1744,7 +1744,7 @@ public User getById(@PathVariable Long id) {
 }
 ```
 
-### 3.34 使用枚举选项工具
+### 3.29 使用枚举选项工具
 
 ```java
 // 转换单个枚举
@@ -1771,7 +1771,7 @@ public interface UserMapper extends DomainMapper<User, UserResponse> {
 }
 ```
 
-### 3.35 使用默认枚举 Controller
+### 3.30 使用默认枚举 Controller
 
 ```yaml
 # application.yml（默认配置）
@@ -1801,7 +1801,7 @@ const fetchEnums = async () => {
 };
 ```
 
-### 3.36 自定义枚举 Controller
+### 3.31 自定义枚举 Controller
 
 ```yaml
 # 禁用默认实现
@@ -2200,7 +2200,7 @@ mvn test -Dtest=ArchitectureTest
 
 ### 10.2 如何配置 jOOQ 代码生成？
 
-参见使用手册 3.23 节和 PITFALLS.md QUERY-001。
+参见使用手册 3.18 节 jOOQ 代码生成配置和 cartisan-data-query 模块章节的 QUERY-001 规则。
 
 ### 10.3 如何枚举实现 BaseEnum？
 
