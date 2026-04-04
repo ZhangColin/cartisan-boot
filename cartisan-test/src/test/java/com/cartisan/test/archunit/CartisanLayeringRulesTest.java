@@ -93,4 +93,22 @@ class CartisanLayeringRulesTest {
          .hasMessageContaining("application")
          .hasMessageContaining("EntityManager");
     }
+
+    @Test
+    @DisplayName("controllersShouldNotDependOnAggregates - 合规代码应该通过")
+    void controllersShouldNotDependOnAggregates_passes_forCompliantCode() {
+        assertThatCode(() ->
+            CartisanLayeringRules.controllersShouldNotDependOnAggregates.check(compliantClasses)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("controllersShouldNotDependOnAggregates - 违规代码应该失败")
+    void controllersShouldNotDependOnAggregates_fails_forViolatingCode() {
+        assertThatThrownBy(() ->
+            CartisanLayeringRules.controllersShouldNotDependOnAggregates.check(violatingClasses)
+        ).isInstanceOf(AssertionError.class)
+         .hasMessageContaining("Controller")
+         .hasMessageContaining("AggregateRoot");
+    }
 }

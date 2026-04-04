@@ -90,4 +90,26 @@ public class CartisanLayeringRules {
             .dependOnClassesThat()
             .resideInAPackage("java.sql..")
             .because("Application services should access data through Repository ports, not directly");
+
+    /**
+     * Controller 不应依赖聚合根
+     *
+     * <p>Controller 应通过 AppService 访问领域逻辑，不应直接导入 AggregateRoot。</p>
+     * <p>这确保了应用服务作为上下文出入口的职责。</p>
+     */
+    @ArchTest
+    static final ArchRule controllersShouldNotDependOnAggregates =
+        noClasses()
+            .that()
+            .areAnnotatedWith("org.springframework.web.bind.annotation.RestController")
+            .should()
+            .dependOnClassesThat()
+            .areAssignableTo("com.cartisan.core.domain.AggregateRoot")
+            .orShould()
+            .dependOnClassesThat()
+            .resideInAPackage("..domain.aggregate..")
+            .orShould()
+            .dependOnClassesThat()
+            .resideInAPackage("..domain.entity..")
+            .because("Controllers should access domain logic through AppServices, not directly");
 }
