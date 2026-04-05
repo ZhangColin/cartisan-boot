@@ -66,6 +66,19 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- cartisan-web (for DomainMapper in fixtures) -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-web</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- MapStruct (for test fixtures) -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+
         <!-- Lombok (compile time) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

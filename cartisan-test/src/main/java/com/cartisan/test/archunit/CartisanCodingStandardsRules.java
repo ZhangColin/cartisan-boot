@@ -50,7 +50,7 @@ public class CartisanCodingStandardsRules {
             .and()
             .areAnnotatedWith("org.mapstruct.Mapper")
             .should()
-            .implement("com.cartisan.web.mapper.DomainMapper")
+            .beAssignableTo("com.cartisan.web.mapper.DomainMapper")
             .because("MapStruct Mappers must extend DomainMapper for consistency and utility methods")
             .allowEmptyShould(true);
 }
