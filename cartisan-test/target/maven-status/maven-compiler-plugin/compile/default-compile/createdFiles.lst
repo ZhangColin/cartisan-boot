@@ -10,6 +10,7 @@ com/cartisan/test/archunit/CartisanArchRules.class
 com/cartisan/test/fixture/FixtureNumbers.class
 com/cartisan/test/fixture/package-info.class
 com/cartisan/test/archunit/CartisanProhibitionRules.class
+com/cartisan/test/archunit/CartisanCodingStandardsRules.class
 com/cartisan/test/base/ApiTestAssertions.class
 com/cartisan/test/fixture/FixtureDates.class
 com/cartisan/test/archunit/package-info.class

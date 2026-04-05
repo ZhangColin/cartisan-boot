@@ -558,4 +558,4 @@ public class ArchitectureTest extends CartisanLayeringRules {
 
 ---
 
-**文档结束** | **版本**：v1.1 | **日期**：2026-04-05 | **状态**：待审查
+**文档结束** | **版本**：v1.1 | **日期**：2026-04-05 | **状态**：已批准

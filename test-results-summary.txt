@@ -1,0 +1,23 @@
+Test Run Results - 2026-04-05
+===================================
+
+CartisanCore ArchUnit Tests: PASSED
+- Tests run: 13
+- Failures: 0
+- Errors: 0
+- Time elapsed: 1.960 s
+
+CartisanTest All Tests: PASSED
+- Tests run: 65
+  - CartisanLayeringRulesTest: 10 tests
+  - CartisanCodingStandardsRulesTest: 1 test
+  - CartisanNamingRulesTest: 10 tests
+  - CartisanProhibitionRulesTest: 6 tests
+  - Fixture tests: 37 tests
+  - ApiTestAssertionsTest: 11 tests
+- Failures: 0
+- Errors: 0
+- Total Time: < 5 seconds
+
+Summary: All tests PASSED ✅
+Performance: Well under 30-second target

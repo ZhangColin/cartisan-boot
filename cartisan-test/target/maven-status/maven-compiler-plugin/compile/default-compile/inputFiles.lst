@@ -1,4 +1,5 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanArchRules.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanCodingStandardsRules.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanLayeringRules.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanNamingRules.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanProhibitionRules.java
