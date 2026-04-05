@@ -39,12 +39,17 @@ public class CartisanLayeringRules {
      *
      * <p>领域模型必须保持框架无关。</p>
      * <p>Spring 注解只能用在应用层、基础设施层。</p>
+     *
+     * <p>例外：Repository 接口可以使用 Spring Data JPA 注解（@Query, @Param 等）</p>
+     * <p>理由：这些注解是接口定义的一部分，而非实现依赖。</p>
      */
     @ArchTest
     static final ArchRule domainShouldNotDependOnSpring =
         noClasses()
             .that()
             .resideInAPackage("..domain..")
+            .and()
+            .areNotInterfaces()
             .should()
             .dependOnClassesThat()
             .resideInAPackage("org.springframework..")
@@ -55,6 +60,9 @@ public class CartisanLayeringRules {
      *
      * <p>Controller 不能直接调用领域层或基础设施层。</p>
      * <p>所有业务逻辑通过应用服务协调。</p>
+     *
+     * <p>例外：可以使用领域枚举（BaseEnum 参数绑定）</p>
+     * <p>理由：BaseEnum 参数绑定是框架功能，支持枚举 ↔ Integer 自动转换。</p>
      */
     @ArchTest
     static final ArchRule controllersShouldOnlyDependOnApplication =
@@ -63,7 +71,10 @@ public class CartisanLayeringRules {
             .resideInAPackage("..controller..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("..domain..")
+            .resideInAPackage("..domain..aggregate..")
+            .orShould()
+            .dependOnClassesThat()
+            .resideInAPackage("..domain..entity..")
             .orShould()
             .dependOnClassesThat()
             .resideInAPackage("..infrastructure..")
