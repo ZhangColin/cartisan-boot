@@ -1,9 +1,12 @@
 com/cartisan/test/archunit/fixtures/compliant/application/GoodAppService.class
+com/cartisan/test/archunit/fixtures/compliant/domain/aggregate/GoodAggregate.class
 com/cartisan/test/archunit/fixtures/violation/application/BadServiceNaming.class
 com/cartisan/test/base/TestController.class
 com/cartisan/test/archunit/fixtures/compliant/domain/GoodEntity.class
 com/cartisan/test/archunit/CartisanNamingRulesTest.class
+com/cartisan/test/archunit/fixtures/compliant/mapper/GoodMapper.class
 com/cartisan/test/base/ApiTestAssertionsTest$TestDto.class
+com/cartisan/test/archunit/fixtures/compliant/domain/entity/GoodEntity2.class
 com/cartisan/test/fixture/FixtureBuilderTest$TestRecord.class
 com/cartisan/test/archunit/fixtures/violation/controller/BadControllerCallsDomain.class
 com/cartisan/test/archunit/fixtures/violation/domain/BadAggregate.class
@@ -24,6 +27,7 @@ com/cartisan/test/archunit/fixtures/violation/domain/BadDomainWithSpringDependen
 com/cartisan/test/archunit/CartisanProhibitionRulesTest.class
 com/cartisan/test/archunit/fixtures/compliant/shared/GoodMoney.class
 com/cartisan/test/archunit/fixtures/compliant/infrastructure/GoodRepository.class
+com/cartisan/test/archunit/fixtures/violation/shared/BadMapper.class
 com/cartisan/test/archunit/fixtures/violation/infrastructure/BadDao.class
 com/cartisan/test/base/ApiTestAssertionsTest$TestConfig.class
 com/cartisan/test/archunit/fixtures/violation/controller/BadControllerNaming.class

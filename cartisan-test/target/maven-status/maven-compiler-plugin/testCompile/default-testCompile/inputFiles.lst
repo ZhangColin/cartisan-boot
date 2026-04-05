@@ -6,8 +6,11 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/controller/GoodController.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/domain/GoodDomainService.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/domain/GoodEntity.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/domain/aggregate/GoodAggregate.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/domain/entity/GoodEntity2.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/endpoints/api/GoodExternalApiV1Controller.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/infrastructure/GoodRepository.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/mapper/GoodMapper.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/shared/GoodMoney.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/application/BadAppServiceWithJPA.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/application/BadServiceNaming.java
@@ -22,6 +25,7 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/endpoints/api/BadExternalApiController.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/infrastructure/BadDao.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/shared/BadDateUsage.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/shared/BadMapper.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/violation/shared/BadMoneyWithDouble.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/base/ApiTestAssertionsTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-test/src/test/java/com/cartisan/test/base/TestController.java

@@ -10,7 +10,6 @@ com/cartisan/core/domain/AbstractAggregateRootTest$TestDomainEvent.class
 com/cartisan/core/domain/EntityTest$TestEntity.class
 com/cartisan/core/exception/DomainExceptionTest.class
 com/cartisan/core/stereotype/StereotypeAnnotationsTest.class
-com/cartisan/core/arch/ArchitectureTest.class
 com/cartisan/core/domain/AbstractAggregateRootTest$TestAggregateRoot.class
 com/cartisan/examples/domain/Order.class
 com/cartisan/core/domain/BaseEnumTest.class
