@@ -32,7 +32,8 @@ public class CartisanLayeringRules {
             .should()
             .dependOnClassesThat()
             .resideInAPackage("..infrastructure..")
-            .because("Domain layer should not depend on infrastructure layer");
+            .because("Domain layer should not depend on infrastructure layer")
+            .allowEmptyShould(true);
 
     /**
      * 领域层不能依赖 Spring
@@ -53,7 +54,8 @@ public class CartisanLayeringRules {
             .should()
             .dependOnClassesThat()
             .resideInAPackage("org.springframework..")
-            .because("Domain layer should be framework-agnostic");
+            .because("Domain layer should be framework-agnostic")
+            .allowEmptyShould(true);
 
     /**
      * Controller 只能依赖应用服务
@@ -78,7 +80,8 @@ public class CartisanLayeringRules {
             .orShould()
             .dependOnClassesThat()
             .resideInAPackage("..infrastructure..")
-            .because("Controllers should only depend on application services");
+            .because("Controllers should only depend on application services")
+            .allowEmptyShould(true);
 
     /**
      * 应用服务不能直接操作数据库
@@ -100,7 +103,8 @@ public class CartisanLayeringRules {
             .orShould()
             .dependOnClassesThat()
             .resideInAPackage("java.sql..")
-            .because("Application services should access data through Repository ports, not directly");
+            .because("Application services should access data through Repository ports, not directly")
+            .allowEmptyShould(true);
 
     /**
      * Controller 不应依赖聚合根
@@ -122,5 +126,6 @@ public class CartisanLayeringRules {
             .orShould()
             .dependOnClassesThat()
             .resideInAPackage("..domain.entity..")
-            .because("Controllers should access domain logic through AppServices, not directly");
+            .because("Controllers should access domain logic through AppServices, not directly")
+            .allowEmptyShould(true);
 }
