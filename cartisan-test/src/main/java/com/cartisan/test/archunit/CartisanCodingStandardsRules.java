@@ -19,10 +19,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 public class CartisanCodingStandardsRules {
 
     /**
-     * 领域层枚举必须实现 BaseEnum
+     * 领域层枚举必须实现 BaseEnum（CodeMessage 枚举除外）
      *
      * <p>确保枚举与 Integer 的自动转换。</p>
      * <p>BaseEnum 接口提供 code/name 映射，是框架枚举处理的基础。</p>
+     * <p>CodeMessage 枚举用于异常处理，不需要实现 BaseEnum。</p>
      */
     @ArchTest
     static final ArchRule domainEnumsShouldImplementBaseEnum =
@@ -31,9 +32,11 @@ public class CartisanCodingStandardsRules {
             .areEnums()
             .and()
             .resideInAPackage("..domain..")
+            .and()
+            .doNotImplement("com.cartisan.core.exception.CodeMessage")
             .should()
             .implement("com.cartisan.core.domain.BaseEnum")
-            .because("Domain enums must implement BaseEnum for automatic Integer conversion")
+            .because("Domain enums must implement BaseEnum for automatic Integer conversion (except CodeMessage enums)")
             .allowEmptyShould(true);
 
     /**
