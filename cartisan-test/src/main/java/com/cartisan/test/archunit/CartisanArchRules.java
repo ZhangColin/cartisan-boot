@@ -111,4 +111,11 @@ public class CartisanArchRules {
     @ArchTest
     static final ArchRule domainEnumsShouldImplementBaseEnum =
         CartisanCodingStandardsRules.domainEnumsShouldImplementBaseEnum;
+
+    /**
+     * MapStruct Mapper 必须继承 DomainMapper
+     */
+    @ArchTest
+    static final ArchRule mapstructMappersShouldExtendDomainMapper =
+        CartisanCodingStandardsRules.mapstructMappersShouldExtendDomainMapper;
 }
