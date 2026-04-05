@@ -57,6 +57,13 @@ public class CartisanArchRules {
         CartisanLayeringRules.applicationShouldNotAccessDatabaseDirectly;
 
     /**
+     * Controller 不应依赖聚合根
+     */
+    @ArchTest
+    static final ArchRule controllersShouldNotDependOnAggregates =
+        CartisanLayeringRules.controllersShouldNotDependOnAggregates;
+
+    /**
      * Controller 命名规范
      */
     @ArchTest
