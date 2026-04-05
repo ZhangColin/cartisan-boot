@@ -49,7 +49,11 @@
 
 **ArchUnit 规则**：`CartisanLayeringRules.domainShouldNotDependOnSpring`
 
-**约束内容**：领域层不能依赖 Spring Framework（`org.springframework..`）
+**约束内容**：领域层（排除接口）不能依赖 Spring Framework（`org.springframework..`）
+
+**例外情况**：
+- Repository 接口可以使用 Spring Data JPA 注解（`@Query`、`@Param` 等）
+- 理由：这些注解是接口定义的一部分，而非实现依赖
 
 **编码规范对应**：
 - **章节**：一、六边形架构概述 → 1.3 依赖倒置原则
@@ -69,7 +73,7 @@
   > }
   > ```
 
-**验证状态**：✅ 完全对应
+**验证状态**：✅ 完全对应（v1.2 更新：排除接口，允许 Repository 使用 Spring 注解）
 
 ---
 
@@ -77,7 +81,11 @@
 
 **ArchUnit 规则**：`CartisanLayeringRules.controllersShouldOnlyDependOnApplication`
 
-**约束内容**：Controller（`..endpoints..`）只能依赖应用层（`..application..`）
+**约束内容**：Controller 不能依赖 `domain.aggregate` 或 `domain.entity` 包
+
+**例外情况**：
+- 允许使用 `domain.enums` 包中的枚举类型（如 BaseEnum 参数绑定）
+- 理由：枚举参数绑定是框架功能，支持枚举 ↔ Integer 自动转换
 
 **编码规范对应**：
 - **章节**：一、六边形架构概述 → 1.1 架构层次与职责
@@ -89,7 +97,7 @@
   > **依赖方向**：
   > - 北向接口 → 应用层 → 领域层
 
-**验证状态**：✅ 完全对应
+**验证状态**：✅ 完全对应（v1.2 更新：允许枚举参数，只禁止聚合根和实体）
 
 ---
 

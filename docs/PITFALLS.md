@@ -152,7 +152,48 @@ JavaClasses productionClasses = new ClassFileImporter()
 
 ---
 
-### 规则 TOOL-002：PIT 插件与 Gradle 9 需使用 1.19.x RC 版
+### 规则 TOOL-002：ArchUnit 分层规则的例外情况
+
+**问题**：ArchUnit 规则过于严格，导致合理的框架使用被误报。
+
+**domainShouldNotDependOnSpring 例外**：
+- **允许**：Repository 接口使用 Spring Data JPA 注解（`@Query`、`@Param`）
+- **理由**：这些注解是接口定义的一部分，非实现依赖
+- **实现**：规则使用 `.areNotInterfaces()` 排除接口
+
+**controllersShouldOnlyDependOnApplication 例外**：
+- **允许**：Controller 方法参数使用 BaseEnum 类型
+- **理由**：BaseEnum 参数绑定是框架功能，支持枚举 ↔ Integer 自动转换
+- **实现**：规则只禁止 `domain.aggregate` 和 `domain.entity`，不禁止 `domain.enums`
+
+**代码示例**：
+```java
+// ✅ 允许：Repository 接口使用 Spring 注解
+public interface UserRepository extends JpaRepository<User, Long> {
+    @Query("SELECT u FROM User u WHERE u.email = :email")
+    Optional<User> findByEmail(@Param("email") String email);
+}
+
+// ✅ 允许：Controller 使用枚举参数
+@RestController
+public class UserController {
+    @GetMapping("/users")
+    public ApiResponse<List<UserDTO>> listByStatus(UserStatus status) {
+        // UserStatus 是 BaseEnum，自动从 Integer 转换
+        return ApiResponse.success(appService.listByStatus(status));
+    }
+}
+
+// ❌ 禁止：Controller 直接依赖聚合根
+@RestController
+public class BadController {
+    private final UserAggregate user;  // 违规
+}
+```
+
+---
+
+### 规则 TOOL-003：PIT 插件与 Gradle 9 需使用 1.19.x RC 版
 
 **现状**：
 - 项目使用 Gradle 9.0；PIT 插件 `info.solidsoft.pitest:1.15.0` 因 `reporting.baseDir` 被移除而报错。
@@ -177,7 +218,7 @@ pitest {
 
 ---
 
-### 规则 TOOL-003：ArchUnit 规则类不适用于 PIT 变异测试
+### 规则 TOOL-004：ArchUnit 规则类不适用于 PIT 变异测试
 
 **问题**：尝试对 ArchUnit 规则类运行 PIT 时报错 "No mutations found"。
 
