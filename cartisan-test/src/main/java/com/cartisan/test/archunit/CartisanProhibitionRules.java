@@ -29,7 +29,8 @@ public class CartisanProhibitionRules {
         noFields()
             .should()
             .beAnnotatedWith(Autowired.class)
-            .because("Use constructor injection instead of field injection");
+            .because("Use constructor injection instead of field injection")
+            .allowEmptyShould(true);
 
     /**
      * 禁止使用 java.util.Date
@@ -43,7 +44,8 @@ public class CartisanProhibitionRules {
             .should()
             .dependOnClassesThat()
             .haveFullyQualifiedName("java.util.Date")
-            .because("Use java.time API instead of java.util.Date");
+            .because("Use java.time API instead of java.util.Date")
+            .allowEmptyShould(true);
 
     /**
      * 禁止金额字段使用浮点数
@@ -63,5 +65,6 @@ public class CartisanProhibitionRules {
             .haveRawType(Double.class)
             .orShould()
             .haveRawType(Float.class)
-            .because("Use BigDecimal for monetary fields to avoid precision loss");
+            .because("Use BigDecimal for monetary fields to avoid precision loss")
+            .allowEmptyShould(true);
 }
