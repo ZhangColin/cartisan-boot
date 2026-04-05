@@ -11,6 +11,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
  * <p>包含以下规则：</p>
  * <ul>
  *   <li>领域层枚举必须实现 BaseEnum 接口</li>
+ *   <li>MapStruct Mapper 必须继承 DomainMapper 接口</li>
  * </ul>
  *
  * <p>这些规则专注于可验证的架构约束，避免过于复杂的 DDD 最佳实践检查。</p>
@@ -33,5 +34,23 @@ public class CartisanCodingStandardsRules {
             .should()
             .implement("com.cartisan.core.domain.BaseEnum")
             .because("Domain enums must implement BaseEnum for automatic Integer conversion")
+            .allowEmptyShould(true);
+
+    /**
+     * MapStruct Mapper 必须继承 DomainMapper
+     *
+     * <p>确保 Mapper 统一继承 DomainMapper 基类，自动获得批量转换方法。</p>
+     * <p>DomainMapper 提供 convert/convertList/convertSet 方法，是框架 Mapper 处理的基础。</p>
+     */
+    @ArchTest
+    static final ArchRule mapstructMappersShouldExtendDomainMapper =
+        classes()
+            .that()
+            .areInterfaces()
+            .and()
+            .areAnnotatedWith("org.mapstruct.Mapper")
+            .should()
+            .implement("com.cartisan.web.mapper.DomainMapper")
+            .because("MapStruct Mappers must extend DomainMapper for consistency and utility methods")
             .allowEmptyShould(true);
 }
