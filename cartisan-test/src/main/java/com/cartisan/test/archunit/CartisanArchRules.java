@@ -120,6 +120,13 @@ public class CartisanArchRules {
         CartisanCodingStandardsRules.domainEnumsShouldImplementBaseEnum;
 
     /**
+     * CodeMessage 枚举不应实现 BaseEnum
+     */
+    @ArchTest
+    static final ArchRule codeMessageEnumsShouldNotImplementBaseEnum =
+        CartisanCodingStandardsRules.codeMessageEnumsShouldNotImplementBaseEnum;
+
+    /**
      * MapStruct Mapper 必须继承 DomainMapper
      */
     @ArchTest
