@@ -1,6 +1,14 @@
 # ArchUnit MapStruct Mapper 规则实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **实施计划版本**：v1.1
+> **v1.1 更新**：
+> - 修正 GoodMapper 路径（application → mapper）
+> - 明确无条件添加静态字段和 import
+> - 明确文档更新位置（1.2 章节末尾）
+> - 改进验证命令（使用 git log 和 grep）
+> - 添加 MapStruct 依赖检查说明
 
 **Goal:** 为 cartisan-test 模块添加第 15 条 ArchUnit 规则，要求所有 MapStruct Mapper 必须继承 DomainMapper 接口
 
@@ -28,15 +36,22 @@
 ## Task 1: 创建合规 Fixture（GoodMapper）
 
 **Files:**
-- Create: `cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/application/GoodMapper.java`
+- Create: `cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/mapper/GoodMapper.java`
 
-- [ ] **Step 1: 创建 GoodMapper.java**
+**注意**：先创建 mapper 子目录（如果不存在）
+
+- [ ] **Step 1: 创建 mapper 子目录（如果不存在）**
+
+Run: `mkdir -p cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/mapper`
+Expected: 目录创建成功
+
+- [ ] **Step 2: 创建 GoodMapper.java**
 
 创建接口文件，标注 @Mapper(componentModel = "spring") 注解，继承 DomainMapper<String, String> 接口。添加 JavaDoc 说明这是合规的 Mapper 示例。
 
 文件内容参考：
 ```java
-package com.cartisan.test.archunit.fixtures.compliant.application;
+package com.cartisan.test.archunit.fixtures.compliant.mapper;
 
 import com.cartisan.web.mapper.DomainMapper;
 import org.mapstruct.Mapper;
@@ -51,14 +66,16 @@ public interface GoodMapper extends DomainMapper<String, String> {
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [ ] **Step 3: 验证编译**
 
 Run: `cd cartisan-test && mvn compile`
 Expected: 编译成功，无错误
 
-- [ ] **Step 3: 提交**
+**注意**：如果编译失败提示找不到 `@Mapper` 注解，检查 `cartisan-test/pom.xml` 或父 POM 中是否包含 MapStruct 依赖。
 
-Run: `git add cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/application/GoodMapper.java && git commit -m "test: add compliant Mapper fixture (GoodMapper)"`
+- [ ] **Step 4: 提交**
+
+Run: `git add cartisan-test/src/test/java/com/cartisan/test/archunit/fixtures/compliant/mapper/GoodMapper.java && git commit -m "test: add compliant Mapper fixture (GoodMapper)"`
 
 ---
 
@@ -206,11 +223,13 @@ Run: `git add cartisan-test/src/main/java/com/cartisan/test/archunit/CartisanArc
 **Files:**
 - Modify: `cartisan-test/src/test/java/com/cartisan/test/archunit/CartisanCodingStandardsRulesTest.java`
 
-- [ ] **Step 1: 检查现有静态字段**
+- [ ] **Step 1: 添加静态字段**
 
-确认测试类中是否已存在 `compliantClasses` 和 `violatingClasses` 静态字段。
+在测试类中添加 `compliantClasses` 和 `violatingClasses` 静态字段（这些字段当前不存在）。
 
-如果存在，跳过此步骤；如果不存在，添加：
+添加位置：在 `cartisanClasses` 字段之后
+
+添加内容：
 ```java
 static final JavaClasses compliantClasses = new ClassFileImporter()
     .importPackages("com.cartisan.test.archunit.fixtures.compliant");
@@ -219,7 +238,18 @@ static final JavaClasses violatingClasses = new ClassFileImporter()
     .importPackages("com.cartisan.test.archunit.fixtures.violation");
 ```
 
-- [ ] **Step 2: 添加正向测试方法**
+- [ ] **Step 2: 添加缺失的 import 语句**
+
+在 import 部分添加 AssertJ 的静态导入：
+
+添加内容：
+```java
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+```
+
+检查现有 import，确保只添加不存在的。
+
+- [ ] **Step 3: 添加正向测试方法**
 
 添加测试方法验证合规代码通过规则。
 
@@ -234,7 +264,7 @@ void mapstructMappersShouldExtendDomainMapper_passes_forCompliantCode() {
 }
 ```
 
-- [ ] **Step 3: 添加负向测试方法**
+- [ ] **Step 4: 添加负向测试方法**
 
 添加测试方法验证违规代码被检测。
 
@@ -252,12 +282,12 @@ void mapstructMappersShouldExtendDomainMapper_fails_forViolatingCode() {
 }
 ```
 
-- [ ] **Step 4: 运行测试验证**
+- [ ] **Step 5: 运行测试验证**
 
 Run: `cd cartisan-test && mvn test -Dtest=CartisanCodingStandardsRulesTest`
 Expected: 所有测试通过，包括新增的两个测试方法
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 6: 提交**
 
 Run: `git add cartisan-test/src/test/java/com/cartisan/test/archunit/CartisanCodingStandardsRulesTest.java && git commit -m "test: add tests for mapstructMappersShouldExtendDomainMapper rule"`
 
@@ -270,9 +300,9 @@ Run: `git add cartisan-test/src/test/java/com/cartisan/test/archunit/CartisanCod
 
 - [ ] **Step 1: 更新 cartisan-test 模块章节**
 
-找到 `### 1.2 cartisan-test 模块` 章节，更新 ArchUnit 规则版本号和规则数量。
+找到 `### 1.2 cartisan-test 模块` 章节（约在第 93 行），更新 ArchUnit 规则版本号和规则数量。
 
-将：
+将表格第 1 行：
 ```markdown
 | **ArchUnit 规则（v1.1）** | DDD 分层、命名规范、禁止规则、编码规范规则的自动验证 |
 ```
@@ -282,24 +312,26 @@ Run: `git add cartisan-test/src/test/java/com/cartisan/test/archunit/CartisanCod
 | **ArchUnit 规则（v1.2）** | 15 条规则：分层、命名、禁止、编码规范规则的自动验证 |
 ```
 
+同时更新"迁移策略（v1.1 新规则）"为"迁移策略（v1.2 新规则）"。
+
 - [ ] **Step 2: 添加架构测试使用方法章节**
 
-在 cartisan-test 模块章节的末尾（或合适的子章节位置）添加新的小节。
+在 1.2 cartisan-test 模块章节的末尾（在"迁移策略"内容之后）添加新的子章节。
 
-添加位置参考：在现有 cartisan-test 内容之后，或作为独立的 `### 9.2 架构测试使用方法` 章节
+添加位置：在 1.2 章节末尾添加 `#### 架构测试使用方法` 小节
 
-添加内容包含：
-1. 继承全部规则的示例代码
-2. 15 条规则列表（分层 5 条、命名 5 条、禁止 3 条、编码规范 2 条）
-3. 自定义规则示例
-4. 选择性继承示例
+添加内容结构：
+1. **继承全部规则**：示例代码展示如何继承 CartisanArchRules
+2. **规则列表**：列出 15 条规则（分层 5 条、命名 5 条、禁止 3 条、编码规范 2 条）
+3. **自定义规则**：示例代码展示如何添加自定义规则
+4. **选择性继承**：示例代码展示如何只继承特定规则类
 
-参考 spec 文档 "三、文档更新" 章节的完整内容。
+参考 spec 文档第 206-289 行的完整内容。
 
 - [ ] **Step 3: 验证文档格式**
 
-Run: `cd docs && grep -A 5 "ArchUnit 规则" guide/cartisan-boot-使用手册.md`
-Expected: 看到更新后的 v1.2 版本号和 15 条规则说明
+Run: `cd docs && grep -n "v1.2" guide/cartisan-boot-使用手册.md`
+Expected: 看到更新后的 v1.2 版本号
 
 - [ ] **Step 4: 提交**
 
@@ -375,27 +407,37 @@ Expected: 所有测试通过，包括新增的 mapstructMappersShouldExtendDomai
 
 - [ ] **Step 2: 验证文档完整性**
 
-Run: `git diff HEAD~5 docs/guide/`
-Expected: 看到使用手册和映射文档的更新
+Run: `git log --oneline -10 --grep="mapstruct\|ArchUnit\|v1.2" docs/guide/`
+Expected: 看到使用手册和映射文档的更新提交
+
+或者检查文档内容：
+Run: `grep -n "v1.2\|15 条规则" docs/guide/*.md`
+Expected: 看到使用手册和映射文档已更新到 v1.2
 
 - [ ] **Step 3: 检查代码变更**
 
-Run: `git diff HEAD~5 cartisan-test/src/main/java/com/cartisan/test/archunit/ cartisan-test/src/test/java/com/cartisan/test/archunit/`
+Run: `git log --oneline -10 cartisan-test/src/test/java/com/cartisan/test/archunit/`
 Expected:
-- CartisanCodingStandardsRules.java 添加了新规则
-- CartisanArchRules.java 注册了新规则
-- CartisanCodingStandardsRulesTest.java 添加了测试方法
-- 两个新 fixture 文件已创建
+- GoodMapper.java 和 BadMapper.java 创建提交
+- CartisanCodingStandardsRulesTest.java 测试添加提交
+- CartisanCodingStandardsRules.java 规则添加提交
+- CartisanArchRules.java 规则注册提交
 
-- [ ] **Step 4: 创建总结文档**
+- [ ] **Step 4: 验证规则数量**
+
+Run: `cd cartisan-test && grep -c "@ArchTest" src/main/java/com/cartisan/test/archunit/CartisanArchRules.java`
+Expected: 输出为 15（表示有 15 条规则）
+
+- [ ] **Step 5: 创建总结文档**
 
 创建完成总结，说明：
 - 新增规则数量：1 条（第 15 条）
 - 规则版本：v1.1 → v1.2
 - 测试覆盖：正向和负向测试均通过
 - 文档更新：使用手册和映射文档已同步更新
+- 文件变更：5 个文件修改，2 个文件新增
 
-- [ ] **Step 5: 推送变更**
+- [ ] **Step 6: 推送变更**
 
 Run: `git push origin develop`
 Expected: 所有提交成功推送到远程仓库
