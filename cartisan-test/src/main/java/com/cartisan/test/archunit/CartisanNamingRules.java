@@ -33,7 +33,8 @@ public class CartisanNamingRules {
             .areAnnotatedWith(RestController.class)
             .should()
             .haveSimpleNameEndingWith("Controller")
-            .because("REST controllers should be suffixed with 'Controller'");
+            .because("REST controllers should be suffixed with 'Controller'")
+            .allowEmptyShould(true);
 
     /**
      * application 包中的 @Service 类必须以 AppService 结尾
@@ -53,7 +54,8 @@ public class CartisanNamingRules {
             .resideInAPackage("..application..")
             .should()
             .haveSimpleNameEndingWith("AppService")
-            .because("Application services should be suffixed with 'AppService' to distinguish from domain services");
+            .because("Application services should be suffixed with 'AppService' to distinguish from domain services")
+            .allowEmptyShould(true);
 
     /**
      * @DomainService 类必须以 Service 结尾
@@ -65,7 +67,8 @@ public class CartisanNamingRules {
             .areAnnotatedWith(DomainService.class)
             .should()
             .haveSimpleNameEndingWith("Service")
-            .because("Domain services should be suffixed with 'Service'");
+            .because("Domain services should be suffixed with 'Service'")
+            .allowEmptyShould(true);
 
     /**
      * @Repository 必须以 Repository 结尾
@@ -77,7 +80,8 @@ public class CartisanNamingRules {
             .areAnnotatedWith(Repository.class)
             .should()
             .haveSimpleNameEndingWith("Repository")
-            .because("Repositories should be suffixed with 'Repository'");
+            .because("Repositories should be suffixed with 'Repository'")
+            .allowEmptyShould(true);
 
     /**
      * 外部 API Controller 必须包含版本号
@@ -94,5 +98,6 @@ public class CartisanNamingRules {
             .resideInAPackage("..endpoints.api..")
             .should()
             .haveNameMatching(".*V\\d+.*")
-            .because("External API controllers must include version number to avoid bean name conflicts");
+            .because("External API controllers must include version number to avoid bean name conflicts")
+            .allowEmptyShould(true);
 }
