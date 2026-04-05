@@ -12,6 +12,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
  * <ul>
  *   <li>领域层枚举必须实现 BaseEnum 接口</li>
  *   <li>MapStruct Mapper 必须继承 DomainMapper 接口</li>
+ *   <li>CodeMessage 枚举不应实现 BaseEnum 接口</li>
  * </ul>
  *
  * <p>这些规则专注于可验证的架构约束，避免过于复杂的 DDD 最佳实践检查。</p>
@@ -55,5 +56,26 @@ public class CartisanCodingStandardsRules {
             .should()
             .beAssignableTo("com.cartisan.web.mapper.DomainMapper")
             .because("MapStruct Mappers must extend DomainMapper for consistency and utility methods")
+            .allowEmptyShould(true);
+
+    /**
+     * CodeMessage 枚举不应实现 BaseEnum
+     *
+     * <p>避免两个独立的接口体系产生混淆。</p>
+     * <p>CodeMessage 用于异常处理（code/message/httpStatus），
+     * BaseEnum 用于业务值枚举（code/name）。</p>
+     */
+    @ArchTest
+    static final ArchRule codeMessageEnumsShouldNotImplementBaseEnum =
+        classes()
+            .that()
+            .areEnums()
+            .and()
+            .resideInAPackage("..domain..")
+            .and()
+            .implement("com.cartisan.core.exception.CodeMessage")
+            .should()
+            .notImplement("com.cartisan.core.domain.BaseEnum")
+            .because("CodeMessage enums should not implement BaseEnum to avoid confusion")
             .allowEmptyShould(true);
 }
