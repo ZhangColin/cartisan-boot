@@ -94,13 +94,13 @@ cartisan:
 
 | 能力 | 说明 |
 |------|------|
-| **ArchUnit 规则（v1.1）** | DDD 分层、命名规范、禁止规则、编码规范规则的自动验证 |
+| **ArchUnit 规则（v1.2）** | 15 条规则：分层、命名、禁止、编码规范规则的自动验证 |
 | **集成测试基类** | IntegrationTestBase（需手动启动测试环境） |
 | **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
 | **Fixture 工具** | 随机数据生成器 + 对象构建器 |
 
-**迁移策略（v1.1 新规则）**：
+**迁移策略（v1.2 新规则）**：
 
 如果您是现有项目，新规则可能会导致测试失败。以下是迁移建议：
 
@@ -128,6 +128,77 @@ public class ArchitectureTest extends CartisanLayeringRules {
 ```
 
 > **详细迁移指南**参见设计文档《cartisan-boot 文档重构设计方案》第七章。
+
+#### 架构测试使用方法
+
+**继承全部规则**
+
+业务平台通过继承 `CartisanArchRules` 即可获得完整的架构守护：
+
+```java
+@AnalyzeClasses(packages = "com.yourcompany")
+public class ArchitectureTest extends CartisanArchRules {
+    // 完了。所有规则自动生效。
+}
+```
+
+**规则列表**
+
+当前框架提供 **15 条架构规则**：
+
+**分层规则**（5 条）：
+- 领域层不能依赖基础设施层
+- 领域层不能依赖 Spring
+- Controller 只能依赖应用层
+- 应用服务不能直接操作数据库
+- Controller 不应依赖聚合根
+
+**命名规则**（5 条）：
+- Controller 命名规范
+- 应用服务命名规范
+- 领域服务命名规范
+- Repository 命名规范
+- 外部 API Controller 版本号
+
+**禁止规则**（3 条）：
+- 禁止字段注入
+- 禁止使用 java.util.Date
+- 禁止金额字段使用浮点数
+
+**编码规范规则**（2 条）：
+- 领域层枚举必须实现 BaseEnum
+- MapStruct Mapper 必须继承 DomainMapper
+
+**自定义规则**
+
+如需添加平台特有的规则，可以在测试类中追加 `@ArchTest` 字段：
+
+```java
+@AnalyzeClasses(packages = "com.yourcompany")
+public class ArchitectureTest extends CartisanArchRules {
+
+    @ArchTest
+    static final ArchRule myCustomRule = classes()
+        .that()
+        .resideInAPackage("..mypackage..")
+        .should()
+        .onlyDependOnClassesThat()
+        .resideInAnyPackage("..mypackage..", "java..");
+}
+```
+
+**选择性继承**
+
+如只需部分规则，可只继承特定的规则类：
+
+```java
+@AnalyzeClasses(packages = "com.yourcompany")
+public class LayeringTest extends CartisanLayeringRules {
+    // 只继承分层规则
+}
+```
+
+或者不继承，直接在测试类中声明需要的规则字段。
 
 ### 1.3 cartisan-web 模块
 
