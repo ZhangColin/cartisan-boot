@@ -1,8 +1,8 @@
 # ArchUnit 规则与编码规范映射文档
 
-> **版本**：v1.0
+> **版本**：v1.1
 > **日期**：2026-04-05
-> **目的**：验证 CartisanArchRules 的 14 条规则与《限界上下文代码编写规范》的对应关系
+> **目的**：验证 CartisanArchRules 的 16 条规则与《限界上下文代码编写规范》的对应关系
 
 本文档确认框架提供的架构测试规则与编码规范文档完全一致，无遗漏、无冲突。
 
@@ -15,8 +15,8 @@
 | **分层规则** | 5 | 一、六边形架构概述；三-六章：层次实现规范 | ✅ 完全覆盖 |
 | **命名规则** | 5 | 三-六章：各层次组件命名规范 | ✅ 完全覆盖 |
 | **禁止规则** | 3 | 九、编码风格规范；十、架构守护 | ✅ 完全覆盖 |
-| **编码规范规则** | 2 | 三、领域层 - 3.6 枚举与常量；四、应用层 - 4.3 Mapper 规范 | ✅ 完全覆盖 |
-| **总计** | 15 | 全文档 | ✅ 100% 覆盖 |
+| **编码规范规则** | 3 | 三、领域层 - 3.6 枚举与常量；四、应用层 - 4.3 Mapper 规范 | ✅ 完全覆盖 |
+| **总计** | 16 | 全文档 | ✅ 100% 覆盖 |
 
 ---
 
@@ -305,13 +305,17 @@
 
 ---
 
-### 四、编码规范规则（2 条）
+### 四、编码规范规则（3 条）
 
 #### 14. domainEnumsShouldImplementBaseEnum
 
 **ArchUnit 规则**：`CartisanCodingStandardsRules.domainEnumsShouldImplementBaseEnum`
 
 **约束内容**：领域层枚举（`..domain..` 中的 `enum`）必须实现 `BaseEnum<T>` 接口
+
+**例外情况**：
+- 排除实现 `CodeMessage` 接口的枚举
+- 理由：`CodeMessage` 枚举用于错误码定义，不需要 BaseEnum 的值对象转换功能
 
 **编码规范对应**：
 - **章节**：三、领域层 → 3.6 枚举与常量 → 3.6.1 枚举规范
@@ -344,7 +348,41 @@
   > **领域层**
   > - [ ] 枚举定义在独立文件中（`domain/enums/`），实现 `BaseEnum<T>` 接口
 
-**验证状态**：✅ 完全对应
+**验证状态**：✅ 完全对应（v1.2 更新：排除 CodeMessage 枚举）
+
+---
+
+#### 15. codeMessageEnumsShouldNotImplementBaseEnum
+
+**ArchUnit 规则**：`CartisanCodingStandardsRules.codeMessageEnumsShouldNotImplementBaseEnum`
+
+**约束内容**：实现 `CodeMessage` 接口的领域层枚举不应实现 `BaseEnum<T>` 接口
+
+**目的**：防止 `CodeMessage` 枚举与 BaseEnum 接口体系混淆
+
+**编码规范对应**：
+- **章节**：三、领域层 → 3.6 枚举与常量 → 3.6.1 枚举规范
+- **原文**：
+  > **原则**：
+  > - 枚举在领域层定义（`domain/enums/` 包）
+  > - 前后端交互、后端与数据库交互统一以 **Integer code** 为准
+
+- **补充说明**：
+  > **CodeMessage 枚举用途**：
+  > - 定义错误码和错误消息
+  > - 用于异常处理和错误响应
+  > - 不需要 BaseEnum 的值对象转换功能
+  >
+  > **BaseEnum 枚举用途**：
+  > - 定义业务状态值（如用户状态、订单状态）
+  > - 用于前后端数据交互
+  > - 需要 Integer ↔ Enum 自动转换功能
+
+**验证状态**：✅ 完全对应（v1.2 新增规则）
+
+---
+
+#### 16. mapstructMappersShouldExtendDomainMapper
 
 ---
 
@@ -432,11 +470,11 @@
 
 ### 总体评估
 
-✅ **CartisanArchRules 的 15 条规则与《限界上下文代码编写规范》完全对应**
+✅ **CartisanArchRules 的 16 条规则与《限界上下文代码编写规范》完全对应**
 
 **详细结论**：
 
-1. **覆盖率**：15/15 规则（100%）在编码规范中有明确说明
+1. **覆盖率**：16/16 规则（100%）在编码规范中有明确说明
 2. **一致性**：规则约束内容与文档描述完全一致，无冲突
 3. **互补性**：
    - ArchUnit：自动化验证架构约束（可强制执行）
@@ -453,7 +491,7 @@
    ```java
    @AnalyzeClasses(packages = "com.yourcompany")
    public class ArchitectureTest extends CartisanArchRules {
-       // 所有 15 条规则自动生效
+       // 所有 16 条规则自动生效
    }
    ```
 
@@ -469,4 +507,4 @@
 
 ---
 
-**文档结束** | **版本**：v1.0 | **日期**：2026-04-05
+**文档结束** | **版本**：v1.1 | **日期**：2026-04-05
