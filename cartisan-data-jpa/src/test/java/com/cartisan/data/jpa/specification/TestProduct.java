@@ -1,6 +1,6 @@
 package com.cartisan.data.jpa.specification;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
+import com.cartisan.core.domain.AggregateRoot;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.math.BigDecimal;
@@ -13,7 +13,7 @@ import java.util.UUID;
  * <p>用于测试 @Condition 注解和 ConditionSpecifications 的集成测试。</p>
  */
 @Entity
-public class TestProduct extends AbstractAggregateRoot<TestProduct> {
+public class TestProduct implements AggregateRoot<TestProduct> {
 
     @Id
     private final Long id;
@@ -51,11 +51,6 @@ public class TestProduct extends AbstractAggregateRoot<TestProduct> {
         this.category = category;
         this.stock = stock;
         this.createdAt = LocalDateTime.now();
-    }
-
-    @Override
-    public Object getId() {
-        return id;
     }
 
     public Long id() {

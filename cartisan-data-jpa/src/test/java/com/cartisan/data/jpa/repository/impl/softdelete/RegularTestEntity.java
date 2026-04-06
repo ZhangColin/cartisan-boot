@@ -1,6 +1,6 @@
 package com.cartisan.data.jpa.repository.impl.softdelete;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
+import com.cartisan.core.domain.AggregateRoot;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -9,7 +9,7 @@ import jakarta.persistence.Id;
  * 测试用常规实体，不支持软删除。
  */
 @Entity(name = "regular_test_entity")
-public class RegularTestEntity extends AbstractAggregateRoot<RegularTestEntity> {
+public class RegularTestEntity implements AggregateRoot<RegularTestEntity> {
 
     @Id
     @GeneratedValue

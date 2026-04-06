@@ -1,8 +1,6 @@
 package com.cartisan.data.jpa.repository.impl.softdelete;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
-import com.cartisan.core.domain.DomainEvent;
-import com.cartisan.data.jpa.repository.impl.TestDomainEvent;
+import com.cartisan.core.domain.AggregateRoot;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -15,7 +13,7 @@ import org.hibernate.annotations.SQLRestriction;
  */
 @Entity(name = "reflection_soft_deletable_entity")
 @SQLRestriction("deleted = false")
-public class ReflectionSoftDeletableEntity extends AbstractAggregateRoot<ReflectionSoftDeletableEntity> {
+public class ReflectionSoftDeletableEntity implements AggregateRoot<ReflectionSoftDeletableEntity> {
 
     @Id
     @GeneratedValue
@@ -44,12 +42,5 @@ public class ReflectionSoftDeletableEntity extends AbstractAggregateRoot<Reflect
 
     public void markAsDeleted() {
         this.deleted = true;
-    }
-
-    /**
-     * 注册测试事件（用于测试领域事件发布）。
-     */
-    public void registerTestEvent(String message) {
-        registerEvent(new TestDomainEvent(String.valueOf(id), message));
     }
 }

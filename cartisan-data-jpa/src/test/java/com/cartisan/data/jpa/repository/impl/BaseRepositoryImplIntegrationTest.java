@@ -1,22 +1,17 @@
 package com.cartisan.data.jpa.repository.impl;
 
-import com.cartisan.core.domain.DomainEvent;
 import com.cartisan.data.jpa.repository.impl.softdelete.ReflectionSoftDeletableEntity;
 import com.cartisan.data.jpa.repository.impl.softdelete.ReflectionSoftDeletableRepository;
 import com.cartisan.data.jpa.repository.impl.softdelete.RegularTestEntity;
 import com.cartisan.data.jpa.repository.impl.softdelete.RegularTestRepository;
 import com.cartisan.data.jpa.repository.impl.softdelete.SoftDeletableTestEntity;
 import com.cartisan.data.jpa.repository.impl.softdelete.SoftDeletableTestRepository;
-import com.cartisan.event.DomainEventPublisher;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
@@ -56,15 +51,6 @@ class BaseRepositoryImplIntegrationTest {
 
     @Autowired
     private ReflectionSoftDeletableRepository reflectionRepository;
-
-    @Autowired
-    private DomainEventPublisher domainEventPublisher;
-
-    @BeforeEach
-    void setUp() {
-        // 设置 DomainEventPublisher，避免日志警告
-        DomainEventPublisherHolder.setPublisher(domainEventPublisher);
-    }
 
     @AfterEach
     void tearDown() {
@@ -435,41 +421,6 @@ class BaseRepositoryImplIntegrationTest {
         assertThat(softDeletableRepository.findAll()).isEmpty();
     }
 
-    // ==================== 软删除与领域事件 ====================
-
-    @Test
-    void should_publishDomainEvents_when_deleteSoftDeletableEntity() {
-        // Given: 创建带领域事件的软删除实体
-        ReflectionSoftDeletableEntity entity = new ReflectionSoftDeletableEntity();
-        entity.setName("Event Test");
-        entity.registerTestEvent("Event payload");
-
-        assertThat(entity.getDomainEvents()).hasSize(1);
-
-        // When: 删除实体（触发 save，进而触发 publishDomainEvents）
-        ReflectionSoftDeletableEntity saved = reflectionRepository.saveAndFlush(entity);
-        reflectionRepository.delete(saved);
-
-        // Then: 事件被清空
-        assertThat(entity.getDomainEvents()).isEmpty();
-    }
-
-    @Test
-    void should_publishDomainEvents_when_saveEntity() {
-        // Given: 创建带领域事件的实体
-        SoftDeletableTestEntity entity = new SoftDeletableTestEntity();
-        entity.setName("Save Event Test");
-        entity.registerTestEvent("Save payload");
-
-        assertThat(entity.getDomainEvents()).hasSize(1);
-
-        // When: 保存实体
-        softDeletableRepository.saveAndFlush(entity);
-
-        // Then: 事件被清空
-        assertThat(entity.getDomainEvents()).isEmpty();
-    }
-
     /**
      * 测试配置。
      */
@@ -488,33 +439,5 @@ class BaseRepositoryImplIntegrationTest {
         ReflectionSoftDeletableEntity.class
     })
     static class TestConfig {
-
-        @Bean
-        public DomainEventPublisher domainEventPublisher() {
-            return new DomainEventPublisher() {
-                @Override
-                public void publish(DomainEvent event) {
-                    // 测试中不需要实际发布事件
-                }
-            };
-        }
-
-        @Bean
-        public DomainEventPublisherHolderConfigurer domainEventPublisherHolderConfigurer(DomainEventPublisher publisher) {
-            return new DomainEventPublisherHolderConfigurer(publisher);
-        }
-
-        static class DomainEventPublisherHolderConfigurer implements InitializingBean {
-            private final DomainEventPublisher publisher;
-
-            DomainEventPublisherHolderConfigurer(DomainEventPublisher publisher) {
-                this.publisher = publisher;
-            }
-
-            @Override
-            public void afterPropertiesSet() {
-                DomainEventPublisherHolder.setPublisher(publisher);
-            }
-        }
     }
 }

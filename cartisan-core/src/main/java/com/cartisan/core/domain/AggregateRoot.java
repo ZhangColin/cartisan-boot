@@ -19,8 +19,7 @@ package com.cartisan.core.domain;
  * </ul>
  *
  * @param <T> 聚合根类型
- * @param <ID> 标识符类型
  * @since 0.1.0
  */
-public interface AggregateRoot<T, ID> {
+public interface AggregateRoot<T> {
 }

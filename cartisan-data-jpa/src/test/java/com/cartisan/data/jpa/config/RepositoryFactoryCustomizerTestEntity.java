@@ -1,6 +1,6 @@
 package com.cartisan.data.jpa.config;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
+import com.cartisan.core.domain.AggregateRoot;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -9,7 +9,7 @@ import jakarta.persistence.Id;
  * Repository 工厂自动配置测试用实体。
  */
 @Entity
-class RepositoryFactoryCustomizerTestEntity extends AbstractAggregateRoot<RepositoryFactoryCustomizerTestEntity> {
+class RepositoryFactoryCustomizerTestEntity implements AggregateRoot<RepositoryFactoryCustomizerTestEntity> {
 
     @Id
     @GeneratedValue

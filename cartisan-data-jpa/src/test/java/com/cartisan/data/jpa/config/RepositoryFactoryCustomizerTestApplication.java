@@ -1,11 +1,8 @@
 package com.cartisan.data.jpa.config;
 
-import com.cartisan.core.domain.DomainEvent;
-import com.cartisan.event.DomainEventPublisher;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
@@ -18,11 +15,4 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @EntityScan(basePackageClasses = RepositoryFactoryCustomizerTestEntity.class)
 @EnableJpaRepositories(basePackageClasses = RepositoryFactoryCustomizerTestRepository.class)
 public class RepositoryFactoryCustomizerTestApplication {
-
-    @Bean
-    public DomainEventPublisher domainEventPublisher() {
-        return event -> {
-            // No-op for test
-        };
-    }
 }

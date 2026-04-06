@@ -159,36 +159,5 @@ class AutoDeleteSoftDeletableIntegrationTest {
     )
     @org.springframework.boot.autoconfigure.domain.EntityScan(basePackageClasses = TestAggregateRootWithSoftDelete.class)
     static class TestConfig {
-
-        @Bean
-        public DomainEventPublisher domainEventPublisher() {
-            return new DomainEventPublisher() {
-                @Override
-                public void publish(com.cartisan.core.domain.DomainEvent event) {
-                    // 测试中不需要实际发布事件
-                }
-            };
-        }
-
-        @Bean
-        public DomainEventPublisherHolderConfigurer domainEventPublisherHolderConfigurer(DomainEventPublisher publisher) {
-            return new DomainEventPublisherHolderConfigurer(publisher);
-        }
-
-        /**
-         * 配置器，在容器初始化时设置 DomainEventPublisherHolder。
-         */
-        static class DomainEventPublisherHolderConfigurer implements InitializingBean {
-            private final DomainEventPublisher publisher;
-
-            DomainEventPublisherHolderConfigurer(DomainEventPublisher publisher) {
-                this.publisher = publisher;
-            }
-
-            @Override
-            public void afterPropertiesSet() {
-                com.cartisan.data.jpa.repository.impl.DomainEventPublisherHolder.setPublisher(publisher);
-            }
-        }
     }
 }
