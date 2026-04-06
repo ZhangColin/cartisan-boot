@@ -615,7 +615,6 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 package com.cartisan.event.config;
 
 import com.cartisan.event.ApplicationEventPublisher;
-import com.cartisan.event.CompositeApplicationEventPublisher;
 import com.cartisan.event.impl.SpringApplicationEventPublisher;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.ApplicationEventPublisher;
@@ -624,11 +623,8 @@ import org.springframework.context.annotation.Bean;
 /**
  * cartisan-event 模块的 Spring Boot 自动配置。
  *
- * <p>自动配置应用事件发布器：</p>
- * <ul>
- *   <li>{@link CompositeApplicationEventPublisher} - 复合发布器，根据注解路由</li>
- *   <li>{@link SpringApplicationEventPublisher} - Spring事件发布器</li>
- * </ul>
+ * <p>自动配置Spring事件发布器。</p>
+ * <p>复合发布器 {@link CompositeApplicationEventPublisher} 通过 {@code @Component} 注解自动注册。</p>
  *
  * @since 0.1.0
  */
@@ -638,25 +634,13 @@ public class CartisanEventAutoConfiguration {
     /**
      * 注册Spring事件发布器 Bean。
      *
-     * @param springPublisher Spring事件发布器
+     * @param springPublisher Spring的ApplicationEventPublisher
      * @return Spring事件发布器实例
      */
     @Bean
     public ApplicationEventPublisher springEventPublisher(
             ApplicationEvent springPublisher) {
         return new SpringApplicationEventPublisher(springPublisher);
-    }
-
-    /**
-     * 注册复合事件发布器 Bean。
-     *
-     * @param publishers 所有可用的发布器
-     * @return 复合发布器实例
-     */
-    @Bean
-    public ApplicationEventPublisher applicationEventPublisher(
-            List<ApplicationEventPublisher> publishers) {
-        return new CompositeApplicationEventPublisher(publishers);
     }
 }
 ```

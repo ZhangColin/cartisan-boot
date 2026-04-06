@@ -97,9 +97,11 @@ cartisan-web / cartisan-data-jpa (依赖event)
  *   <li>{@code occurredAt} - 事件发生时间</li>
  *   <li>{@code eventType} - 事件类型名称，用于路由</li>
  * </ul>
+ *
+ * <h3>实现建议</h3>
+ * <p>推荐使用 Java Record 来实现事件类，确保不可变性和可序列化性。</p>
  */
-public sealed interface ApplicationEvent permits
-        OrderCreatedEvent, OrderPaidEvent /* 用户自定义事件 */ {
+public interface ApplicationEvent {
 
     /**
      * 获取事件唯一标识符。
