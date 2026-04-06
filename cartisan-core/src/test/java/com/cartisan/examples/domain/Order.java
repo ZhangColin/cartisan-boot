@@ -1,8 +1,6 @@
 package com.cartisan.examples.domain;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
 import com.cartisan.core.domain.AggregateRoot;
-import com.cartisan.core.domain.DomainEvent;
 import com.cartisan.core.domain.DomainEntity;
 import com.cartisan.core.domain.Identity;
 import com.cartisan.core.domain.ValueObject;
@@ -18,7 +16,7 @@ import java.util.Objects;
  *
  * <p>展示如何使用 cartisan-core 提供的 DDD 基础类型。</p>
  */
-public class Order extends AbstractAggregateRoot<Order> {
+public class Order implements AggregateRoot<Order> {
 
     private final OrderId id;
     private final List<OrderItem> items;
@@ -39,9 +37,7 @@ public class Order extends AbstractAggregateRoot<Order> {
         if (items == null || items.isEmpty()) {
             throw new IllegalArgumentException("Order must have at least one item");
         }
-        Order order = new Order(OrderId.generate(), items, shippingAddress, OrderStatus.PENDING);
-        order.registerEvent(new OrderCreatedEvent(order.id.value()));
-        return order;
+        return new Order(OrderId.generate(), items, shippingAddress, OrderStatus.PENDING);
     }
 
     /**
@@ -59,7 +55,6 @@ public class Order extends AbstractAggregateRoot<Order> {
             throw new IllegalStateException("Only pending orders can be confirmed");
         }
         this.status = OrderStatus.CONFIRMED;
-        registerEvent(new OrderConfirmedEvent(id.value()));
     }
 
     /**
@@ -73,7 +68,6 @@ public class Order extends AbstractAggregateRoot<Order> {
             throw new IllegalStateException("Cannot ship order without shipping address");
         }
         this.status = OrderStatus.SHIPPED;
-        registerEvent(new OrderShippedEvent(id.value()));
     }
 
     /**
@@ -105,8 +99,7 @@ public class Order extends AbstractAggregateRoot<Order> {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    @Override
-    public OrderId getId() {
+    public OrderId id() {
         return id;
     }
 
@@ -267,32 +260,5 @@ record ShippingAddress(
 
     public String fullAddress() {
         return String.format("%s%s%s%s", province, city, district != null ? district : "", detailAddress);
-    }
-}
-
-/**
- * 订单创建事件。
- */
-class OrderCreatedEvent extends DomainEvent {
-    public OrderCreatedEvent(String orderId) {
-        super(orderId);
-    }
-}
-
-/**
- * 订单确认事件。
- */
-class OrderConfirmedEvent extends DomainEvent {
-    public OrderConfirmedEvent(String orderId) {
-        super(orderId);
-    }
-}
-
-/**
- * 订单发货事件。
- */
-class OrderShippedEvent extends DomainEvent {
-    public OrderShippedEvent(String orderId) {
-        super(orderId);
     }
 }
