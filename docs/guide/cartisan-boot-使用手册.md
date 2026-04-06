@@ -84,7 +84,7 @@ cartisan:
 
 | 能力 | 说明 |
 |------|------|
-| **DDD 基础类型** | 聚合根、实体、值对象、领域事件、标识符 |
+| **DDD 基础类型** | 聚合根、实体、值对象、应用事件、标识符 |
 | **异常体系** | 统一错误码接口 + 业务异常层次 |
 | **架构注解** | DDD 分层标记注解（限界上下文、聚合、端口、适配器） |
 | **断言工具** | Design by Contract 风格的前置/后置条件断言 |
@@ -271,7 +271,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | 能力 | 说明 |
 |------|------|
 | **BaseRepository** | 约束 T 必须是 `AggregateRoot<?>`，继承 JPA + Specification |
-| **事件自动发布** | Repository save() 时自动发布领域事件 |
+| **事件发布** | 应用服务通过 ApplicationEventPublisher 发布应用事件 |
 | **审计支持** | `@CreatedDate`、`@LastModifiedDate`、`@CreatedBy`、`@LastModifiedBy` |
 | **软删除** | `@SQLRestriction` 自动过滤已删除记录 |
 | **分布式 ID** | TSID 生成器（42 位时间戳 + 22 位随机数） |
@@ -312,7 +312,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 | 能力 | 说明 |
 |------|------|
-| **事件发布器** | `DomainEventPublisher` 接口 + Spring 实现 |
+| **事件发布器** | `ApplicationEventPublisher` 接口 + Spring/RabbitMQ 实现 |
 | **事务监听** | 支持 `@TransactionalEventListener(phase=AFTER_COMMIT)` |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
@@ -400,17 +400,14 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
 | `AggregateRoot` | - | 聚合根标记接口 |
-| `AbstractAggregateRoot<T>` | `registerEvent(event)` | 注册领域事件 |
-| | `getDomainEvents()` | 获取待发布事件列表 |
-| | `clearDomainEvents()` | 清空事件列表 |
+| `AggregateRoot<T, ID>` | `getId()` | 获取聚合根 ID |
 | `DomainEntity<T, ID>` | `getId()` | 获取实体 ID |
 | | `sameIdentityAs(other)` | 判断是否为同一实体 |
 | `ValueObject<T>` | `sameValueAs(other)` | 判断值是否相等 |
 | `Identity<T>` | `value()` | 获取标识符值 |
-| `DomainEvent` | `eventId()` | 事件 ID（UUID） |
+| `ApplicationEvent` | `eventId()` | 事件 ID（UUID） |
+| | `eventType()` | 事件类型标识 |
 | | `occurredAt()` | 发生时间 |
-| | `aggregateId()` | 聚合根 ID |
-| | `eventType()` | 事件类型名 |
 
 ### 2.1.1 BaseEnum 接口（com.cartisan.core.domain）
 
@@ -505,7 +502,7 @@ public class UserController {
 |------|------|------|
 | `REPOSITORY` | 仓储端口：聚合根持久化 | `OrderRepository` |
 | `CLIENT` | 客户端端口：调用外部服务 | `PasswordEncoderPort`、`SmsSenderPort` |
-| `PUBLISHER` | 发布者端口：发布领域事件 | `DomainEventPublisher` |
+| `PUBLISHER` | 发布者端口：发布应用事件 | `ApplicationEventPublisher` |
 
 ### 2.3.1 Repository 模式 vs Service Port 模式
 
@@ -599,7 +596,7 @@ public class UserController {
 |----|------|------|
 | `BaseRepository<T, ID>` | `T extends AggregateRoot<?>` | 继承 JpaRepository + JpaSpecificationExecutor |
 | | `ID extends Serializable` | ID 类型约束 |
-| `BaseRepositoryImpl` | 重写 `save()` | JPA save 后自动发布领域事件 |
+| `BaseRepository` | `save()` | JPA 保存聚合根 |
 
 ### 2.12 审计与软删除（com.cartisan.data.jpa.domain）
 
@@ -640,12 +637,14 @@ public class UserController {
 | | `newInstance()` | 创建默认实例（ThreadLocalRandom） |
 | | `withRandom(Random)` | 测试用：指定随机数源 |
 
-### 2.14 领域事件发布器（com.cartisan.event）
+### 2.14 应用事件发布器（com.cartisan.event）
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
-| `DomainEventPublisher` | `publish(DomainEvent)` | 发布领域事件 |
-| `SpringDomainEventPublisher` | - | 委托给 Spring ApplicationEventPublisher |
+| `ApplicationEventPublisher` | `publishApplicationEvent(ApplicationEvent)` | 发布应用事件 |
+| `CompositeApplicationEventPublisher` | - | 复合发布器，支持多渠道发布 |
+| `SpringApplicationEventPublisher` | - | Spring 事件发布实现 |
+| `RabbitMQApplicationEventPublisher` | - | RabbitMQ 发布实现（按需） |
 
 ### 2.15 权限注解（com.cartisan.security.annotation）
 
@@ -926,21 +925,9 @@ public record OrderId(String value) implements Identity<String> {
     }
 }
 
-// 领域事件
-public class OrderCreatedEvent extends DomainEvent {
-    private final String customerId;
-    private final BigDecimal totalAmount;
-
-    public OrderCreatedEvent(String orderId, String customerId, BigDecimal totalAmount) {
-        super(orderId);
-        this.customerId = customerId;
-        this.totalAmount = totalAmount;
-    }
-}
-
 // 聚合根
 @Aggregate
-public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot {
+public class Order implements AggregateRoot<Order, OrderId> {
     private OrderId id;
     private OrderStatus status;
     private List<OrderItem> items;
@@ -949,9 +936,6 @@ public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot
         this.id = new OrderId(UUID.randomUUID().toString());
         this.status = OrderStatus.PENDING;
         this.items = new ArrayList<>(items);
-
-        BigDecimal totalAmount = calculateTotal();
-        registerEvent(new OrderCreatedEvent(id.value(), customerId, totalAmount));
     }
 
     public void ship() {
@@ -959,11 +943,10 @@ public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot
             this.status != OrderStatus.SHIPPED,
             OrderError.CANNOT_SHIP_SHIPPED
         );
-
         this.status = OrderStatus.SHIPPED;
-        registerEvent(new OrderShippedEvent(id.value()));
     }
 
+    @Override
     public OrderId getId() {
         return id;
     }
@@ -974,7 +957,7 @@ public class Order extends AbstractAggregateRoot<Order> implements AggregateRoot
 
 ```java
 // 领域层 - 业务规则违反
-public class Order extends AbstractAggregateRoot<Order> {
+public class Order implements AggregateRoot<Order, OrderId> {
     public void cancel() {
         Assertions.require(
             this.status != OrderStatus.COMPLETED,
@@ -982,7 +965,6 @@ public class Order extends AbstractAggregateRoot<Order> {
         );
         this.status = OrderStatus.CANCELLED;
     }
-}
 
 // 应用层 - 用例前置条件
 public class OrderApplicationService {
@@ -1190,14 +1172,52 @@ public class OrderService {
 }
 ```
 
-### 3.7 监听领域事件
+### 3.7 发布和监听应用事件
+
+应用事件使用 Spring 的事件机制，通过 ApplicationEventPublisher 发布：
 
 ```java
+// 1. 定义应用事件（Record + @PublishTo）
+@PublishTo("spring")
+public record OrderCreatedEvent(
+    String eventId,
+    Instant occurredAt,
+    Long orderId,
+    String customerId
+) implements ApplicationEvent {
+    public OrderCreatedEvent(Long orderId, String customerId) {
+        this(UUID.randomUUID().toString(), Instant.now(), orderId, customerId);
+    }
+
+    @Override
+    public String eventType() {
+        return "order.created";
+    }
+}
+
+// 2. 应用服务发布事件
+@Service
+public class OrderService {
+    private final ApplicationEventPublisher eventPublisher;
+
+    public void createOrder(CreateOrderRequest request) {
+        Order order = new Order(request.getCustomerId(), request.getItems());
+        orderRepository.save(order);
+
+        // 发布应用事件
+        eventPublisher.publishApplicationEvent(
+            new OrderCreatedEvent(order.getId(), request.getCustomerId())
+        );
+    }
+}
+
+// 3. 监听应用事件
 @Component
 public class OrderEventHandler {
 
     // 事务提交后执行（推荐）
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handle(OrderCreatedEvent event) {
         // 发送通知、调用外部服务等
         notificationService.sendOrderCreated(event);
@@ -1210,6 +1230,8 @@ public class OrderEventHandler {
     }
 }
 ```
+
+> **注意**：应用事件的详细使用说明和最佳实践，请参考 `docs/PITFALLS.md` 文档。
 
 ### 3.8 使用权限注解
 
@@ -1964,7 +1986,12 @@ public class OrderService {
 
     public void createOrder(CreateOrderRequest request) {
         Order order = new Order(request.getCustomerId(), request.getItems());
-        orderRepository.save(order);  // 自动发布领域事件
+        orderRepository.save(order);
+
+        // 发布应用事件（如需要）
+        eventPublisher.publishApplicationEvent(
+            new OrderCreatedEvent(order.getId(), request.getCustomerId())
+        );
     }
 }
 
@@ -2228,7 +2255,7 @@ cartisan-boot 支持 CQRS 架构，读写分离：
 | **cartisan-data-query** | 读侧（Query） | jOOQ + DSL |
 
 **典型使用场景**：
-- 写：使用 JPA 保存聚合根，自动发布领域事件
+- 写：使用 JPA 保存聚合根，按需发布应用事件
 - 读：使用 jOOQ 高效查询，类型安全的 DSL
 
 ### 8.3 DDD 设计原则（精简版）
