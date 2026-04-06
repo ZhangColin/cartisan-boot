@@ -2307,3 +2307,72 @@ assertThat(duplicateCount)
 
 ---
 
+## 应用事件 (ApplicationEvent)
+
+### 规则 EVENT-001：应用事件使用Record + @PublishTo
+
+**推荐做法**：
+```java
+@PublishTo({"spring", "rabbitmq"})
+public record OrderCreatedEvent(
+    String eventId,
+    Instant occurredAt,
+    Long orderId,
+    String customerId
+) implements ApplicationEvent {
+    public OrderCreatedEvent(Long orderId, String customerId) {
+        this(UUID.randomUUID().toString(), Instant.now(), orderId, customerId);
+    }
+
+    @Override
+    public String eventType() {
+        return "order.created";
+    }
+}
+```
+
+**记忆口诀**：应用事件用Record，@PublishTo标记发布方式。
+
+---
+
+### 规则 EVENT-002：事件发布在事务提交后
+
+**推荐做法**：
+```java
+// 应用服务
+@Transactional
+public void createOrder(...) {
+    orderRepository.save(order);
+}
+
+// 监听器
+@Component
+public class OrderEventListener {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handle(OrderCreatedEvent event) {
+    }
+}
+```
+
+**记忆口诀**：事件监听用AFTER_COMMIT，新事务隔离。
+
+---
+
+### 规则 EVENT-003：应用事件发布失败不影响主业务
+
+**推荐做法**：
+```java
+@Override
+public void publishApplicationEvent(ApplicationEvent event) {
+    try {
+        publisher.publishEvent(event);
+    } catch (Exception e) {
+        log.error("发布事件失败: eventId={}", event.eventId(), e);
+    }
+}
+```
+
+**记忆口诀**：事件发布失败吞异常，记录日志即可。
+
+---
