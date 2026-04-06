@@ -14,7 +14,7 @@ import org.hibernate.annotations.SQLRestriction;
  */
 @Entity(name = "test_soft_deletable_aggregate")
 @SQLRestriction("deleted = false")
-public class TestAggregateRootWithSoftDelete implements AggregateRoot<TestAggregateRootWithSoftDelete> {
+public class TestAggregateRootWithSoftDelete implements AggregateRoot<TestAggregateRootWithSoftDelete, Long> {
 
     @Id
     @GeneratedValue

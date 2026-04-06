@@ -9,7 +9,7 @@ import jakarta.persistence.Id;
  * 测试用常规实体，不支持软删除。
  */
 @Entity(name = "regular_test_entity")
-public class RegularTestEntity implements AggregateRoot<RegularTestEntity> {
+public class RegularTestEntity implements AggregateRoot<RegularTestEntity, Long> {
 
     @Id
     @GeneratedValue

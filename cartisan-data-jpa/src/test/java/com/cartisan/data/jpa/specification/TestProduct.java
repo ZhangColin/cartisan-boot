@@ -13,7 +13,7 @@ import java.util.UUID;
  * <p>用于测试 @Condition 注解和 ConditionSpecifications 的集成测试。</p>
  */
 @Entity
-public class TestProduct implements AggregateRoot<TestProduct> {
+public class TestProduct implements AggregateRoot<TestProduct, Long> {
 
     @Id
     private final Long id;

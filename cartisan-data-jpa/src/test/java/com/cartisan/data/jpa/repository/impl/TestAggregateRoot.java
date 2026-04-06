@@ -10,7 +10,7 @@ import java.util.UUID;
  * 测试用聚合根。
  */
 @Entity
-public class TestAggregateRoot implements AggregateRoot<TestAggregateRoot> {
+public class TestAggregateRoot implements AggregateRoot<TestAggregateRoot, String> {
 
     @Id
     private final String id;

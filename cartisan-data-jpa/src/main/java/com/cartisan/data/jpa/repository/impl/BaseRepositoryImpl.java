@@ -16,7 +16,7 @@ import java.io.Serializable;
  * @param <T>  聚合根类型，必须实现 {@link AggregateRoot}
  * @param <ID> 聚合根标识符类型，必须实现 {@link Serializable}
  */
-public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializable>
+public class BaseRepositoryImpl<T extends AggregateRoot<T, ID>, ID extends Serializable>
         extends SimpleJpaRepository<T, ID> {
 
     private final EntityManager entityManager;

@@ -1,7 +1,6 @@
 package com.cartisan.data.jpa.domain;
 
 import com.cartisan.data.jpa.repository.impl.BaseRepositoryImpl;
-import com.cartisan.event.DomainEventPublisher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

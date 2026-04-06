@@ -32,6 +32,6 @@ import java.io.Serializable;
  * @see org.springframework.data.jpa.repository.JpaSpecificationExecutor
  */
 @NoRepositoryBean
-public interface BaseRepository<T extends AggregateRoot<?>, ID extends Serializable>
+public interface BaseRepository<T extends AggregateRoot<T, ID>, ID extends Serializable>
         extends JpaRepository<T, ID>, JpaSpecificationExecutor<T> {
 }

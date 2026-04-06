@@ -13,7 +13,7 @@ import org.hibernate.annotations.SQLRestriction;
  */
 @Entity(name = "reflection_soft_deletable_entity")
 @SQLRestriction("deleted = false")
-public class ReflectionSoftDeletableEntity implements AggregateRoot<ReflectionSoftDeletableEntity> {
+public class ReflectionSoftDeletableEntity implements AggregateRoot<ReflectionSoftDeletableEntity, Long> {
 
     @Id
     @GeneratedValue

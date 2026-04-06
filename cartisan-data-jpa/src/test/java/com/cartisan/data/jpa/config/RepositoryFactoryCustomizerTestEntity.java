@@ -9,7 +9,7 @@ import jakarta.persistence.Id;
  * Repository 工厂自动配置测试用实体。
  */
 @Entity
-class RepositoryFactoryCustomizerTestEntity implements AggregateRoot<RepositoryFactoryCustomizerTestEntity> {
+class RepositoryFactoryCustomizerTestEntity implements AggregateRoot<RepositoryFactoryCustomizerTestEntity, Long> {
 
     @Id
     @GeneratedValue
