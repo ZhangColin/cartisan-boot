@@ -26,13 +26,11 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/integration/EnumIntegrationTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/BaseRepositoryImplIntegrationTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/BaseRepositoryImplTest.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/DomainEventPublisherHolderTest.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/RepositoryEventPublishingIntegrationTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/RepositoryTestConfig.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/TestAggregateRoot.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/TestAggregateRootId.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/TestAggregateRootRepository.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/TestApplication.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/TestDomainEvent.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/softdelete/ReflectionSoftDeletableEntity.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/softdelete/ReflectionSoftDeletableRepository.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/test/java/com/cartisan/data/jpa/repository/impl/softdelete/RegularTestEntity.java

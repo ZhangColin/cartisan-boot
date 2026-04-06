@@ -2,6 +2,7 @@ package com.cartisan.data.jpa.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
 import org.hibernate.annotations.SQLRestriction;
 
 /**
@@ -52,6 +53,7 @@ import org.hibernate.annotations.SQLRestriction;
  *
  * @since 0.3.0
  */
+@Getter
 @MappedSuperclass
 @SQLRestriction("deleted = false")
 public abstract class AuditableSoftDeletable extends Auditable implements SoftDeletable {
@@ -61,6 +63,11 @@ public abstract class AuditableSoftDeletable extends Auditable implements SoftDe
      *
      * <p>{@code false} = 未删除（默认），{@code true} = 已删除。</p>
      * <p>注意：@SQLRestriction 会在查询时自动过滤 {@code deleted = true} 的记录。</p>
+     * -- GETTER --
+     *  判断是否已软删除。
+     *
+     * @return true 表示已删除，false 表示未删除
+
      */
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
@@ -78,21 +85,21 @@ public abstract class AuditableSoftDeletable extends Auditable implements SoftDe
     }
 
     /**
-     * 判断是否已软删除。
-     *
-     * @return true 表示已删除，false 表示未删除
-     */
-    public boolean isDeleted() {
-        return deleted;
-    }
-
-    /**
      * 获取软删除标记值。
      *
      * @return deleted 字段值
      */
     @Override
     public boolean getDeleted() {
+        return deleted;
+    }
+
+    /**
+     * 判断是否已软删除（Java Bean 规范）。
+     *
+     * @return true 表示已删除，false 表示未删除
+     */
+    public boolean isDeleted() {
         return deleted;
     }
 

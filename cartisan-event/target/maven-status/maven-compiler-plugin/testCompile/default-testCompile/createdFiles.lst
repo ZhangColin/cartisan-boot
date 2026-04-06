@@ -1,6 +1,5 @@
 com/cartisan/event/config/TestConfiguration.class
-com/cartisan/event/EventIntegrationTest.class
-com/cartisan/event/EventIntegrationTest$TestDomainEvent.class
-com/cartisan/event/SpringDomainEventPublisherTest.class
-com/cartisan/event/SpringDomainEventPublisherTest$TestDomainEvent.class
-com/cartisan/event/EventIntegrationTest$StaticTestEventListener.class
+com/cartisan/event/example/OrderCreatedEvent.class
+com/cartisan/event/CompositeApplicationEventPublisherTest$1.class
+com/cartisan/event/CompositeApplicationEventPublisherTest.class
+com/cartisan/event/TestEvent.class

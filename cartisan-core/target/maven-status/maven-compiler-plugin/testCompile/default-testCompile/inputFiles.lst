@@ -1,7 +1,5 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/CartisanCoreModuleTest.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/AbstractAggregateRootTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/BaseEnumTest.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/DomainEventTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/EntityTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/IdentityTest.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/test/java/com/cartisan/core/domain/ValueObjectTest.java

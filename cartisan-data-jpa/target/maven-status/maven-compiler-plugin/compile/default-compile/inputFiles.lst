@@ -13,7 +13,6 @@
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/package-info.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/repository/BaseRepository.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/repository/impl/BaseRepositoryImpl.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/repository/impl/DomainEventPublisherHolder.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/repository/package-info.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/specification/Condition.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-data-jpa/src/main/java/com/cartisan/data/jpa/specification/ConditionSpecifications.java

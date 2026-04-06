@@ -68,6 +68,14 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- JAXB API (for compilation warnings) -->
+        <dependency>
+            <groupId>jakarta.xml.bind</groupId>
+            <artifactId>jakarta.xml.bind-api</artifactId>
+            <version>4.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -103,6 +111,11 @@
                     <source>21</source>
                     <target>21</target>
                     <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>-Xlint:all</arg>
+                        <!-- 抑制 @MockBean 的已过时警告（Spring Boot 3.4.0 中仍可用） -->
+                        <arg>-Xlint:-deprecation</arg>
+                    </compilerArgs>
                     <annotationProcessorPaths>
                         <!-- 1. Lombok (first) -->
                         <path>

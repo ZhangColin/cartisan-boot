@@ -16,7 +16,7 @@ import java.util.Objects;
  *
  * <p>展示如何使用 cartisan-core 提供的 DDD 基础类型。</p>
  */
-public class Order implements AggregateRoot<Order> {
+public class Order implements AggregateRoot<Order, String> {
 
     private final OrderId id;
     private final List<OrderItem> items;

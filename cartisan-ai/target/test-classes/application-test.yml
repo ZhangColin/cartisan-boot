@@ -1,9 +1,0 @@
-# 测试配置文件，具体测试会覆盖属性
-cartisan:
-  ai:
-    openai:
-      api-key: ""
-    deepseek:
-      api-key: ""
-    anthropic:
-      api-key: ""

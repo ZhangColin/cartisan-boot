@@ -1,4 +1,3 @@
-com/cartisan/data/jpa/repository/impl/DomainEventPublisherHolder.class
 com/cartisan/data/jpa/converter/UniversalEnumConverter.class
 com/cartisan/data/jpa/domain/SoftDeletable.class
 com/cartisan/data/jpa/config/CartisanDataJpaAutoConfiguration$1.class

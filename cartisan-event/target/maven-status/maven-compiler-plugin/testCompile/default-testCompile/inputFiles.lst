@@ -1,3 +1,4 @@
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/EventIntegrationTest.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/SpringDomainEventPublisherTest.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/CompositeApplicationEventPublisherTest.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/TestEvent.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/config/TestConfiguration.java
+/Users/zhangcolin/workspace/cartisan-boot/cartisan-event/src/test/java/com/cartisan/event/example/OrderCreatedEvent.java

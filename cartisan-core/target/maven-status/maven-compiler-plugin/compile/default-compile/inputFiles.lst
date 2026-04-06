@@ -1,8 +1,6 @@
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/AbstractAggregateRoot.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/AggregateRoot.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/BaseEnum.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/DomainEntity.java
-/Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/DomainEvent.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/Identity.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/ValueObject.java
 /Users/zhangcolin/workspace/cartisan-boot/cartisan-core/src/main/java/com/cartisan/core/domain/package-info.java

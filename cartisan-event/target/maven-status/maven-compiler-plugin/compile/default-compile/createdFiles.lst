@@ -1,3 +1,6 @@
+com/cartisan/event/CompositeApplicationEventPublisher.class
+com/cartisan/event/PublishTo.class
+com/cartisan/event/impl/SpringApplicationEventPublisher.class
 com/cartisan/event/config/CartisanEventAutoConfiguration.class
-com/cartisan/event/DomainEventPublisher.class
-com/cartisan/event/SpringDomainEventPublisher.class
+com/cartisan/event/ApplicationEventPublisher.class
+com/cartisan/event/ApplicationEvent.class

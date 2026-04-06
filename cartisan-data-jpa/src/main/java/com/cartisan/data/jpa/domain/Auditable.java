@@ -3,6 +3,7 @@ package com.cartisan.data.jpa.domain;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
+import lombok.Getter;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -33,6 +34,7 @@ import java.time.LocalDateTime;
  *
  * @since 0.2.0
  */
+@Getter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class Auditable {
@@ -69,19 +71,4 @@ public abstract class Auditable {
     @Column(name = "updated_by")
     private Long updatedBy;
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public Long getUpdatedBy() {
-        return updatedBy;
-    }
 }
