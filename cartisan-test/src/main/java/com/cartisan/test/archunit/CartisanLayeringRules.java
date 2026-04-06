@@ -1,5 +1,7 @@
 package com.cartisan.test.archunit;
 
+import com.cartisan.core.domain.AggregateRoot;
+import com.cartisan.core.stereotype.Aggregate;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
@@ -128,4 +130,10 @@ public class CartisanLayeringRules {
             .resideInAPackage("..domain.entity..")
             .because("Controllers should access domain logic through AppServices, not directly")
             .allowEmptyShould(true);
+
+    // ✅ 新增规则：聚合根必须实现AggregateRoot接口
+    @ArchTest
+    static final ArchRule aggregates_should_implement_AggregateRoot = classes()
+        .that().areAnnotatedWith(Aggregate.class)
+        .should().beAssignableTo(AggregateRoot.class);
 }
