@@ -1,16 +1,11 @@
 package com.cartisan.data.jpa.repository.impl;
 
-import com.cartisan.core.domain.AbstractAggregateRoot;
 import com.cartisan.core.domain.AggregateRoot;
-import com.cartisan.core.domain.DomainEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.SimpleJpaRepository;
 
 import jakarta.persistence.EntityManager;
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * Repository 实现基类，在保存聚合根时自动发布领域事件。
@@ -23,8 +18,6 @@ import java.util.List;
  */
 public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializable>
         extends SimpleJpaRepository<T, ID> {
-
-    private static final Logger log = LoggerFactory.getLogger(BaseRepositoryImpl.class);
 
     private final EntityManager entityManager;
     private final JpaEntityInformation<T, ?> entityInformation;
@@ -44,10 +37,7 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     }
 
     /**
-     * 保存实体并自动发布领域事件。
-     *
-     * <p>如果实体是 {@link AbstractAggregateRoot} 的实例，
-     * 则在保存后发布其上注册的所有领域事件，然后清空事件列表。</p>
+     * 保存实体。
      *
      * @param entity 要保存的实体，不能为 null
      * @param <S>    实体类型
@@ -56,10 +46,7 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     @Override
     @SuppressWarnings("unchecked")
     public <S extends T> S save(S entity) {
-        S savedEntity = super.save(entity);
-        // 使用原始 entity 发布事件，因为 savedEntity 可能是新实例
-        publishDomainEvents(entity);
-        return savedEntity;
+        return super.save(entity);
     }
 
     /**
@@ -77,12 +64,12 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
     public void delete(T entity) {
         if (entity instanceof com.cartisan.data.jpa.domain.SoftDeletable softDeletable) {
             softDeletable.markAsDeleted();
-            save(entity);  // 复用 save() 的事件发布逻辑
+            save(entity);
         } else if (hasMarkAsDeletedMethod(entity)) {
             markAsDeletedViaReflection(entity);
             save(entity);
         } else {
-            super.delete(entity);  // 非软删除实体，物理删除
+            super.delete(entity);
         }
     }
 
@@ -136,33 +123,6 @@ public class BaseRepositoryImpl<T extends AggregateRoot<?>, ID extends Serializa
         if (!physicalDelete.isEmpty()) {
             super.deleteAll(physicalDelete);
         }
-    }
-
-    /**
-     * 发布聚合根上的领域事件。
-     *
-     * <p>仅当实体是 {@link AbstractAggregateRoot} 的实例时发布事件。</p>
-     *
-     * @param entity 可能包含事件的实体
-     */
-    private void publishDomainEvents(T entity) {
-        if (!(entity instanceof AbstractAggregateRoot<?> aggregateRoot)) {
-            return;
-        }
-        List<DomainEvent> events = aggregateRoot.getDomainEvents();
-        if (events.isEmpty()) {
-            return;
-        }
-        var publisher = DomainEventPublisherHolder.getPublisher();
-        if (publisher == null) {
-            log.warn("DomainEventPublisher not configured: {} domain event(s) on {} will be dropped. " +
-                     "Ensure cartisan-event is on the classpath and CartisanEventAutoConfiguration is active.",
-                     events.size(), entity.getClass().getSimpleName());
-            aggregateRoot.clearDomainEvents();
-            return;
-        }
-        events.forEach(publisher::publish);
-        aggregateRoot.clearDomainEvents();
     }
 
     /**

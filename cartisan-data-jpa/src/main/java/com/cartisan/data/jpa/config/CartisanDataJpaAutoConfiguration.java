@@ -2,8 +2,6 @@ package com.cartisan.data.jpa.config;
 
 import com.cartisan.data.jpa.converter.EnumConverterRegistrar;
 import com.cartisan.data.jpa.repository.impl.BaseRepositoryImpl;
-import com.cartisan.data.jpa.repository.impl.DomainEventPublisherHolder;
-import com.cartisan.event.DomainEventPublisher;
 import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +23,6 @@ import java.util.Set;
  *
  * <p>配置内容：
  * <ul>
- *   <li>领域事件发布器持有者 — 使 Repository 实例能够发布领域事件</li>
  *   <li>Repository 基类 — 全局配置 BaseRepositoryImpl 为所有 Repository 基类</li>
  *   <li>JPA Auditing — 启用审计功能，提供默认 {@code AuditorAware<Long>} Bean</li>
  * </ul>
@@ -61,20 +58,6 @@ public class CartisanDataJpaAutoConfiguration {
     @ConditionalOnMissingBean
     public AuditorAware<Long> auditorAware() {
         return () -> Optional.empty();
-    }
-
-    /**
-     * 配置领域事件发布器持有者。
-     *
-     * <p>将 {@link DomainEventPublisher} Bean 注入到
-     * {@link DomainEventPublisherHolder} 中，供 Repository 实例使用。</p>
-     *
-     * @param publisher 领域事件发布器，由 Spring 提供
-     * @return 配置器 Runnable，在容器启动时执行
-     */
-    @Bean
-    public Runnable configureDomainEventPublisherHolder(DomainEventPublisher publisher) {
-        return () -> DomainEventPublisherHolder.setPublisher(publisher);
     }
 
     /**
