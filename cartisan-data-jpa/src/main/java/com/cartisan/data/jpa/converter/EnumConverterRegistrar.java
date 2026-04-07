@@ -13,8 +13,11 @@ import java.util.*;
  * 枚举转换器注册器。
  * <p>
  * 扫描 JPA 管理的实体类，收集所有带 {@link EnumConvert} 注解的字段，
- * 为每个枚举类型创建 {@link UniversalEnumConverter} 实例。
+ * 为每个枚举类型创建 {@link BaseEnumConverter} 实例。
+ *
+ * @deprecated 此类将在未来版本中删除，请使用枚举内部的 Converter 类 + @Converter(autoApply = true)
  */
+@Deprecated
 public class EnumConverterRegistrar {
 
     private static final Logger log = LoggerFactory.getLogger(EnumConverterRegistrar.class);
@@ -53,8 +56,16 @@ public class EnumConverterRegistrar {
 
     /**
      * 为枚举类型创建 Converter 实例。
+     * <p>
+     * 注意：此方法将在未来版本中删除，请使用枚举内部的 Converter 类。
+     *
+     * @deprecated 请使用枚举内部定义的 Converter 类，而不是通过注册器创建
      */
-    public UniversalEnumConverter<?> createConverter(Class<?> enumType) {
-        return new UniversalEnumConverter<>(enumType);
+    @Deprecated
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public BaseEnumConverter<?> createConverter(Class<?> enumType) {
+        return new BaseEnumConverter(enumType) {
+            // Anonymous concrete implementation for backward compatibility
+        };
     }
 }

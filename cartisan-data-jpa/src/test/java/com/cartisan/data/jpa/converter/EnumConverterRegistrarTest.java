@@ -59,23 +59,30 @@ class EnumConverterRegistrarTest {
     void shouldCreateConverter_forEnumType() {
         var registrar = new EnumConverterRegistrar();
 
-        UniversalEnumConverter<?> converter = registrar.createConverter(TestPaymentStatus.class);
+        BaseEnumConverter<?> converter = registrar.createConverter(TestPaymentStatus.class);
 
         assertThat(converter.getEnumType()).isEqualTo(TestPaymentStatus.class);
     }
 
     @Test
     void shouldConvertEnumToDatabaseColumn() {
-        var converter = new UniversalEnumConverter<TestPaymentStatus>(TestPaymentStatus.class);
+        var converter = new TestPaymentStatusConverter();
 
         assertThat(converter.convertToDatabaseColumn(TestPaymentStatus.PAID)).isEqualTo(1);
     }
 
     @Test
     void shouldConvertDatabaseColumnToEnum() {
-        var converter = new UniversalEnumConverter<TestPaymentStatus>(TestPaymentStatus.class);
+        var converter = new TestPaymentStatusConverter();
 
         assertThat(converter.convertToEntityAttribute(1)).isEqualTo(TestPaymentStatus.PAID);
+    }
+
+    // Test helper class to instantiate the abstract base class
+    private static class TestPaymentStatusConverter extends BaseEnumConverter<TestPaymentStatus> {
+        public TestPaymentStatusConverter() {
+            super(TestPaymentStatus.class);
+        }
     }
 
     @Test

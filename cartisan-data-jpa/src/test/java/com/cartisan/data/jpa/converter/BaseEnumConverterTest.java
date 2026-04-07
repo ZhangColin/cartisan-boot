@@ -23,12 +23,11 @@ enum TestOrderStatus implements BaseEnum<TestOrderStatus> {
     public String getName() { return name; }
 }
 
-class UniversalEnumConverterTest {
+class BaseEnumConverterTest {
 
     @Test
     void shouldConvertEnumToInteger() {
-        @SuppressWarnings("unchecked")
-        UniversalEnumConverter<TestOrderStatus> converter = new UniversalEnumConverter<>(TestOrderStatus.class);
+        BaseEnumConverter<TestOrderStatus> converter = new TestConverter();
 
         assertThat(converter.convertToDatabaseColumn(TestOrderStatus.PENDING))
             .isEqualTo(1);
@@ -36,8 +35,7 @@ class UniversalEnumConverterTest {
 
     @Test
     void shouldReturnNull_whenConvertNullEnumToDatabase() {
-        @SuppressWarnings("unchecked")
-        UniversalEnumConverter<TestOrderStatus> converter = new UniversalEnumConverter<>(TestOrderStatus.class);
+        BaseEnumConverter<TestOrderStatus> converter = new TestConverter();
 
         assertThat(converter.convertToDatabaseColumn(null))
             .isNull();
@@ -45,8 +43,7 @@ class UniversalEnumConverterTest {
 
     @Test
     void shouldConvertIntegerToEnum() {
-        @SuppressWarnings("unchecked")
-        UniversalEnumConverter<TestOrderStatus> converter = new UniversalEnumConverter<>(TestOrderStatus.class);
+        BaseEnumConverter<TestOrderStatus> converter = new TestConverter();
 
         assertThat(converter.convertToEntityAttribute(2))
             .isEqualTo(TestOrderStatus.COMPLETED);
@@ -54,8 +51,7 @@ class UniversalEnumConverterTest {
 
     @Test
     void shouldReturnNull_whenConvertNullIntegerToEntity() {
-        @SuppressWarnings("unchecked")
-        UniversalEnumConverter<TestOrderStatus> converter = new UniversalEnumConverter<>(TestOrderStatus.class);
+        BaseEnumConverter<TestOrderStatus> converter = new TestConverter();
 
         assertThat(converter.convertToEntityAttribute(null))
             .isNull();
@@ -63,11 +59,17 @@ class UniversalEnumConverterTest {
 
     @Test
     void shouldThrowException_whenConvertInvalidInteger() {
-        @SuppressWarnings("unchecked")
-        UniversalEnumConverter<TestOrderStatus> converter = new UniversalEnumConverter<>(TestOrderStatus.class);
+        BaseEnumConverter<TestOrderStatus> converter = new TestConverter();
 
         assertThatThrownBy(() -> converter.convertToEntityAttribute(999))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Unknown code: 999");
+    }
+
+    // Test helper class to instantiate the abstract base class
+    private static class TestConverter extends BaseEnumConverter<TestOrderStatus> {
+        public TestConverter() {
+            super(TestOrderStatus.class);
+        }
     }
 }
