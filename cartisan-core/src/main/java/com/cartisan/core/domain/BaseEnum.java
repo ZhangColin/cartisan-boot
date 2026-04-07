@@ -10,7 +10,7 @@ package com.cartisan.core.domain;
  *   <li>Spring MVC：String → enum 参数绑定（@RequestParam、@PathVariable）</li>
  * </ul>
  *
- * <h3>JPA 持久化示例</h3>
+ * <h2>JPA 持久化示例</h2>
  * <pre>{@code
  * public enum UserStatus implements BaseEnum<UserStatus> {
  *     ACTIVE(1, "激活"),
