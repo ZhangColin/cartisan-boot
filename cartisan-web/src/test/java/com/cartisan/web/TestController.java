@@ -98,31 +98,4 @@ public class TestController {
     public ApiResponse<String> resubmitWithoutPrefix(@RequestBody TestRequest request) {
         return ApiResponse.ok("Request processed");
     }
-
-    // ========== AutoResponseAdvice 测试端点 ==========
-
-    @GetMapping("/string-response")
-    public String stringResponse() {
-        return "test string";
-    }
-
-    @GetMapping("/object-response")
-    public TestObject objectResponse() {
-        return new TestObject("test", 123);
-    }
-
-    @GetMapping("/api-response")
-    public ApiResponse<String> apiResponse() {
-        return new ApiResponse<>(200, "Already wrapped", "original data", null, null);
-    }
-
-    @GetMapping("/null-response")
-    public String nullResponse() {
-        return null;
-    }
-
-    /**
-     * 测试对象。
-     */
-    record TestObject(String name, int value) {}
 }
