@@ -19,16 +19,7 @@
 
 ### 1.1 依赖引入
 
-在业务项目的 `build.gradle.kts` 或 `pom.xml` 中引入 cartisan-boot BOM：
-
-```kotlin
-// Gradle Kotlin DSL
-implementation(platform("com.cartisan:cartisan-dependencies:0.1.0"))
-implementation("com.cartisan:cartisan-core")
-implementation("com.cartisan:cartisan-web")
-implementation("com.cartisan:cartisan-data-jpa")
-// 根据需要添加其他模块
-```
+在业务项目的 `pom.xml` 中引入 cartisan-boot BOM：
 
 ```xml
 <!-- Maven -->
@@ -213,7 +204,6 @@ public class LayeringTest extends CartisanLayeringRules {
 | **请求日志** | `RequestLogFilter` 记录请求信息 |
 | **MDC 集成** | requestId 自动放入 MDC |
 | **Jackson 配置** | 全局序列化配置（Long→String、日期格式等） |
-| **自动响应包装** | `AutoResponseAdvice` 可选功能 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 | **枚举选项** | `EnumOption`、`EnumOptionUtils`、`EnumController` 支持前端获取枚举选项列表 |
 
@@ -222,8 +212,7 @@ public class LayeringTest extends CartisanLayeringRules {
 | 规则 | 说明 |
 |------|------|
 | **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
-| **WEB-002** | `AutoResponseAdvice` 对 String 类型特殊处理，避免二次序列化 |
-| **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
+| **WEB-002** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
 | **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
 | **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |
 
@@ -901,16 +890,6 @@ public class PermissionInitService {
 | `cartisan.web.enum-controller.path` | `String` | `/api/enums` | Controller 路径 |
 | `cartisan.web.enum-controller.scan-packages` | `String[]` | - | 要扫描的包列表（默认：com.cartisan, com.example） |
 
-### 2.36 AutoResponseAdvice（com.cartisan.web.response）
-
-| 配置项 | 说明 |
-|--------|------|
-| `cartisan.web.auto-response.enabled` | 启用自动响应包装（默认 false） |
-
-**排除路径**：`/swagger-ui`、`/v3/api-docs`、`/actuator`
-
-**详细使用指南**：[optional-features.md](optional-features.md)
-
 ---
 
 ## 四、使用示例
@@ -1555,44 +1534,53 @@ public class UserService {
 
 ### 3.17 jOOQ 代码生成配置
 
-在业务项目 `build.gradle.kts` 中添加：
+在业务项目 `pom.xml` 中添加 jOOQ 代码生成插件：
 
-```kotlin
-plugins {
-    id("nu.studer.jooq") version "8.2.1"
-}
-
-dependencies {
-    // jOOQ 代码生成器依赖
-    jooqGenerator("org.jooq:jooq-codegen")
-    jooqGenerator("org.jooq:jooq-meta")
-    jooqGenerator("org.postgresql:postgresql")
-}
-
-jooq {
-    configuration {
-        generator {
-            database {
-                name = "org.jooq.meta.postgres.PostgresDatabase"
-            }
-            generate {
-                isJavaTimeTypes = true  // 使用 java.time 类型
-            }
-            target {
-                packageName = "com.example.db"  // 生成代码的包名
-                directory = "build/generated/jooq"
-            }
-        }
-    }
-}
-
-// 关键：先执行 Flyway 迁移，再生成 jOOQ 代码
-tasks.named<nu.studer.jooq.GenerateJooqTask>("generateJooq") {
-    dependsOn("flywayMigrate")
-}
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq-codegen-maven</artifactId>
+            <version>${jooq.version}</version>
+            <executions>
+                <execution>
+                    <id>generate-jooq</id>
+                    <phase>generate-sources</phase>
+                    <goals>
+                        <goal>generate</goal>
+                    </goals>
+                    <configuration>
+                        <generator>
+                            <database>
+                                <name>org.jooq.meta.postgres.PostgresDatabase</name>
+                                <includes>.*</includes>
+                                <excludes></excludes>
+                            </database>
+                            <generate>
+                                <javaTimeTypes>true</javaTimeTypes>
+                            </generate>
+                            <target>
+                                <packageName>com.example.db</packageName>
+                                <directory>target/generated-sources/jooq</directory>
+                            </target>
+                        </generator>
+                    </configuration>
+                </execution>
+            </executions>
+            <dependencies>
+                <dependency>
+                    <groupId>org.postgresql</groupId>
+                    <artifactId>postgresql</artifactId>
+                    <version>${postgresql.version}</version>
+                </dependency>
+            </dependencies>
+        </plugin>
+    </plugins>
+</build>
 ```
 
-生成后使用：
+运行 `mvn generate-sources` 生成代码后使用：
 
 ```java
 import static com.example.db.Tables.*;
