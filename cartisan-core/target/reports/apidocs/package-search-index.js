@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html"},{"l":"com.cartisan.core"},{"l":"com.cartisan.core.domain"},{"l":"com.cartisan.core.exception"},{"l":"com.cartisan.core.stereotype"},{"l":"com.cartisan.core.util"}];updateSearchResults();
