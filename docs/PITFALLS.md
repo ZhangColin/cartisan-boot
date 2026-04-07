@@ -193,28 +193,46 @@ public class BadController {
 
 ---
 
-### 规则 TOOL-003：PIT 插件与 Gradle 9 需使用 1.19.x RC 版
+### 规则 TOOL-003：PIT Maven 插件版本配置
 
 **现状**：
-- 项目使用 Gradle 9.0；PIT 插件 `info.solidsoft.pitest:1.15.0` 因 `reporting.baseDir` 被移除而报错。
-- **1.19.0-rc.1+** 已修复（改用 `baseDirectory`），支持 Gradle 9。
+- 项目使用 Maven；PIT 插件 `org.pitest:pitest-maven:1.15.0` 可正常使用。
 
-**正确配置**（Kotlin DSL）：
-```kotlin
-// cartisan-core/build.gradle.kts
-plugins {
-    id("info.solidsoft.pitest") version "1.19.0-rc.3"
-}
-pitest {
-    targetClasses.set(listOf("com.cartisan.core.domain.*"))
-    targetTests.set(listOf("com.cartisan.core.domain.*", "com.cartisan.core.arch.*"))
-    mutationThreshold.set(70)
-    outputFormats.set(listOf("HTML", "XML"))
-    timestampedReports.set(false)
-}
+**正确配置**（Maven）：
+```xml
+<!-- cartisan-core/pom.xml -->
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <version>1.15.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>org.pitest</groupId>
+                    <artifactId>pitest-junit5-plugin</artifactId>
+                    <version>1.2.1</version>
+                </dependency>
+            </dependencies>
+            <configuration>
+                <targetClasses>
+                    <param>com.cartisan.core.domain.*</param>
+                </targetClasses>
+                <targetTests>
+                    <param>com.cartisan.core.domain.*</param>
+                    <param>com.cartisan.core.arch.*</param>
+                </targetTests>
+                <mutationThreshold>70</mutationThreshold>
+                <outputFormats>
+                    <outputFormat>HTML</outputFormat>
+                    <outputFormat>XML</outputFormat>
+                </outputFormats>
+                <timestampedReports>false</timestampedReports>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
 ```
-
-**注意**：1.19 目前为 RC，正式版发布后可改为稳定版本号。
 
 ---
 
@@ -339,13 +357,13 @@ if (checker.hasErrors()) {
 # 方式一：使用脚本（推荐）
 ./scripts/run-pitest.sh cartisan-core
 
-# 方式二：直接调用 Gradle
-./gradlew :cartisan-core:pitest
+# 方式二：直接调用 Maven
+mvn org.pitest:pitest-maven:mutationCoverage -pl cartisan-core
 ```
 
 **验收标准**：
 - 变异杀死率 ≥ 70%
-- 报告位置：`cartisan-core/build/reports/pitest/index.html`
+- 报告位置：`cartisan-core/target/pit-reports/index.html`
 - 存活变异需审查，补充边界测试
 
 **注意**：PIT 较耗时（分钟级），仅在 Phase 5 审查时必跑，编码阶段不需要每次运行。
@@ -407,7 +425,7 @@ import cn.dev33.sa-token.stp.StpUtil;
 **验证方式**：
 ```bash
 # 查看 JAR 包内容
-find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "StpUtil"
+find ~/.m2/repository -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "StpUtil"
 # 输出：cn/dev33/satoken/stp/StpUtil.class
 ```
 
@@ -431,7 +449,7 @@ import cn.dev33.satoken.session.Session;
 
 **验证方式**：
 ```bash
-find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "Session"
+find ~/.m2/repository -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep -i "Session"
 # 输出：cn/dev33/satoken/session/SaSession.class（没有 Session.class）
 ```
 
@@ -503,7 +521,7 @@ find ~/.gradle/caches -name "sa-token-core*.jar" | head -1 | xargs jar tf | grep
 
 **验证方式**：
 ```bash
-./gradlew :module:javadoc
+mvn javadoc:javadoc -pl module
 # 应该无错误输出
 ```
 
@@ -887,14 +905,17 @@ assertThatThrownBy(constructor::newInstance)
 **原因**：`StringRedisTemplate` 在 `spring-boot-starter-data-redis` 中，需要显式依赖。
 
 **正确做法**：
-```kotlin
-// cartisan-test/build.gradle.kts
-dependencies {
-    // ... 其他依赖
+```xml
+<!-- cartisan-test/pom.xml -->
+<dependencies>
+    <!-- ... 其他依赖 -->
 
-    // Redis 支持（测试需要 StringRedisTemplate）
-    implementation("org.springframework.boot:spring-boot-starter-data-redis:3.4.0")
-}
+    <!-- Redis 支持（测试需要 StringRedisTemplate） -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+</dependencies>
 ```
 
 **记忆口诀**：要用的类型就要引入对应的 starter。
@@ -912,20 +933,20 @@ dependencies {
 ```
 
 **原因**：
-1. Gradle 的 `api` 配置会将依赖暴露给使用者
-2. 但 `api` 不会让依赖对本模块的 main 代码编译可用
+1. Maven 依赖管理中，依赖对使用者可见
+2. 但需要显式声明依赖才能让本模块代码编译可用
 3. Spring Test 相关类需要在 main 代码中使用（`ApiTestAssertions`）
 
 **正确做法**：
-```kotlin
-// cartisan-test/build.gradle.kts
-dependencies {
-    // api 配置暴露给业务项目
-    api("org.springframework:spring-test:6.2.0")
-
-    // implementation 确保本模块 main 代码可用
-    implementation("org.springframework:spring-test:6.2.0")
-}
+```xml
+<!-- cartisan-test/pom.xml -->
+<dependencies>
+    <!-- compile scope 确保本模块 main 代码可用，且暴露给使用者 -->
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-test</artifactId>
+    </dependency>
+</dependencies>
 ```
 
 **记忆口诀**：api 暴露给他人，implementation 自己用。main 代码依赖要加 implementation。
@@ -951,7 +972,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 **验证方法**：检查 JAR 包内容
 ```bash
 # 1. 找到 spring-test JAR
-find ~/.gradle/caches -name "spring-test-*.jar" | head -1
+find ~/.m2/repository -name "spring-test-*.jar" | head -1
 
 # 2. 查看类路径
 jar tf <jar-path> | grep RequestPostProcessor
@@ -1645,15 +1666,28 @@ public static TsidGenerator newInstance() {
 ```
 
 **正确做法**：
-```kotlin
-// cartisan-security/build.gradle.kts
-tasks.withType<JavaCompile> {
-    options.compilerArgs.add("--enable-preview")
-}
-
-tasks.withType<Test> {
-    jvmArgs("--enable-preview")
-}
+```xml
+<!-- cartisan-security/pom.xml -->
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <compilerArgs>
+                    <arg>--enable-preview</arg>
+                </compilerArgs>
+            </configuration>
+        </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+                <argLine>--enable-preview</argLine>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
 ```
 
 **原因**：ScopedValue 在 Java 21 中是预览特性，需要显式启用。同时需要在编译和测试时都启用。
@@ -1867,24 +1901,6 @@ return StpUtil.getSessionByLoginId(loginId).get(TENANT_ID_SESSION_KEY);
 
 ---
 
-### 规则 WEB-002：AutoResponseAdvice String 类型特殊处理
-
-**问题**：String 返回类型会被 Jackson 序列化两次，导致响应格式错误。
-
-**正确做法**：
-```java
-// ResponseBodyAdvice 中需要特殊处理 String 类型
-if (body instanceof String) {
-    return objectMapper.writeValueAsString(ApiResponse.ok(body));
-}
-```
-
-**错误表现**：返回 `{"code":200,"data":"{\"message\":\"hello\"}"}`（双引号转义）
-
-**记忆口诀**：String 返回要特殊处理，避免二次序列化。
-
----
-
 ### 规则 WEB-003：TreeNodeBuilder 需要 ID 类型转换
 
 **问题**：TreeNode 的 ID 泛型可能与数据库类型不一致。
@@ -1995,58 +2011,22 @@ private static final RedisKey KEY = RedisKey.of("user:cache", 3600_000);  // 实
 
 ---
 
-## Gradle / 构建配置
+## Maven / 构建配置
 
-### 规则 BUILD-001：java-platform 模块需要单独配置 maven-publish
+### 规则 BUILD-001：BOM 模块使用 pom packaging 类型
 
-**问题**：`java-platform` 插件不会自动应用 `maven-publish`，导致 BOM 不会发布到 Maven 仓库。
-
-**错误现象**：
-```bash
-# 业务平台报错
-Could not resolve project :cartisan-boot:cartisan-dependencies
-```
+**问题**：Maven BOM 需要使用 `pom` 打包类型，而不是 `jar`。
 
 **正确做法**：
-```kotlin
-// cartisan-dependencies/build.gradle.kts
-plugins {
-    `java-platform`
-    `maven-publish`  // ✅ 需要显式添加
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("mavenPlatform") {
-            from(components["javaPlatform"])  // 使用 javaPlatform 组件
-            // ... pom 配置
-        }
-    }
-}
+```xml
+<!-- cartisan-dependencies/pom.xml -->
+<project>
+    <packaging>pom</packaging>
+    ...
+</project>
 ```
 
-**记忆口诀**：java-platform 模块发布需显式配置 maven-publish。
-
----
-
-### 规则 BUILD-002：子模块测试依赖不要用 dependencies.add()
-
-**问题**：在 `subprojects` 块中使用 `dependencies.add()` 动态添加依赖，在 includeBuild 场景下会导致依赖解析失败。
-
-**错误做法**：
-```kotlin
-// ❌ 在 includeBuild 场景下解析失败
-dependencies.add("testImplementation", project.dependencies.platform(project(":cartisan-dependencies")))
-```
-
-**正确做法**：
-```kotlin
-// ✅ 使用标准 DSL 写法
-project.dependencies.apply {
-    add("testImplementation", platform(project(":cartisan-dependencies")))
-    add("testImplementation", "org.junit.jupiter:junit-jupiter")
-}
-```
+**记忆口诀**：BOM 模块用 pom 打包类型。
 
 **记忆口诀**：subprojects 中用 project.dependencies.apply，不用 dependencies.add()。
 
