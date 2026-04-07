@@ -551,7 +551,7 @@ JooqTenantSupport
 
 ```
 本模块不提供独立代码生成 CLI，而是提供：
-  - 标准 build.gradle.kts 配置片段
+  - Maven jOOQ 代码生成插件配置
   - PostgreSQL 方言与生成策略示例
   - 文档：generateJooq 依赖 flywayMigrate、生成目录约定等
 

@@ -35,4 +35,4 @@ bin/
 .DS_Store
 
 ### Git Worktrees ###
-.worktrees/
+.worktrees/build/
