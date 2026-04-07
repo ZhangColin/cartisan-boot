@@ -52,7 +52,54 @@
 </dependencies>
 ```
 
-### 1.2 自动配置
+### 1.2 编译器配置（重要）
+
+#### ⚠️ 使用 cartisan-security 模块时需要启用预览特性
+
+如果业务项目引入了 `cartisan-security` 模块（使用 `TenantContext`、`TenantContextFilter`），必须在 `pom.xml` 中启用 Java 预览特性：
+
+```xml
+<build>
+    <plugins>
+        <!-- 编译时启用预览特性 -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.13.0</version>
+            <configuration>
+                <source>21</source>
+                <target>21</target>
+                <compilerArgs>
+                    <arg>--enable-preview</arg>
+                </compilerArgs>
+            </configuration>
+        </plugin>
+
+        <!-- 测试运行时启用预览特性 -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.5.2</version>
+            <configuration>
+                <argLine>--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+**原因**：`cartisan-security` 使用了 Java 21 的 `ScopedValue` 预览 API 实现多租户上下文，业务项目编译引用这些类时也需要启用预览特性。
+
+**哪些模块需要此配置**：
+- ✅ `cartisan-security`：需要（使用 ScopedValue）
+- ❌ `cartisan-core`：不需要
+- ❌ `cartisan-web`：不需要
+- ❌ `cartisan-data-jpa`：不需要
+- ❌ `cartisan-data-query`：不需要
+
+**如果项目不使用多租户功能**：可以不引入 `cartisan-security`，也无需配置 `--enable-preview`。
+
+### 1.3 自动配置
 
 cartisan-boot 模块支持 Spring Boot 自动配置，引入依赖后自动启用，无需手动配置。
 
