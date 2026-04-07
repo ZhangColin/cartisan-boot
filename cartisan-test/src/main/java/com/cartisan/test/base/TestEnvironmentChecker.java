@@ -31,18 +31,35 @@ import java.util.List;
  * }
  * }</pre>
  *
- * <h3>Gradle 测试任务集成</h3>
+ * <h3>Maven 测试任务集成</h3>
  * <pre>{@code
- * // build.gradle.kts
- * tasks.withType<Test> {
- *     doFirst {
- *         exec {
- *             commandLine = listOf("java", "-cp",
- *                 sourceSets.test.get().output.classesDirs.asPath,
- *                 "com.cartisan.test.base.TestEnvironmentCheckerMain")
- *         }
- *     }
- * }
+ * <!-- pom.xml -->
+ * <build>
+ *     <plugins>
+ *         <plugin>
+ *             <groupId>org.apache.maven.plugins</groupId>
+ *             <artifactId>maven-surefire-plugin</artifactId>
+ *             <executions>
+ *                 <execution>
+ *                     <id>check-test-environment</id>
+ *                     <phase>test-compile</phase>
+ *                     <goals>
+ *                         <goal>exec</goal>
+ *                     </goals>
+ *                     <configuration>
+ *                         <classpathScope>test</classpathScope>
+ *                         <executable>java</executable>
+ *                         <arguments>
+ *                             <argument>-classpath</argument>
+ *                             <classpath/>
+ *                             <argument>com.cartisan.test.base.TestEnvironmentCheckerMain</argument>
+ *                         </arguments>
+ *                     </configuration>
+ *                 </execution>
+ *             </executions>
+ *         </plugin>
+ *     </plugins>
+ * </build>
  * }</pre>
  *
  * @since 0.2.0

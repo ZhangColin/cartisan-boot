@@ -5,7 +5,7 @@ package com.cartisan.test.base;
  *
  * <p>可以直接运行此类来检查测试环境是否就绪：</p>
  * <pre>{@code
- * ./gradlew :cartisan-test:java -PmainClass=com.cartisan.test.base.TestEnvironmentCheckerMain
+ * mvn exec:java -pl cartisan-test -Dexec.mainClass="com.cartisan.test.base.TestEnvironmentCheckerMain"
  * }</pre>
  *
  * @since 0.2.0

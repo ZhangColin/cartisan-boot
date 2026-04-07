@@ -14,13 +14,12 @@ if [ -z "$1" ]; then
 fi
 
 MODULE=$1
-TASK="${MODULE}:pitest"
 
-echo "Running: ./gradlew ${TASK}"
-./gradlew "${TASK}"
+echo "Running: mvn org.pitest:pitest-maven:mutationCoverage -pl ${MODULE}"
+mvn org.pitest:pitest-maven:mutationCoverage -pl "${MODULE}"
 
 # 检查报告是否存在
-REPORT_DIR="${MODULE}/build/reports/pitest"
+REPORT_DIR="${MODULE}/target/pit-reports"
 if [ ! -d "$REPORT_DIR" ]; then
     echo "❌ PIT report not found at ${REPORT_DIR}"
     exit 1

@@ -1,9 +1,4 @@
-.gradle
-build/
 target/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
 .kotlin
 
 ### IntelliJ IDEA ###
@@ -32,7 +27,6 @@ bin/
 /nbbuild/
 /dist/
 /nbdist/
-/.nb-gradle/
 
 ### VS Code ###
 .vscode/
