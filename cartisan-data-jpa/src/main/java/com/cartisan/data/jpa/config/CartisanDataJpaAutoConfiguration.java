@@ -1,22 +1,17 @@
 package com.cartisan.data.jpa.config;
 
-import com.cartisan.data.jpa.converter.EnumConverterRegistrar;
 import com.cartisan.data.jpa.repository.impl.BaseRepositoryImpl;
-import jakarta.persistence.EntityManagerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * cartisan-data-jpa 模块自动配置。
@@ -80,33 +75,6 @@ public class CartisanDataJpaAutoConfiguration {
                     factoryBean.setRepositoryBaseClass(BaseRepositoryImpl.class);
                 }
                 return bean;
-            }
-        };
-    }
-
-    /**
-     * 扫描枚举转换器类型。
-     * <p>
-     * 在应用上下文刷新完成后扫描所有带 {@link com.cartisan.data.jpa.annotation.EnumConvert} 的字段，
-     * 记录发现的枚举类型用于调试。
-     * <p>
-     * 使用 {@link ApplicationListener} 延迟到 {@link EntityManagerFactory} 初始化后执行，
-     * 避免 Spring Boot 3.4.x 中的自动配置顺序问题。
-     *
-     * @param entityManagerFactory JPA EntityManagerFactory
-     * @return ApplicationListener
-     */
-    @Bean
-    public ApplicationListener<ContextRefreshedEvent> enumConverterScanner(EntityManagerFactory entityManagerFactory) {
-        return event -> {
-            EnumConverterRegistrar registrar = new EnumConverterRegistrar();
-            Set<Class<?>> enumTypes = registrar.scanEnumTypes(entityManagerFactory);
-
-            if (!enumTypes.isEmpty()) {
-                log.info("Discovered {} enum type(s) with @EnumConvert annotation", enumTypes.size());
-                for (Class<?> enumType : enumTypes) {
-                    log.debug("  - {}", enumType.getSimpleName());
-                }
             }
         };
     }

@@ -1,7 +1,6 @@
 package com.cartisan.data.jpa.integration;
 
 import com.cartisan.core.domain.BaseEnum;
-import com.cartisan.data.jpa.annotation.EnumConvert;
 import com.cartisan.data.jpa.converter.BaseEnumConverter;
 import org.junit.jupiter.api.Test;
 
@@ -61,14 +60,13 @@ class EnumIntegrationTest {
     }
 }
 
-// 测试实体 - 展示 @EnumConvert 用法
+// 测试实体 - 展示枚举用法
 @jakarta.persistence.Entity
 @jakarta.persistence.Table(name = "test_users")
 class TestUser {
     @jakarta.persistence.Id
     Long id;
 
-    @EnumConvert(TestUserStatus.class)
     @jakarta.persistence.Column(name = "status")
     TestUserStatus status;
 }
