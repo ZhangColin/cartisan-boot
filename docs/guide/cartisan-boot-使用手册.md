@@ -455,20 +455,29 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | `parseByCode(Class, Integer)` | 根据 code 查找枚举（找不到返回 null） |
 | `requireByCode(Class, Integer)` | 根据 code 查找枚举（找不到抛异常） |
 
-### 2.1.2 @EnumConvert 注解（com.cartisan.data.jpa.annotation）
+**📖 详细使用指南**：[BaseEnum枚举持久化使用指南.md](./BaseEnum枚举持久化使用指南.md)
 
-| 注解 | 属性 | 说明 |
-|------|------|------|
-| `@EnumConvert` | `value` | 指定枚举类型，配合 `UniversalEnumConverter` 使用 |
+包含内容：
+- ✅ 为什么需要 BaseEnum（避免 ordinal 存储问题）
+- ✅ 快速开始（完整示例）
+- ✅ JPA 持久化配置（内部 JpaConverter 模式）
+- ✅ 重要注意事项（命名冲突、code=0 边缘情况）
+- ✅ 迁移指南（从旧模式迁移）
+- ✅ 最佳实践和常见问题
 
-### 2.1.3 UniversalEnumConverter（com.cartisan.data.jpa.converter）
+### 2.1.2 BaseEnumConverter（com.cartisan.data.jpa.converter）
 
-| 类 | 方法 | 说明 |
-|----|------|------|
-| `UniversalEnumConverter<E>` | `convertToDatabaseColumn(E)` | Enum → Integer（写数据库） |
-| | `convertToEntityAttribute(Integer)` | Integer → Enum（读数据库） |
+| 类 | 说明 |
+|----|------|
+| `BaseEnumConverter<E>` | BaseEnum JPA 转换器抽象基类，所有枚举 Converter 继承此类 |
 
-### 2.1.4 BaseEnum 序列化支持（com.cartisan.web.config）
+**关键改进**（2026-04-07）：
+- ✅ 从 `UniversalEnumConverter` 重命名为 `BaseEnumConverter`
+- ✅ 改为抽象类，使用内部 `JpaConverter` 模式
+- ✅ Hibernate 自动扫描并应用 `@Converter(autoApply = true)`
+- ✅ 实体字段无需任何注解
+
+### 2.1.3 BaseEnum 序列化支持（com.cartisan.web.config）
 
 | 类 | 说明 |
 |----|------|
