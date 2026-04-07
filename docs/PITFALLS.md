@@ -1421,40 +1421,66 @@ public void delete(T entity) {
 
 ---
 
-### 规则 DATA-007：枚举字段使用 @EnumConvert 自动注册 Converter
+### 规则 DATA-007：枚举持久化使用内部 JpaConverter
 
-**问题**：为每个枚举类型手动创建 JPA AttributeConverter 类，代码冗余。
+**问题**：枚举默认使用 `ordinal()` 存储到数据库，增删枚举值会导致已有数据错乱。
 
 **正确做法**：
 ```java
-// ✅ 使用 @EnumConvert 注解，自动注册 UniversalEnumConverter
-@Entity
-public class User {
-    @EnumConvert(UserStatus.class)
-    @Column(name = "status")
-    private UserStatus status;
-}
-
-// ✅ 定义业务枚举实现 BaseEnum
+// ✅ 在枚举内声明内部 JpaConverter 类
 public enum UserStatus implements BaseEnum<UserStatus> {
     ACTIVE(1, "激活"),
     INACTIVE(0, "未激活");
 
     private final Integer code;
     private final String name;
+
+    UserStatus(Integer code, String name) {
+        this.code = code;
+        this.name = name;
+    }
+
+    @Override
+    public Integer getCode() { return code; }
+    @Override
+    public String getName() { return name; }
+
+    // JPA Converter - 3 行代码解决持久化
+    // 注意：类名使用 JpaConverter 而非 Converter，避免与 @Converter 注解冲突
+    @Converter(autoApply = true)
+    public static class JpaConverter extends BaseEnumConverter<UserStatus> {
+        public JpaConverter() {
+            super(UserStatus.class);
+        }
+    }
+}
+
+// ✅ 实体类无需任何注解
+@Entity
+public class User {
+    private UserStatus status;  // 自动应用 UserStatus.JpaConverter
 }
 ```
 
 **错误做法**：
 ```java
-// ❌ 为每个枚举类型手动创建 Converter
+// ❌ 为每个枚举类型手动创建独立 Converter 文件
 @Converter(autoApply = true)
 public class UserStatusConverter implements AttributeConverter<UserStatus, Integer> {
     // 大量重复代码...
 }
+
+// ❌ 使用 Converter 作为内部类名（与 @Converter 注解冲突）
+public enum UserStatus implements BaseEnum<UserStatus> {
+    // ...
+    @Converter(autoApply = true)
+    public static class Converter extends BaseEnumConverter<UserStatus> {  // 编译错误！
+        // ...
+    }
+}
 ```
 
-**记忆口诀**：枚举转换用 @EnumConvert，框架自动注册 Converter。
+**记忆口诀**：枚举持久化用内部 JpaConverter，实体字段零注解。
 
 ---
 
