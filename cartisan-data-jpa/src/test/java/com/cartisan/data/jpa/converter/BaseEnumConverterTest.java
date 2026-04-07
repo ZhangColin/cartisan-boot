@@ -30,11 +30,11 @@ enum TestOrderStatus implements BaseEnum<TestOrderStatus> {
     /**
      * JPA Converter for TestOrderStatus.
      * <p>
-     * This demonstrates the recommended pattern: enum with internal Converter class.
+     * This demonstrates the recommended pattern: enum with internal JpaConverter class.
      */
     @jakarta.persistence.Converter(autoApply = true)
-    public static class Converter extends BaseEnumConverter<TestOrderStatus> {
-        public Converter() {
+    public static class JpaConverter extends BaseEnumConverter<TestOrderStatus> {
+        public JpaConverter() {
             super(TestOrderStatus.class);
         }
     }
@@ -46,7 +46,7 @@ class BaseEnumConverterTest {
     @Test
     @DisplayName("应该将枚举转换为数据库整数值")
     void shouldConvertEnumToInteger() {
-        TestOrderStatus.Converter converter = new TestOrderStatus.Converter();
+        TestOrderStatus.JpaConverter converter = new TestOrderStatus.JpaConverter();
 
         assertThat(converter.convertToDatabaseColumn(TestOrderStatus.PENDING))
             .isEqualTo(1);
@@ -55,7 +55,7 @@ class BaseEnumConverterTest {
     @Test
     @DisplayName("应该将 null 枚举转换为 null 数据库值")
     void shouldReturnNull_whenConvertNullEnumToDatabase() {
-        TestOrderStatus.Converter converter = new TestOrderStatus.Converter();
+        TestOrderStatus.JpaConverter converter = new TestOrderStatus.JpaConverter();
 
         assertThat(converter.convertToDatabaseColumn(null))
             .isNull();
@@ -64,7 +64,7 @@ class BaseEnumConverterTest {
     @Test
     @DisplayName("应该将数据库整数值转换为枚举")
     void shouldConvertIntegerToEnum() {
-        TestOrderStatus.Converter converter = new TestOrderStatus.Converter();
+        TestOrderStatus.JpaConverter converter = new TestOrderStatus.JpaConverter();
 
         assertThat(converter.convertToEntityAttribute(2))
             .isEqualTo(TestOrderStatus.COMPLETED);
@@ -73,7 +73,7 @@ class BaseEnumConverterTest {
     @Test
     @DisplayName("应该将 null 数据库值转换为 null 枚举")
     void shouldReturnNull_whenConvertNullIntegerToEntity() {
-        TestOrderStatus.Converter converter = new TestOrderStatus.Converter();
+        TestOrderStatus.JpaConverter converter = new TestOrderStatus.JpaConverter();
 
         assertThat(converter.convertToEntityAttribute(null))
             .isNull();
@@ -82,7 +82,7 @@ class BaseEnumConverterTest {
     @Test
     @DisplayName("应该抛出异常当转换无效整数值")
     void shouldThrowException_whenConvertInvalidInteger() {
-        TestOrderStatus.Converter converter = new TestOrderStatus.Converter();
+        TestOrderStatus.JpaConverter converter = new TestOrderStatus.JpaConverter();
 
         assertThatThrownBy(() -> converter.convertToEntityAttribute(999))
             .isInstanceOf(IllegalArgumentException.class)
