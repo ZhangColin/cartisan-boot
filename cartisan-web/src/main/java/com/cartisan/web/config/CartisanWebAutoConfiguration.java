@@ -6,7 +6,6 @@ import com.cartisan.web.enums.EnumRegistry;
 import com.cartisan.web.enums.EnumScanner;
 import com.cartisan.web.exception.GlobalExceptionHandler;
 import com.cartisan.web.filter.RequestLogFilter;
-import com.cartisan.web.response.AutoResponseConfiguration;
 import com.cartisan.web.resubmit.PreventResubmit;
 import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
@@ -17,7 +16,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.format.FormatterRegistry;
@@ -31,7 +29,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *   <li>{@link RequestContextFilter} — 请求上下文初始化</li>
  *   <li>{@link RequestLogFilter} — 请求日志记录</li>
  *   <li>{@link GlobalExceptionHandler} — 全局异常处理</li>
- *   <li>{@link com.cartisan.web.response.AutoResponseAdvice} — 自动响应包装（可选）</li>
  *   <li>{@link ResubmitAspect} — 防重复提交切面（当 Redis 可用时）</li>
  * </ul>
  *
@@ -49,7 +46,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @AutoConfiguration
 @ConditionalOnWebApplication
-@Import(AutoResponseConfiguration.class)
 public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
 
     /**
