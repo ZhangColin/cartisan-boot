@@ -83,7 +83,7 @@ cartisan-boot 是**业务无关的技术基础框架**。它为所有 Java 项�
 |------|------|------|------|
 | 语言 | Java | 21 | Virtual Threads（高并发长连接）、Record（不可变 DTO）、Sealed Classes、Pattern Matching |
 | 框架 | Spring Boot | 3.4.x | Virtual Threads 原生支持、Spring Modulith |
-| 构建 | Gradle Kotlin DSL | 最新 | 多模块灵活管理、Version Catalog 统一版本 |
+| 构建 | Maven | 最新 | 多模块灵活管理、依赖管理 |
 | 编程模型 | Virtual Threads + 阻塞式 | — | 代码直观，AI 生成质量高，Virtual Threads 解决吞吐量 |
 | 持久化（写） | Spring Data JPA (Hibernate) | — | 聚合根持久化，DDD 标准实践 |
 | 持久化（读） | jOOQ | — | 类型安全 SQL，编译期校验，CQRS 读侧 |
@@ -106,11 +106,7 @@ cartisan-boot 是**业务无关的技术基础框架**。它为所有 Java 项�
 
 ```
 cartisan-boot/
-├── gradle/
-│   └── libs.versions.toml                 # Version Catalog
-├── build.gradle.kts
-├── settings.gradle.kts
-│
+├── pom.xml                                  # 根 POM
 ├── cartisan-dependencies/                  # BOM
 │
 │  ── 核心模块（短期实现）──
@@ -156,7 +152,7 @@ cartisan-boot/
 
 **职责：** 统一管理所有 cartisan 模块的版本号，业务项目只需引入 BOM，无需逐个指定版本。
 
-无代码，只有 Gradle 配置。通过 `javaPlatform` 插件发布为 BOM。
+无代码，只有 Maven pom.xml 配置。通过 `pom` packaging 类型发布为 BOM。
 
 ---
 
@@ -997,35 +993,58 @@ cartisan-data-query ──→ cartisan-web（复用 PageResponse，读侧与写�
 
 ## 六、业务项目接入方式
 
-### 6.1 开发期：Gradle Composite Build
+### 6.1 开发期：本地 Maven 仓库
 
-在框架和业务项目并行开发期间，使用 Composite Build 实现本地联调：
+在框架和业务项目并行开发期间，通过本地 Maven 仓库实现联调：
 
+```bash
+# 1. 在 cartisan-boot 项目执行
+mvn install
+
+# 2. 业务项目通过 BOM 引入
 ```
-// aieducenter-platform/settings.gradle.kts
-includeBuild("../cartisan-boot")
-```
 
-修改 cartisan-boot 后，业务项目立即可见，无需发布。
+修改 cartisan-boot 后，重新执行 `mvn install`，业务项目立即可见。
 
 ### 6.2 稳定期：私有 Maven 仓库
 
 框架发布稳定版本后，业务项目通过 BOM 引入：
 
 ```
-// aieducenter-platform/build.gradle.kts
-dependencyManagement {
-    imports {
-        mavenBom("com.cartisan:cartisan-dependencies:1.0.0")
-    }
-}
+<!-- aieducenter-platform/pom.xml -->
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-dependencies</artifactId>
+            <version>1.0.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
 
-dependencies {
-    implementation("com.cartisan:cartisan-core")
-    implementation("com.cartisan:cartisan-web")
-    implementation("com.cartisan:cartisan-security")
-    implementation("com.cartisan:cartisan-data-jpa")
-    implementation("com.cartisan:cartisan-data-query")
+<dependencies>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-security</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-data-query</artifactId>
+    </dependency>
     implementation("com.cartisan:cartisan-event")
     implementation("com.cartisan:cartisan-ai")         // 按需
     implementation("com.cartisan:cartisan-storage")    // 按需
@@ -1063,7 +1082,7 @@ cartisan-boot 的开发可按以下 Epic 顺序推进：
 
 | Epic | 内容 | 依赖 | 复杂度 | 优先级 |
 |------|------|------|--------|--------|
-| **Epic 1: 项目骨架 + Core + Test** | Gradle 多模块项目搭建、cartisan-core 全部类型、cartisan-test 的 ArchUnit 规则集 | 无 | M | P0 |
+| **Epic 1: 项目骨架 + Core + Test** | Maven 多模块项目搭建、cartisan-core 全部类型、cartisan-test 的 ArchUnit 规则集 | 无 | M | P0 |
 | **Epic 2: Web + Data-JPA + Event** | cartisan-web 统一响应和异常处理、cartisan-data-jpa Repository 和审计、cartisan-event 事件发布 | Epic 1 | L | P0 |
 | **Epic 3: Security** | cartisan-security 认证抽象、多租户上下文、Sa-Token 集成 | Epic 2 | M | P0 |
 | **Epic 4: Data-Query** | cartisan-data-query jOOQ 自动配置、代码生成、分页工具 | Epic 2 | S | P0 |

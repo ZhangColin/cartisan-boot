@@ -12,7 +12,7 @@
 ## 技术栈
 
 {列出主要技术，不超过 5 行。示例：}
-- Java 21 / Spring Boot 3.4.x / Gradle Kotlin DSL
+- Java 21 / Spring Boot 3.4.x / Maven
 - 数据库：PostgreSQL + Redis
 - 测试：JUnit 5 + AssertJ + ArchUnit
 
@@ -35,8 +35,8 @@
 
 ## 常用命令
 
-- 编译：`./gradlew compileJava`
-- 测试：`./gradlew test`
+- 编译：`mvn compile`
+- 测试：`mvn test`
 - {其他项目特有命令}
 
 ## 开发流程

@@ -96,7 +96,7 @@ claude
 ## 技术栈
 
 - Java 21 + Spring Boot 3.4 + Spring Modulith
-- Gradle (Kotlin DSL)
+- Maven
 - PostgreSQL + Redis
 - JPA（写）+ jOOQ（读）
 - JUnit 5 + ArchUnit + Testcontainers
@@ -118,10 +118,10 @@ claude
 
 ## 常用命令
 
-- 编译：./gradlew compileJava
-- 测试：./gradlew test
-- 全量检查：./gradlew check
-- 变异测试：./gradlew pitest
+- 编译：mvn compile
+- 测试：mvn test
+- 全量检查：mvn verify
+- 变异测试：mvn org.pitest:pitest-maven:mutationCoverage
 
 ## 开发流程
 
@@ -349,7 +349,7 @@ Spec 目录：docs/specs/epic-xxx/
   生产一致（postgres:16），否则 JSONB 行为可能不同
 ```
 
-**无代码 / 纯配置 Feature：** 仅涉及构建、配置或脚本、无业务代码的 Feature（如 Gradle 骨架、BOM 配置），可简化：02 仅描述变更范围与验收方式，03 为步骤清单，04 可为验收方式与手动检查清单，不必强行写「测试用例」。
+**无代码 / 纯配置 Feature：** 仅涉及构建、配置或脚本、无业务代码的 Feature（如 Maven 骨架、BOM 配置），可简化：02 仅描述变更范围与验收方式，03 为步骤清单，04 可为验收方式与手动检查清单，不必强行写「测试用例」。
 
 ### 4.4 各 Spec 文档模板
 
@@ -715,7 +715,7 @@ Step C: 写实现（绿灯）
 项目规范：{CLAUDE.md 编码规范}
 ```
 
-在 IDEA 中编译验证：`./gradlew compileJava`
+在 IDEA 中编译验证：`mvn compile`
 
 **2. 写测试（Step B）：**
 
@@ -736,8 +736,8 @@ Step C: 写实现（绿灯）
 
 验证红灯：
 ```bash
-./gradlew compileTestJava    # 编译通过
-./gradlew test               # 有失败的测试
+mvn test-compile    # 编译通过
+mvn test               # 有失败的测试
 ```
 
 - [ ] 编译通过
@@ -761,8 +761,8 @@ Step C: 写实现（绿灯）
 
 验证绿灯：
 ```bash
-./gradlew test     # 全绿
-./gradlew check    # ArchUnit 通过
+mvn test     # 全绿
+mvn verify    # ArchUnit 通过
 ```
 
 **4. 更新进度（在 03_implementation.md 中标记）：**
@@ -797,8 +797,8 @@ Step C: 写实现（绿灯）
 **1. 全量验证：**
 
 ```bash
-./gradlew check           # 编译 + 测试 + ArchUnit
-./gradlew pitest          # 变异测试（已配置 PIT 的模块为 Phase 5 必跑项，见下方「Feature 完成检查」）
+mvn verify           # 编译 + 测试 + ArchUnit
+mvn org.pitest:pitest-maven:mutationCoverage          # 变异测试（已配置 PIT 的模块为 Phase 5 必跑项，见下方「Feature 完成检查」）
 ```
 
 **2. 交叉审查（换模型）：**
@@ -836,7 +836,7 @@ Spec：{01 + 02 内容}
 #### Feature 完成检查
 
 - [ ] 所有测试绿灯 + ArchUnit 通过
-- [ ] PIT：已配置 PIT 的模块必须执行 `./gradlew pitest`（或对应模块），变异杀死率 ≥ 70% 方可关闭；未配置的模块可标注「不适用」
+- [ ] PIT：已配置 PIT 的模块必须执行 `mvn org.pitest:pitest-maven:mutationCoverage`（或对应模块），变异杀死率 ≥ 70% 方可关闭；未配置的模块可标注「不适用」
 - [ ] 交叉审查已执行且结论已留痕（04 或 review.md），无高优先级未解决问题
 - [ ] 01/02/03/04 文档齐全且与代码一致
 - [ ] DECISIONS.md 已更新（如有决策）
@@ -862,11 +862,14 @@ AI 不理解你的架构约定。它可能让领域层依赖 Spring、让 Contro
 
 #### 如何配置
 
-```kotlin
-// build.gradle.kts
-dependencies {
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.3.0")
-}
+```xml
+<!-- pom.xml -->
+<dependency>
+    <groupId>com.tngtech.archunit</groupId>
+    <artifactId>archunit-junit5</artifactId>
+    <version>1.3.0</version>
+    <scope>test</scope>
+</dependency>
 ```
 
 #### 规则示例与解释
@@ -938,7 +941,7 @@ public class ArchitectureRulesTest {
 #### 运行与反馈
 
 ```bash
-./gradlew test    # ArchUnit 随 JUnit 一起运行
+mvn test    # ArchUnit 随 JUnit 一起运行
 ```
 
 违规报告示例：
@@ -986,32 +989,45 @@ if (balance >= amount) {      if (balance > amount) {    ← >= 改为 >
 
 #### 如何配置
 
-**注意：** Gradle 8+ 或 9 需使用兼容版本（如 1.19.x），具体见项目 `docs/skills/SKILL.md` 或构建文档，避免直接使用旧版导致构建失败。
-
-```kotlin
-// build.gradle.kts
-plugins {
-    id("info.solidsoft.pitest") version "1.15.0"  // Gradle 9 等需 1.19.x，见 SKILL
-}
-
-dependencies {
-    testImplementation("org.pitest:pitest-junit5-plugin:1.2.1")
-}
-
-pitest {
-    targetClasses.set(listOf("com.aieducenter.*"))
-    targetTests.set(listOf("com.aieducenter.*"))
-    mutationThreshold.set(70)
-    outputFormats.set(listOf("HTML", "XML"))
-    timestampedReports.set(false)
-}
+```xml
+<!-- pom.xml -->
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <version>1.15.0</version>
+            <dependencies>
+                <dependency>
+                    <groupId>org.pitest</groupId>
+                    <artifactId>pitest-junit5-plugin</artifactId>
+                    <version>1.2.1</version>
+                </dependency>
+            </dependencies>
+            <configuration>
+                <targetClasses>
+                    <param>com.aieducenter.*</param>
+                </targetClasses>
+                <targetTests>
+                    <param>com.aieducenter.*</param>
+                </targetTests>
+                <mutationThreshold>70</mutationThreshold>
+                <outputFormats>
+                    <outputFormat>HTML</outputFormat>
+                    <outputFormat>XML</outputFormat>
+                </outputFormats>
+                <timestampedReports>false</timestampedReports>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
 ```
 
 #### 运行与解读
 
 ```bash
-./gradlew pitest
-# 报告：build/reports/pitest/index.html
+mvn org.pitest:pitest-maven:mutationCoverage
+# 报告：target/pit-reports/index.html
 ```
 
 报告解读：
@@ -1034,17 +1050,32 @@ pitest {
 
 #### 前提
 
-开发机器需要安装 Docker。**运行含 Testcontainers 的测试（如全量 `./gradlew test`）前，需确保 Docker 可用。** 若仅做单元测试，可只运行不依赖容器的模块（如 `./gradlew :cartisan-core:test`）。
+开发机器需要安装 Docker。**运行含 Testcontainers 的测试（如全量 `mvn test`）前，需确保 Docker 可用。** 若仅做单元测试，可只运行不依赖容器的模块（如 `mvn test -pl cartisan-core`）。
 
 #### 如何配置
 
-```kotlin
-// build.gradle.kts
-dependencies {
-    testImplementation("org.testcontainers:testcontainers:1.20.4")
-    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
-    testImplementation("org.testcontainers:postgresql:1.20.4")
-}
+```xml
+<!-- pom.xml -->
+<dependencies>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <version>1.20.4</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>1.20.4</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>postgresql</artifactId>
+        <version>1.20.4</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
 ```
 
 #### 使用方式
@@ -1078,11 +1109,11 @@ public abstract class IntegrationTestBase {
 
 | 测试层 | 工具 | 验证什么 | 速度 | 运行时机 |
 |--------|------|---------|------|---------|
-| 单元测试 | JUnit 5 + AssertJ | 单个类的逻辑 | 毫秒 | 每次 `./gradlew test` |
+| 单元测试 | JUnit 5 + AssertJ | 单个类的逻辑 | 毫秒 | 每次 `mvn test` |
 | 架构测试 | ArchUnit | 代码结构合规 | 秒 | 随单元测试一起 |
 | 契约测试 | MockMvc | API 请求/响应格式 | 毫秒 | 随单元测试一起 |
-| 集成测试 | Testcontainers | 真实中间件交互 | 秒~分钟 | 提交前运行；若项目将集成测试并入 `test`，则提交前即全量 `./gradlew test`，需满足 Docker 前提；若有独立 `integrationTest` 任务则运行该任务 |
-| 变异测试 | PIT | 测试自身的质量 | 分钟 | Phase 5 审查时必跑（已配置模块）`./gradlew pitest`，杀死率 ≥ 70% |
+| 集成测试 | Testcontainers | 真实中间件交互 | 秒~分钟 | 提交前运行；若项目将集成测试并入 `test`，则提交前即全量 `mvn test`，需满足 Docker 前提；若有独立 `integrationTest` 任务则运行该任务 |
+| 变异测试 | PIT | 测试自身的质量 | 分钟 | Phase 5 审查时必跑（已配置模块）`mvn org.pitest:pitest-maven:mutationCoverage`，杀死率 ≥ 70% |
 
 ---
 
@@ -1139,7 +1170,7 @@ Epic（大需求）
 ### 8.4 v0.4 修订说明（2026-03-14）
 
 - **测试命名**：明确以项目 `docs/skills/SKILL.md` 为准，SOP 只做原则性描述。
-- **PIT**：Phase 5 门禁必跑、杀死率 ≥ 70%；Gradle 8+/9 版本兼容说明（见 SKILL）。
+- **PIT**：Phase 5 门禁必跑、杀死率 ≥ 70%；版本兼容说明（见 SKILL）。
 - **交叉审查**：审查结论须留痕（04 末节或 review.md：审查模型/范围/结论/待办）。
 - **Epic/Feature 命名**：推荐 `00_epic_backlog.md`、Feature 目录示例 `F01-01-xxx`。
 - **无代码 Feature**：02/03/04 简化写法（变更范围、步骤清单、验收与检查清单）。

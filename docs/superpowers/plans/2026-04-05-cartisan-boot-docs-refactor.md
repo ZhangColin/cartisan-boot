@@ -86,15 +86,36 @@ Expected: Switched back to develop branch
 
 ### 1.1 依赖引入
 
-在业务项目的 `build.gradle.kts` 或 `pom.xml` 中引入 cartisan-boot BOM：
+在业务项目的 `pom.xml` 中引入 cartisan-boot BOM：
 
-```kotlin
-// Gradle Kotlin DSL
-implementation(platform("com.cartisan:cartisan-dependencies:0.1.0"))
-implementation("com.cartisan:cartisan-core")
-implementation("com.cartisan:cartisan-web")
-implementation("com.cartisan:cartisan-data-jpa")
-// 根据需要添加其他模块
+```xml
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-dependencies</artifactId>
+            <version>0.1.0</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-data-jpa</artifactId>
+    </dependency>
+    <!-- 根据需要添加其他模块 -->
+</dependencies>
 ```
 
 ### 1.2 自动配置
@@ -273,7 +294,6 @@ Expected: Commit created
 | 规则 | 说明 |
 |------|------|
 | **WEB-001** | `@PreventResubmit` 需要 Redis 环境，无 Redis 时不生效 |
-| **WEB-002** | `AutoResponseAdvice` 对 String 类型特殊处理，避免二次序列化 |
 | **WEB-003** | `TreeNodeBuilder` 需要 ID 类型转换，使用 Function 映射 |
 | **WEB-004** | `RequestLogFilter` 自动排除 swagger、druid、actuator 路径 |
 | **WEB-005** | MDC requestId 自动清理，请求结束无需手动处理 |

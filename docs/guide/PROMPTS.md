@@ -199,8 +199,8 @@
 
 ```
 Feature 完成，做完整审查：
-1. ./gradlew test（全量测试）
-2. ./gradlew :模块名:pitest（变异测试，杀死率 >= 70%）
+1. mvn test（全量测试）
+2. mvn org.pitest:pitest-maven:mutationCoverage -pl 模块名（变异测试，杀死率 >= 70%）
 3. 检查架构规范是否通过
 4. 有没有值得记录到 docs/PITFALLS.md 的踩坑经验
 ```
