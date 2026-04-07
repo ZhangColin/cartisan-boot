@@ -1845,26 +1845,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 cartisan-web 模块章节中的 @Condition 注解详细说明
 
-### 3.27 启用自动响应包装
-
-```yaml
-# application.yml
-cartisan:
-  web:
-    auto-response:
-      enabled: true
-```
-
-启用后 Controller 可以直接返回数据：
-
-```java
-@GetMapping("/{id}")
-public User getById(@PathVariable Long id) {
-    return userService.findById(id);
-}
-```
-
-### 3.28 使用枚举选项工具
+### 3.27 使用枚举选项工具
 
 ```java
 // 转换单个枚举
@@ -2274,8 +2255,6 @@ cartisan:
       scan-packages:  # 要扫描的包列表
         - com.cartisan
         - com.example
-    auto-response:
-      enabled: false  # 启用自动响应包装
   data-query:
     jooq:
       sql-logging: false  # 启用 SQL 执行日志
@@ -2289,7 +2268,6 @@ cartisan:
 | 功能 | 配置项 | 默认值 |
 |------|--------|--------|
 | 枚举 Controller | `cartisan.web.enum-controller.enabled` | `true` |
-| 自动响应包装 | `cartisan.web.auto-response.enabled` | `false` |
 | jOOQ SQL 日志 | `cartisan.data-query.jooq.sql-logging` | `false` |
 
 ### 9.3 Druid 数据源配置
