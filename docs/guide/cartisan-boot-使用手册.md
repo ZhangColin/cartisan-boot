@@ -313,21 +313,23 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **分布式 ID** | TSID 生成器（42 位时间戳 + 22 位随机数） |
 | **@Condition 注解** | 简化 JPA Specification 查询（11 种条件类型） |
 | **Druid 集成** | 支持 Druid 数据源，提供 SQL 监控、慢 SQL 记录、防火墙功能 |
-| **枚举增强** | `BaseEnum` + `@EnumConvert` 实现 Enum ↔ Integer 自动转换 |
+| **枚举增强** | `BaseEnum` + 内部 `JpaConverter` 实现 Enum ↔ Integer 自动转换 |
 
 ##### 枚举增强详细说明
 
 **BaseEnum 接口**：业务枚举必须实现 `BaseEnum<T>` 接口，提供 `code`/`name` 映射。
 
-**@EnumConvert 注解**：实体枚举字段使用 `@EnumConvert(枚举类.class)` 注解，自动注册 JPA Converter。
+**内部 JpaConverter 模式**：枚举内部声明静态内部类 `JpaConverter`，使用 `@Converter(autoApply = true)` 注解，Hibernate 自动应用。
 
 **自动转换**：
-- 数据库 → Java：Integer 自动转换为枚举
-- Java → 数据库：枚举自动转换为 Integer
+- 数据库 → Java：Integer code 自动转换为枚举
+- Java → 数据库：枚举自动转换为 Integer code
 - JSON → Java：Integer code 自动反序列化为枚举
 - Java → JSON：枚举自动序列化为 Integer code
 
-> **详细使用示例**参见《限界上下文代码编写规范》3.6.1 节。
+**实体字段零注解**：实体类中的枚举字段无需任何 JPA 注解，`@Converter(autoApply = true)` 自动应用。
+
+> **📖 详细使用指南**：[BaseEnum枚举持久化使用指南.md](./BaseEnum枚举持久化使用指南.md)
 
 **注意事项**：
 
@@ -339,7 +341,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
 | **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
 | **DATA-006** | 自动软删除通过 `instanceof` 判断类型 |
-| **DATA-007** | `@EnumConvert` 用于 BaseEnum 字段，自动注册 `UniversalEnumConverter` |
+| **DATA-007** | 枚举持久化使用内部 `JpaConverter`，实体字段零注解 |
 | **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` |
 
 > **更多规则和详细说明**参见 PITFALLS.md。
