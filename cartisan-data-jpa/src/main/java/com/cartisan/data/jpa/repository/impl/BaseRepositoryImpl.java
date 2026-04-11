@@ -8,10 +8,9 @@ import jakarta.persistence.EntityManager;
 import java.io.Serializable;
 
 /**
- * Repository 实现基类，在保存聚合根时自动发布领域事件。
+ * Repository 实现基类。
  *
- * <p>继承 {@link SimpleJpaRepository} 并重写 {@link #save(Object)} 方法，
- * 在 JPA 持久化后发布聚合根上的领域事件。</p>
+ * <p>继承 {@link SimpleJpaRepository} 并重写 {@link #save(Object)} 方法。</p>
  *
  * @param <T>  聚合根类型，必须实现 {@link AggregateRoot}
  * @param <ID> 聚合根标识符类型，必须实现 {@link Serializable}
@@ -55,8 +54,9 @@ public class BaseRepositoryImpl<T extends AggregateRoot<T, ID>, ID extends Seria
      * <p>如果实体实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable}，
      * 则调用 {@code markAsDeleted()} 并保存，否则执行物理删除。</p>
      *
-     * <p>也支持通过反射调用 {@code markAsDeleted()} 方法，以支持继承自
-     * {@link AbstractAggregateRoot} 的软删除实体。</p>
+     * <p>也支持通过反射调用 {@code markAsDeleted()} 方法，以支持未实现
+     * {@link com.cartisan.data.jpa.domain.SoftDeletable} 接口但提供了
+     * {@code markAsDeleted()} 方法的软删除实体。</p>
      *
      * @param entity 要删除的实体，不能为 null
      */

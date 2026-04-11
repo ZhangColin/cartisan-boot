@@ -39,7 +39,7 @@ public interface ApplicationEventPublisher {
     /**
      * 发布应用事件。
      *
-     * @param event 要发布的领域事件，不能为 null
+     * @param event 要发布的应用事件，不能为 null
      * @throws NullPointerException 如果 event 为 null
      */
     void publishApplicationEvent(ApplicationEvent event);

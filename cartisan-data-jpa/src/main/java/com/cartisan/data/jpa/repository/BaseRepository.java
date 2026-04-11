@@ -11,7 +11,7 @@ import java.io.Serializable;
  * 聚合根仓储基类，仅聚合根类型可声明 Repository。
  *
  * <p>继承 {@link JpaRepository} 与 {@link JpaSpecificationExecutor}，具体实现由
- * {@code BaseRepositoryImpl} 提供，save 时自动发布领域事件。</p>
+ * {@code BaseRepositoryImpl} 提供。</p>
  *
  * <p>软删除支持：对于实现了 {@link com.cartisan.data.jpa.domain.SoftDeletable}
  * 或带有 {@code markAsDeleted()} 方法的实体，调用 {@code delete()} 或

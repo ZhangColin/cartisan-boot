@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * <h2>使用示例</h2>
  * <pre>{@code
  * {@literal @}Aggregate
- * public class Order extends AbstractAggregateRoot<OrderId> {
+ * public class Order extends AggregateRoot<Order, OrderId> {
  *     private OrderId id;
  *     // ...
  * }
@@ -24,7 +24,6 @@ import java.lang.annotation.Target;
  * <ul>
  *   <li>只有聚合根才能拥有 Repository（由 BaseRepository 泛型约束）</li>
  *   <li>聚合根负责维护其内部实体的一致性</li>
- *   <li>聚合根通过 {@code registerEvent()} 发布领域事件</li>
  * </ul>
  *
  * @see com.cartisan.core.domain.AggregateRoot

@@ -15,7 +15,7 @@ import java.lang.annotation.Target;
  * <ul>
  *   <li>{@link PortType#REPOSITORY} - 仓储端口：聚合根的持久化</li>
  *   <li>{@link PortType#CLIENT} - 客户端端口：调用外部服务</li>
- *   <li>{@link PortType#PUBLISHER} - 发布者端口：发布领域事件</li>
+ *   <li>{@link PortType#PUBLISHER} - 发布者端口：发布应用事件</li>
  * </ul>
  *
  * <h2>使用示例</h2>

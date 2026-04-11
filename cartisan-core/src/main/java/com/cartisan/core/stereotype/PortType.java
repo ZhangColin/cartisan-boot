@@ -10,7 +10,7 @@ package com.cartisan.core.stereotype;
  * <ul>
  *   <li>{@link #REPOSITORY} - 仓储端口：聚合根的持久化</li>
  *   <li>{@link #CLIENT} - 客户端端口：调用外部服务</li>
- *   <li>{@link #PUBLISHER} - 发布者端口：发布领域事件</li>
+ *   <li>{@link #PUBLISHER} - 发布者端口：发布应用事件</li>
  * </ul>
  *
  * @see Port
@@ -41,8 +41,8 @@ public enum PortType {
     /**
      * 发布者端口。
      *
-     * <p>用于发布领域事件，是六边形架构的出端口。
-     * 发布者端口定义了如何向外部发送领域事件。</p>
+     * <p>用于发布应用事件，是六边形架构的出端口。
+     * 发布者端口定义了如何向外部发送应用事件。</p>
      *
      * <p>适配器示例：Spring Event 适配器、Kafka 发布器、RabbitMQ 发布器。</p>
      */
