@@ -69,6 +69,7 @@
         <module>cartisan-event</module>
         <module>cartisan-data-query</module>
         <module>cartisan-ai</module>
+        <module>cartisan-openapi</module>
     </modules>
 
     <dependencyManagement>
