@@ -1,6 +1,6 @@
 package com.cartisan.web.resubmit;
 
-import com.cartisan.web.context.RequestContext;
+import com.cartisan.core.context.RequestContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.aspectj.lang.ProceedingJoinPoint;

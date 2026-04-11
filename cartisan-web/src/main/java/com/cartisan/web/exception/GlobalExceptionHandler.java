@@ -2,7 +2,7 @@ package com.cartisan.web.exception;
 
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.CartisanException;
-import com.cartisan.web.context.RequestContext;
+import com.cartisan.core.context.RequestContext;
 import com.cartisan.web.resubmit.ResubmitException;
 import com.cartisan.web.response.ApiResponse;
 import com.cartisan.web.response.FieldError;

@@ -106,6 +106,7 @@
                     <target>21</target>
                     <parameters>true</parameters>
                     <compilerArgs>
+                        <arg>--enable-preview</arg>
                         <arg>-Xlint:all</arg>
                         <!-- 抑制 @MockBean 的已过时警告（Spring Boot 3.4.0 中仍可用） -->
                         <arg>-Xlint:-deprecation</arg>

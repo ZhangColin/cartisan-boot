@@ -1,6 +1,6 @@
 package com.cartisan.web.filter;
 
-import com.cartisan.web.context.RequestContext;
+import com.cartisan.core.context.RequestContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

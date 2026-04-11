@@ -1,5 +1,6 @@
 package com.cartisan.web.context;
 
+import com.cartisan.core.context.RequestContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,33 +23,25 @@ import java.util.UUID;
  * <ol>
  *   <li>requestId：优先从 X-Request-Id Header 读取，否则生成 UUID</li>
  *   <li>clientIp：按 X-Forwarded-For → X-Real-IP → RemoteAddr 优先级</li>
- *   <li>请求结束时清理 ThreadLocal</li>
+ *   <li>跨服务传递 headers：X-User-Id, X-User-Name, X-Tenant-Id, X-Tenant-Name</li>
+ *   <li>使用 ScopedValue 绑定上下文，请求结束自动清理</li>
  * </ol>
- *
- * <p>容错策略：</p>
- * <ul>
- *   <li>初始化失败时使用 null 值，请求继续</li>
- *   <li>记录 WARN 日志便于排查</li>
- * </ul>
  *
  * <p><strong>Bean 命名</strong>：使用 {@code cartisanRequestContextFilter} 作为 bean 名称，
  * 避免与 Spring Boot 自动配置的 {@code requestContextFilter} 冲突。</p>
- *
- * <p><strong>过滤顺序</strong>：通过实现 {@link Ordered} 接口返回 {@code HIGHEST_PRECEDENCE}，
- * 确保在过滤器链中最早执行。</p>
  */
 public class RequestContextFilter extends OncePerRequestFilter implements Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(RequestContextFilter.class);
 
-    /** X-Request-Id Header 名称 */
     private static final String HEADER_REQUEST_ID = "X-Request-Id";
-
-    /** X-Forwarded-For Header 名称 */
     private static final String HEADER_X_FORWARDED_FOR = "X-Forwarded-For";
-
-    /** X-Real-IP Header 名称 */
     private static final String HEADER_X_REAL_IP = "X-Real-IP";
+    // 跨服务传递 headers
+    private static final String HEADER_USER_ID = "X-User-Id";
+    private static final String HEADER_USER_NAME = "X-User-Name";
+    private static final String HEADER_TENANT_ID = "X-Tenant-Id";
+    private static final String HEADER_TENANT_NAME = "X-Tenant-Name";
 
     @Override
     public int getOrder() {
@@ -61,79 +54,74 @@ public class RequestContextFilter extends OncePerRequestFilter implements Ordere
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String requestId = null;
-        try {
-            requestId = extractRequestId(request);
-            String clientIp = extractClientIp(request);
-            RequestContext.init(requestId, clientIp);
-            // 将 requestId 放入 MDC，便于日志追踪
-            MDC.put("requestId", requestId);
-            // 将 requestId 添加到响应头
-            response.setHeader(HEADER_REQUEST_ID, requestId);
-        } catch (Exception e) {
-            // 容错：初始化失败时使用 null，请求继续
-            log.warn("RequestContext init failed, continuing with null values", e);
-            try {
-                RequestContext.init(null, null);
-            } catch (Exception ex) {
-                // 如果连 init(null, null) 都失败，记录日志但继续
-                log.warn("Failed to initialize RequestContext with null values", ex);
-            }
-        }
+        String requestId = extractRequestId(request);
+        String clientIp = extractClientIp(request);
+        Long userId = parseLongHeader(request, HEADER_USER_ID);
+        String userName = request.getHeader(HEADER_USER_NAME);
+        Long tenantId = parseLongHeader(request, HEADER_TENANT_ID);
+        String tenantName = request.getHeader(HEADER_TENANT_NAME);
+
+        RequestContext ctx = new RequestContext(
+                requestId, clientIp,
+                null, null,
+                userId, userName,
+                tenantId, tenantName);
+
+        // 将 requestId 放入 MDC，便于日志追踪
+        MDC.put("requestId", requestId);
+        // 将 requestId 添加到响应头
+        response.setHeader(HEADER_REQUEST_ID, requestId);
 
         try {
-            filterChain.doFilter(request, response);
+            RequestContext.run(ctx, () -> {
+                try {
+                    filterChain.doFilter(request, response);
+                } catch (ServletException | IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         } finally {
-            // 无论成功还是异常，都清理 ThreadLocal 和 MDC
-            RequestContext.clear();
             MDC.clear();
         }
     }
 
-    /**
-     * 提取 requestId。
-     *
-     * <p>优先从 X-Request-Id Header 读取，否则生成 UUID。</p>
-     *
-     * @param request HTTP 请求
-     * @return requestId，不为 null
-     */
     private String extractRequestId(HttpServletRequest request) {
         String header = request.getHeader(HEADER_REQUEST_ID);
-        if (header != null && header.trim().length() > 0) {
+        if (header != null && !header.isBlank()) {
             return header.trim();
         }
         return UUID.randomUUID().toString();
     }
 
-    /**
-     * 提取 clientIp。
-     *
-     * <p>按 X-Forwarded-For → X-Real-IP → RemoteAddr 优先级。</p>
-     *
-     * @param request HTTP 请求
-     * @return clientIp，可能为 null
-     */
     private String extractClientIp(HttpServletRequest request) {
-        // 1. 尝试 X-Forwarded-For
         String xff = request.getHeader(HEADER_X_FORWARDED_FOR);
-        if (xff != null && xff.trim().length() > 0) {
+        if (xff != null && !xff.isBlank()) {
             String[] ips = xff.split(",");
             if (ips.length > 0) {
                 String firstIp = ips[0].trim();
-                if (firstIp.length() > 0) {
+                if (!firstIp.isEmpty()) {
                     return firstIp;
                 }
             }
         }
 
-        // 2. 尝试 X-Real-IP
         String realIp = request.getHeader(HEADER_X_REAL_IP);
-        if (realIp != null && realIp.trim().length() > 0) {
+        if (realIp != null && !realIp.isBlank()) {
             return realIp.trim();
         }
 
-        // 3. 回退到 RemoteAddr
         return request.getRemoteAddr();
+    }
+
+    private Long parseLongHeader(HttpServletRequest request, String headerName) {
+        String value = request.getHeader(headerName);
+        if (value != null && !value.isBlank()) {
+            try {
+                return Long.parseLong(value.trim());
+            } catch (NumberFormatException e) {
+                log.warn("Invalid {} header value: {}", headerName, value);
+            }
+        }
+        return null;
     }
 }
