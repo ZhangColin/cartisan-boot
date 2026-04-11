@@ -75,6 +75,7 @@
                 <configuration>
                     <doclint>all,-missing</doclint>
                     <quiet>true</quiet>
+                    <additionalOptions>--enable-preview</additionalOptions>
                 </configuration>
             </plugin>
 
