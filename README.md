@@ -44,10 +44,10 @@ mvn install
 ```
 cartisan-boot/
 ├── cartisan-dependencies/   # 依赖 BOM 管理
-├── cartisan-core/           # DDD 基建（零外部依赖）
+├── cartisan-core/           # DDD 基建（stereotype 注解 + 领域抽象）
 ├── cartisan-test/           # 测试工具箱（ArchUnit + Testcontainers）
 ├── cartisan-web/            # Web 基础设施（统一响应、异常处理）
-├── cartisan-event/          # 领域事件基础设施
+├── cartisan-event/          # 应用事件基础设施
 ├── cartisan-data-jpa/       # JPA 写侧封装（CQRS）
 ├── cartisan-data-query/     # jOOQ 读侧封装（CQRS）
 ├── cartisan-security/       # 安全认证（Sa-Token 抽象 + 多租户）
