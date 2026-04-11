@@ -3,6 +3,7 @@ package com.cartisan.core.util;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * RedisKey 测试。
@@ -107,5 +108,42 @@ class RedisKeyTest {
         RedisKey redisKey = constructor.newInstance("test", 100);
         assertThat(redisKey.expireSeconds()).isEqualTo(100);
         assertThat(redisKey.key("suffix")).isEqualTo("test:suffix");
+    }
+
+    @Test
+    void shouldThrowNPE_whenOfWithNullPrefix() {
+        assertThatThrownBy(() -> RedisKey.of(null, 3600))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("prefix must not be null");
+    }
+
+    @Test
+    void shouldThrowIAE_whenOfWithZeroExpireSeconds() {
+        assertThatThrownBy(() -> RedisKey.of("user:cache", 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expireSeconds must be greater than 0");
+    }
+
+    @Test
+    void shouldThrowIAE_whenOfWithNegativeExpireSeconds() {
+        assertThatThrownBy(() -> RedisKey.of("user:cache", -1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("expireSeconds must be greater than 0");
+    }
+
+    @Test
+    void shouldThrowNPE_whenPermanentWithNullPrefix() {
+        assertThatThrownBy(() -> RedisKey.permanent(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("prefix must not be null");
+    }
+
+    @Test
+    void shouldThrowNPE_whenKeyWithNullSuffix() {
+        RedisKey redisKey = RedisKey.of("user:cache", 3600);
+
+        assertThatThrownBy(() -> redisKey.key(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("suffix must not be null");
     }
 }

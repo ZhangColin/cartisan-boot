@@ -18,6 +18,8 @@ package com.cartisan.core.util;
  * private static final RedisKey SYSTEM_CONFIG_KEY = RedisKey.permanent("system:config");
  * }</pre>
  */
+import java.util.Objects;
+
 public final class RedisKey {
 
     private final String prefix;
@@ -35,6 +37,7 @@ public final class RedisKey {
      * @return 完整的 Redis Key，格式为 {@code prefix:suffix}
      */
     public String key(String suffix) {
+        Objects.requireNonNull(suffix, "suffix must not be null");
         return prefix + ":" + suffix;
     }
 
@@ -64,6 +67,10 @@ public final class RedisKey {
      * @return RedisKey 实例
      */
     public static RedisKey of(String prefix, long expireSeconds) {
+        Objects.requireNonNull(prefix, "prefix must not be null");
+        if (expireSeconds <= 0) {
+            throw new IllegalArgumentException("expireSeconds must be greater than 0");
+        }
         return new RedisKey(prefix, expireSeconds);
     }
 
@@ -74,6 +81,7 @@ public final class RedisKey {
      * @return RedisKey 实例，过期时间为 0
      */
     public static RedisKey permanent(String prefix) {
+        Objects.requireNonNull(prefix, "prefix must not be null");
         return new RedisKey(prefix, 0);
     }
 }
