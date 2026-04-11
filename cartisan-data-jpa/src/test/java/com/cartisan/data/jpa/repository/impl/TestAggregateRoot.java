@@ -23,7 +23,8 @@ public class TestAggregateRoot implements AggregateRoot<TestAggregateRoot, Strin
         this.id = id;
     }
 
-    public String id() {
+    @Override
+    public String getId() {
         return id;
     }
 }

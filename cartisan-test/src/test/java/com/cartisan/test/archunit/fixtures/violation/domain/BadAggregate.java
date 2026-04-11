@@ -14,6 +14,11 @@ public class BadAggregate implements AggregateRoot<BadAggregate, String> {
         this.name = name;
     }
 
+    @Override
+    public String getId() {
+        return null;
+    }
+
     public String getName() {
         return name;
     }

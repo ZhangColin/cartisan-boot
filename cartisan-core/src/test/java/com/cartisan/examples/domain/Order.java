@@ -99,7 +99,12 @@ public class Order implements AggregateRoot<Order, String> {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public OrderId id() {
+    @Override
+    public String getId() {
+        return id.value();
+    }
+
+    public OrderId getOrderId() {
         return id;
     }
 

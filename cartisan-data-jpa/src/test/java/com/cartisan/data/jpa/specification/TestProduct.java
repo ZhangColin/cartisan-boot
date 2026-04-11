@@ -53,7 +53,8 @@ public class TestProduct implements AggregateRoot<TestProduct, Long> {
         this.createdAt = LocalDateTime.now();
     }
 
-    public Long id() {
+    @Override
+    public Long getId() {
         return id;
     }
 
