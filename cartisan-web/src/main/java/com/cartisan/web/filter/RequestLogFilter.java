@@ -53,7 +53,7 @@ public class RequestLogFilter extends OncePerRequestFilter implements Ordered {
     /**
      * 排除路径前缀集合。
      * <p>
-     * 使用 contains 匹配，因此 "/swagger" 可以匹配 "/swagger-ui/index.html"
+     * 使用 startsWith 前缀匹配，因此 "/swagger-ui" 可以匹配 "/swagger-ui/index.html"
      * </p>
      */
     private static final Set<String> EXCLUDE_PATHS = Set.of(
@@ -99,12 +99,12 @@ public class RequestLogFilter extends OncePerRequestFilter implements Ordered {
     /**
      * 判断请求 URI 是否应该被排除。
      *
-     * <p>使用 contains 匹配，可以匹配路径的任意部分。</p>
+     * <p>使用 startsWith 前缀匹配，可以匹配路径前缀。</p>
      *
      * @param uri 请求 URI
      * @return 如果应该排除返回 true，否则返回 false
      */
     private boolean shouldExclude(String uri) {
-        return EXCLUDE_PATHS.stream().anyMatch(uri::contains);
+        return EXCLUDE_PATHS.stream().anyMatch(uri::startsWith);
     }
 }
