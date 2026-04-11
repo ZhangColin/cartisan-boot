@@ -41,6 +41,7 @@ class CartisanCoreModuleTest {
      *
      * <p>允许的一级包：</p>
      * <ul>
+     *   <li>com.cartisan.core.context</li>
      *   <li>com.cartisan.core.domain</li>
      *   <li>com.cartisan.core.exception</li>
      *   <li>com.cartisan.core.stereotype</li>
@@ -57,12 +58,13 @@ class CartisanCoreModuleTest {
                 .that().resideInAPackage(ROOT_PACKAGE + "..")
                 .and().doNotHaveSimpleName("package-info")
                 .should().resideInAnyPackage(
+                        "com.cartisan.core.context..",
                         "com.cartisan.core.domain..",
                         "com.cartisan.core.exception..",
                         "com.cartisan.core.stereotype..",
                         "com.cartisan.core.util.."
                 )
-                .because("只允许四个一级包及其所有子包");
+                .because("只允许五个一级包及其所有子包");
 
         rule.check(productionClasses);
     }
