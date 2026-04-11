@@ -1,5 +1,9 @@
 package com.cartisan.core.domain;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * 业务枚举基类。
  * <p>
@@ -63,6 +67,12 @@ package com.cartisan.core.domain;
 public interface BaseEnum<T extends Enum<T> & BaseEnum<T>> {
 
     /**
+     * code → enum 缓存，按 Class 分组，首次访问时懒加载。
+     */
+    @SuppressWarnings("rawtypes")
+    Map<Class<?>, Map<Integer, Object>> CODE_CACHE = new ConcurrentHashMap<>();
+
+    /**
      * 获取编码值（存数据库、传前端）。
      */
     Integer getCode();
@@ -83,12 +93,16 @@ public interface BaseEnum<T extends Enum<T> & BaseEnum<T>> {
         if (code == null) {
             return null;
         }
-        for (T t : cls.getEnumConstants()) {
-            if (t.getCode().equals(code)) {
-                return t;
+        @SuppressWarnings("unchecked")
+        Map<Integer, T> cache = (Map<Integer, T>) (Map<?, ?>) CODE_CACHE.computeIfAbsent(cls, c -> {
+            Map<Integer, Object> map = new HashMap<>();
+            for (Object e : c.getEnumConstants()) {
+                BaseEnum<?> be = (BaseEnum<?>) e;
+                map.put(be.getCode(), e);
             }
-        }
-        return null;
+            return map;
+        });
+        return cache.get(code);
     }
 
     /**

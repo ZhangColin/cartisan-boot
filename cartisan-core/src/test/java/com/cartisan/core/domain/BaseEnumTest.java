@@ -61,4 +61,20 @@ class BaseEnumTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Unknown code: 999");
     }
+
+    @Test
+    void shouldReturnSameInstance_whenParsingMultipleTimes() {
+        TestStatus first = BaseEnum.parseByCode(TestStatus.class, 1);
+        TestStatus second = BaseEnum.parseByCode(TestStatus.class, 1);
+        assertThat(first).isSameAs(second);
+        assertThat(first).isSameAs(TestStatus.ACTIVE);
+    }
+
+    @Test
+    void shouldUseCache_whenRequireByCode() {
+        TestStatus parsed = BaseEnum.parseByCode(TestStatus.class, 0);
+        TestStatus required = BaseEnum.requireByCode(TestStatus.class, 0);
+        assertThat(parsed).isSameAs(required);
+        assertThat(parsed).isSameAs(TestStatus.DISABLED);
+    }
 }
