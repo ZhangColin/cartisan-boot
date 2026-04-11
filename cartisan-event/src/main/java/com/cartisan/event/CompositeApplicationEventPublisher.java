@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -19,13 +20,16 @@ public class CompositeApplicationEventPublisher implements ApplicationEventPubli
     private static final Logger log = LoggerFactory.getLogger(CompositeApplicationEventPublisher.class);
 
     private final Map<String, ApplicationEventPublisher> publishers;
+    private final EventPublishFailureHandler failureHandler;
 
-    public CompositeApplicationEventPublisher(List<ApplicationEventPublisher> publisherList) {
+    public CompositeApplicationEventPublisher(List<ApplicationEventPublisher> publisherList,
+                                              Optional<EventPublishFailureHandler> failureHandler) {
         this.publishers = publisherList.stream()
             .collect(Collectors.toMap(
                 ApplicationEventPublisher::getType,
                 Function.identity()
             ));
+        this.failureHandler = failureHandler.orElseGet(LoggingEventPublishFailureHandler::new);
         log.info("Initialized event publishers: {}", publishers.keySet());
     }
 
@@ -62,8 +66,7 @@ public class CompositeApplicationEventPublisher implements ApplicationEventPubli
         try {
             publisher.publishApplicationEvent(event);
         } catch (Exception e) {
-            log.error("Failed to publish event to {}: eventId={}, eventType={}",
-                type, event.eventId(), event.eventType(), e);
+            failureHandler.onFailure(type, event, e);
         }
     }
 }

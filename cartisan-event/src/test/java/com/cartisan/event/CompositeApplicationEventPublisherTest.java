@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +34,8 @@ class CompositeApplicationEventPublisherTest {
         when(rabbitmqPublisher.getType()).thenReturn("rabbitmq");
 
         compositePublisher = new CompositeApplicationEventPublisher(
-            List.of(springPublisher, rabbitmqPublisher)
+            List.of(springPublisher, rabbitmqPublisher),
+            Optional.empty()
         );
     }
 
@@ -79,5 +81,36 @@ class CompositeApplicationEventPublisherTest {
         assertThatThrownBy(() -> compositePublisher.publishApplicationEvent(event))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("No publisher found for type: nonexistent");
+    }
+
+    @Test
+    void should_call_custom_failure_handler_when_publish_fails() {
+        // Given
+        EventPublishFailureHandler customHandler = mock(EventPublishFailureHandler.class);
+        CompositeApplicationEventPublisher publisher = new CompositeApplicationEventPublisher(
+            List.of(springPublisher, rabbitmqPublisher),
+            Optional.of(customHandler)
+        );
+
+        OrderCreatedEvent event = new OrderCreatedEvent(1L, "customer", BigDecimal.valueOf(100));
+        RuntimeException publishException = new RuntimeException("Connection refused");
+        doThrow(publishException).when(springPublisher).publishApplicationEvent(event);
+
+        // When
+        publisher.publishApplicationEvent(event);
+
+        // Then
+        verify(customHandler).onFailure("spring", event, publishException);
+    }
+
+    @Test
+    void should_use_default_logging_handler_when_no_custom_handler() {
+        // Given — Optional.empty() means default LoggingEventPublishFailureHandler is used
+        OrderCreatedEvent event = new OrderCreatedEvent(1L, "customer", BigDecimal.valueOf(100));
+        doThrow(new RuntimeException("Connection refused")).when(springPublisher).publishApplicationEvent(event);
+
+        // When & Then — should not throw, default handler swallows the error via logging
+        compositePublisher.publishApplicationEvent(event);
+        verify(springPublisher).publishApplicationEvent(event);
     }
 }
