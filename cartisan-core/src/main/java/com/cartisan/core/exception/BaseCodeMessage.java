@@ -1,11 +1,11 @@
 package com.cartisan.core.exception;
 
 /**
- * 基础错误码枚举。
+ * 基础状态码枚举。
  *
- * <p>提供 HTTP 规范错误码和最小通用业务错误码。</p>
+ * <p>提供 HTTP 规范状态码和最小通用业务状态码。</p>
  *
- * <h2>HTTP 规范错误码</h2>
+ * <h2>HTTP 规范状态码</h2>
  * <ul>
  *   <li>{@link #SUCCESS} - 200</li>
  *   <li>{@link #BAD_REQUEST} - 400</li>
@@ -21,7 +21,7 @@ package com.cartisan.core.exception;
  *   <li>{@link #SERVICE_UNAVAILABLE} - 503</li>
  * </ul>
  *
- * <h2>通用业务错误码</h2>
+ * <h2>通用业务状态码</h2>
  * <ul>
  *   <li>{@link #UNKNOWN_ERROR} - 兜底错误</li>
  *   <li>{@link #INVALID_PARAMETER} - 参数校验失败（支持占位符 {@code {0}}）</li>
@@ -34,7 +34,7 @@ package com.cartisan.core.exception;
  */
 public enum BaseCodeMessage implements CodeMessage {
 
-    // ========== HTTP 规范错误码 ==========
+    // ========== HTTP 规范状态码 ==========
 
     /**
      * 200 OK - 请求成功。
@@ -96,7 +96,7 @@ public enum BaseCodeMessage implements CodeMessage {
      */
     SERVICE_UNAVAILABLE(503, "SERVICE_UNAVAILABLE", "Service unavailable"),
 
-    // ========== 通用业务错误码 ==========
+    // ========== 通用业务状态码 ==========
 
     /**
      * 未知错误 - 兜底错误码。
