@@ -1,5 +1,7 @@
 package com.cartisan.core.context;
 
+import java.util.concurrent.Callable;
+
 /**
  * 统一请求上下文，基于 ScopedValue 存储当前请求的所有上下文信息。
  *
@@ -29,12 +31,6 @@ public record RequestContext(
      * ScopedValue 键，持有当前线程的上下文实例。
      */
     public static final ScopedValue<RequestContext> CONTEXT = ScopedValue.newInstance();
-
-    /**
-     * 全 null 的默认上下文，用于 Filter 初始化时。
-     */
-    private static final RequestContext EMPTY = new RequestContext(
-            null, null, null, null, null, null, null, null);
 
     // ---- 静态 getter 方法 ----
 
@@ -108,5 +104,12 @@ public record RequestContext(
      */
     public static void run(RequestContext context, Runnable runnable) {
         ScopedValue.where(CONTEXT, context).run(runnable);
+    }
+
+    /**
+     * 在指定上下文中执行 Callable，执行完毕后自动清理，返回结果。
+     */
+    public static <T> T runFor(RequestContext context, Callable<T> callable) throws Exception {
+        return ScopedValue.where(CONTEXT, context).call(callable);
     }
 }
