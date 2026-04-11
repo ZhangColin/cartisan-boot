@@ -81,28 +81,30 @@ class ResubmitLockTest {
 
     @Test
     void shouldGenerateKeyFromArgs() {
-        // Given: 前缀和参数哈希
+        // Given: 前缀、身份标识和参数哈希
         String prefix = "createUser";
+        String identity = "192.168.1.1";
         String argsHash = "abc123";
 
         // When: 生成 key
-        String key = resubmitLock.generateKey(prefix, argsHash);
+        String key = resubmitLock.generateKey(prefix, identity, argsHash);
 
         // Then: key 格式正确
-        assertThat(key).isEqualTo("resubmit:createUser:abc123");
+        assertThat(key).isEqualTo("resubmit:createUser:192.168.1.1:abc123");
     }
 
     @Test
     void shouldGenerateKeyWithEmptyPrefix() {
-        // Given: 空前缀和参数哈希
+        // Given: 空前缀、身份标识和参数哈希
         String prefix = "";
+        String identity = "unknown";
         String argsHash = "abc123";
 
         // When: 生成 key
-        String key = resubmitLock.generateKey(prefix, argsHash);
+        String key = resubmitLock.generateKey(prefix, identity, argsHash);
 
         // Then: key 格式正确（保留空前缀的分隔符，保持一致性）
-        assertThat(key).isEqualTo("resubmit::abc123");
+        assertThat(key).isEqualTo("resubmit::unknown:abc123");
     }
 
     @Test

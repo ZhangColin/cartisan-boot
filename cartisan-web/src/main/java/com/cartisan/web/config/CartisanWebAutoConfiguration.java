@@ -9,6 +9,7 @@ import com.cartisan.web.filter.RequestLogFilter;
 import com.cartisan.web.resubmit.PreventResubmit;
 import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -108,13 +109,14 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
      * <p>仅在 ResubmitLock 可用时注册。</p>
      *
      * @param resubmitLock 防重复提交锁
+     * @param objectMapper JSON 序列化工具
      * @return ResubmitAspect 实例
      */
     @Bean
     @ConditionalOnClass(PreventResubmit.class)
     @ConditionalOnMissingBean
-    public ResubmitAspect resubmitAspect(ResubmitLock resubmitLock) {
-        return new ResubmitAspect(resubmitLock);
+    public ResubmitAspect resubmitAspect(ResubmitLock resubmitLock, ObjectMapper objectMapper) {
+        return new ResubmitAspect(resubmitLock, objectMapper);
     }
 
     /**

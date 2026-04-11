@@ -37,14 +37,15 @@ public class ResubmitLock {
     /**
      * 生成 Redis 锁的 key。
      *
-     * <p>key 格式为：resubmit:{prefix}:{argsHash}</p>
+     * <p>key 格式为：resubmit:{prefix}:{identity}:{argsHash}</p>
      *
      * @param prefix 业务前缀，用于区分不同场景
+     * @param identity 客户端标识（如 IP 地址），用于区分不同用户
      * @param argsHash 参数哈希，用于标识唯一请求
      * @return Redis key
      */
-    public String generateKey(String prefix, String argsHash) {
-        return "resubmit:" + prefix + ":" + argsHash;
+    public String generateKey(String prefix, String identity, String argsHash) {
+        return "resubmit:" + prefix + ":" + identity + ":" + argsHash;
     }
 
     /**

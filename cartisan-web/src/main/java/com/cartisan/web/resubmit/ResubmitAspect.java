@@ -1,12 +1,15 @@
 package com.cartisan.web.resubmit;
 
-import com.alibaba.fastjson2.JSON;
+import com.cartisan.web.context.RequestContext;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * 防重复提交切面。
@@ -39,14 +42,17 @@ import java.nio.charset.StandardCharsets;
 public class ResubmitAspect {
 
     private final ResubmitLock resubmitLock;
+    private final ObjectMapper objectMapper;
 
     /**
      * 构造防重复提交切面。
      *
      * @param resubmitLock Redis 分布式锁实现
+     * @param objectMapper JSON 序列化工具
      */
-    public ResubmitAspect(ResubmitLock resubmitLock) {
+    public ResubmitAspect(ResubmitLock resubmitLock, ObjectMapper objectMapper) {
         this.resubmitLock = resubmitLock;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -63,11 +69,20 @@ public class ResubmitAspect {
         Object[] args = joinPoint.getArgs();
 
         // 序列化参数生成 MD5 哈希值
-        String argsJson = JSON.toJSONString(args);
+        String argsJson;
+        try {
+            argsJson = objectMapper.writeValueAsString(args);
+        } catch (JsonProcessingException e) {
+            argsJson = Arrays.toString(args);
+        }
         String argsHash = DigestUtils.md5DigestAsHex(argsJson.getBytes(StandardCharsets.UTF_8));
 
+        // 获取客户端 IP 作为身份标识
+        String clientIp = RequestContext.getClientIp();
+        String identity = clientIp != null ? clientIp : "unknown";
+
         // 生成 Redis key
-        String key = resubmitLock.generateKey(preventResubmit.prefix(), argsHash);
+        String key = resubmitLock.generateKey(preventResubmit.prefix(), identity, argsHash);
 
         // 尝试获取分布式锁
         boolean locked = resubmitLock.lock(key, preventResubmit.delaySeconds());

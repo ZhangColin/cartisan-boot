@@ -1,6 +1,7 @@
 package com.cartisan.web.resubmit;
 
 import com.cartisan.web.response.ApiResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -134,8 +135,13 @@ class PreventResubmitIntegrationTest {
         }
 
         @Bean
-        public ResubmitAspect resubmitAspect(FakeResubmitLock fakeResubmitLock) {
-            return new ResubmitAspect(fakeResubmitLock);
+        public ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+
+        @Bean
+        public ResubmitAspect resubmitAspect(FakeResubmitLock fakeResubmitLock, ObjectMapper objectMapper) {
+            return new ResubmitAspect(fakeResubmitLock, objectMapper);
         }
     }
 
@@ -184,8 +190,8 @@ class PreventResubmitIntegrationTest {
         }
 
         @Override
-        public String generateKey(String prefix, String argsHash) {
-            return "resubmit:" + prefix + ":" + argsHash;
+        public String generateKey(String prefix, String identity, String argsHash) {
+            return "resubmit:" + prefix + ":" + identity + ":" + argsHash;
         }
     }
 }
