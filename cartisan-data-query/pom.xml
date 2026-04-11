@@ -43,10 +43,10 @@
             <artifactId>spring-context</artifactId>
         </dependency>
 
-        <!-- cartisan-security (needed for JooqTenantSupport) -->
+        <!-- cartisan-core (for RequestContext) -->
         <dependency>
             <groupId>com.cartisan</groupId>
-            <artifactId>cartisan-security</artifactId>
+            <artifactId>cartisan-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 

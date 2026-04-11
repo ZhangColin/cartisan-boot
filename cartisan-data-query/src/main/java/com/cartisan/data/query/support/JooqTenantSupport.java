@@ -1,6 +1,6 @@
 package com.cartisan.data.query.support;
 
-import com.cartisan.security.context.TenantContext;
+import com.cartisan.core.context.RequestContext;
 import org.jooq.Condition;
 import org.jooq.Field;
 import org.jooq.impl.DSL;
@@ -36,8 +36,7 @@ import org.jooq.impl.DSL;
  * </ul>
  *
  * <h3>依赖说明</h3>
- * <p>本类依赖 {@code cartisan-security} 的 {@link TenantContext}。
- * 使用 {@code compileOnly} 依赖范围，运行时由使用者引入 {@code cartisan-security}。</p>
+ * <p>本类依赖 {@code cartisan-core} 的 {@link RequestContext}。</p>
  *
  * @since 0.3.0
  */
@@ -72,7 +71,7 @@ public final class JooqTenantSupport {
         }
 
         // 获取当前租户 ID
-        Long tenantId = TenantContext.getCurrentTenantId();
+        Long tenantId = RequestContext.getTenantId();
 
         // 根据租户上下文返回条件
         if (tenantId != null) {
