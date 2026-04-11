@@ -1,5 +1,6 @@
 package com.cartisan.security.context;
 
+import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import com.cartisan.core.context.RequestContext;
 import jakarta.servlet.FilterChain;
@@ -43,7 +44,8 @@ public class SecurityFilter extends OncePerRequestFilter implements Ordered {
 
         if (StpUtil.isLogin()) {
             Long userId = StpUtil.getLoginIdAsLong();
-            String userName = StpUtil.getLoginIdAsString();
+            SaSession session = StpUtil.getSession();
+            String userName = session != null ? (String) session.get("userName") : null;
             RequestContext enriched = current != null
                     ? current.withUser(userId, userName)
                     : new RequestContext(null, null, null, null, userId, userName, null, null);

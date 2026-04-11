@@ -62,6 +62,10 @@ public interface AuthenticationService {
      * <p>
      * 调用此方法前，业务层应已完成身份验证并获得 loginId。
      * </p>
+     * <p>
+     * 调用此方法后，业务层应通过 {@code StpUtil.getSession().set("userName", ...)}
+     * 将用户名存入 Session，以便 {@code SecurityFilter} 在后续请求中自动读取并写入 RequestContext。
+     * </p>
      *
      * @param loginId 用户标识（由业务层认证后提供）
      * @return Token 信息
