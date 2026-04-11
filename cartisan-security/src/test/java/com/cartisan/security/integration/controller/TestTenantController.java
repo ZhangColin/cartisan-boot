@@ -1,7 +1,7 @@
 package com.cartisan.security.integration.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.cartisan.security.context.TenantContext;
+import com.cartisan.core.context.RequestContext;
 import com.cartisan.web.response.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,15 +14,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 测试用 Controller - 验证 TenantContext。
+ * 测试用 Controller - 验证 RequestContext 租户信息。
  */
 @RestController
 @RequestMapping("/test/tenant")
 public class TestTenantController {
 
-    /**
-     * 测试登录并设置租户 ID 的端点。
-     */
     @GetMapping("/login/{userId}/tenant/{tenantId}")
     public ApiResponse<Map<String, String>> loginWithTenant(@PathVariable Long userId, @PathVariable Long tenantId) {
         StpUtil.login(userId);
@@ -36,14 +33,13 @@ public class TestTenantController {
     @GetMapping("/current")
     public ApiResponse<Map<String, Object>> getCurrentTenant() {
         Map<String, Object> result = new HashMap<>();
-        // 允许 null 值
-        result.put("tenantId", TenantContext.getCurrentTenantId());
+        result.put("tenantId", RequestContext.getTenantId());
         return ApiResponse.ok(result);
     }
 
     @PostMapping("/with-tenant")
     public ApiResponse<String> withTenant(@RequestBody Map<String, Object> body) {
-        Long tenantId = TenantContext.getCurrentTenantId();
+        Long tenantId = RequestContext.getTenantId();
         return ApiResponse.ok("processed in tenant: " + tenantId);
     }
 }
