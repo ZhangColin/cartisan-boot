@@ -65,11 +65,11 @@ cartisan-boot 是**业务无关的技术基础框架**。它为所有 Java 项�
 
 | | cartisan-boot 提供 | 业务项目实现 |
 |---|---|---|
-| DDD | 聚合根、实体、值对象、领域事件等基础积木 | 具体的聚合根、实体、领域服务 |
+| DDD | 聚合根、实体、值对象、应用事件等基础积木 | 具体的聚合根、实体、领域服务 |
 | Web | 统一响应体、全局异常处理、请求上下文 | Controller、DTO |
 | 安全 | 认证/授权抽象、多租户上下文基础设施 | 用户/租户/权限的业务逻辑 |
 | 数据 | Repository 基类、审计字段、软删除 | 具体的 DomainEntity 和 Repository |
-| 事件 | 领域事件发布/订阅基础设施 | 具体的业务事件定义 |
+| 事件 | 应用事件发布/订阅基础设施 | 具体的业务事件定义 |
 | AI | 大模型调用 SPI + 各厂商适配器 + SSE 流式工具 | 路由策略、Token 计费、Agent 编排 |
 | 存储 | 文件上传/下载 SPI + 各厂商适配器 | "附件"的业务概念（关联实体、权限） |
 | 支付 | 支付下单/回调 SPI + 微信/支付宝适配器 | 充值套餐、订单管理等业务流程 |
@@ -115,7 +115,7 @@ cartisan-boot/
 ├── cartisan-security/                      # 安全与多租户基础设施
 ├── cartisan-data-jpa/                      # JPA 写侧封装
 ├── cartisan-data-query/                    # jOOQ 读侧封装
-├── cartisan-event/                         # 领域事件基础设施
+├── cartisan-event/                         # 应用事件基础设施
 ├── cartisan-test/                          # 测试工具箱
 ├── cartisan-ai/                            # 大模型调用封装
 │
@@ -132,12 +132,12 @@ cartisan-boot/
 | 模块 | 状态 | 定位 |
 |------|------|------|
 | **cartisan-dependencies** | — | BOM（Bill of Materials）：业务项目引入即可管理所有 cartisan 模块版本 |
-| **cartisan-core** | 短期实现 | DDD 战术设计基础积木：实体、值对象、聚合根、领域事件、架构注解、错误码体系。**零外部依赖，纯 Java** |
+| **cartisan-core** | 短期实现 | DDD 战术设计基础积木：实体、值对象、聚合根、架构注解、错误码体系。stereotype 注解基于 Spring @Component（provided scope） |
 | **cartisan-web** | 短期实现 | Spring MVC 统一封装：强类型响应体、全局异常处理、请求上下文、参数校验格式化 |
 | **cartisan-security** | 短期实现 | 认证授权薄抽象层 + 多租户上下文基础设施。底层 Sa-Token 可替换 |
 | **cartisan-data-jpa** | 短期实现 | JPA 持久化封装：Repository 基类（含事件自动发布）、审计字段、软删除、分布式 ID |
 | **cartisan-data-query** | 短期实现 | jOOQ 读侧封装：自动配置、分页工具、代码生成配置 |
-| **cartisan-event** | 短期实现 | 领域事件发布/订阅基础设施：Spring Events 桥接，预留消息队列扩展 |
+| **cartisan-event** | 短期实现 | 应用事件发布/订阅基础设施：Spring Events 桥接，预留消息队列扩展 |
 | **cartisan-test** | 短期实现 | 测试工具箱：ArchUnit 预置规则集、Testcontainers 基类、测试辅助工具 |
 | **cartisan-ai** | 短期实现 | 大模型调用 SPI + 各厂商 Provider 实现 + SSE 流式输出工具 |
 | **cartisan-storage** | 按需实现 | 文件存储 SPI + 各厂商适配器（阿里云 OSS、MinIO 等） |
@@ -158,7 +158,7 @@ cartisan-boot/
 
 ### 4.2 cartisan-core（DDD 基建）
 
-**核心约束：零外部依赖，只依赖 JDK 标准库。** 这保证了领域模型的纯粹性——任何放在 domain 包中的代码不会被框架污染。
+**核心约束：** stereotype 注解（@DomainService、@Adapter 等）基于 Spring @Component（provided scope），保证在 Spring 环境中开箱即用，同时保持领域建模类型的纯粹性。
 
 #### 包结构
 
@@ -175,13 +175,7 @@ com.cartisan.core/
 **AggregateRoot 体系：**
 
 ```
-AggregateRoot                          — 标记接口：标识哪些实体是聚合根
-  └── AbstractAggregateRoot            — 抽象类：携带领域事件注册能力
-
-  核心行为：
-  - registerEvent(DomainEvent)         — 注册一个待发布的领域事件
-  - getDomainEvents() → List           — 获取已注册的事件列表
-  - clearDomainEvents()                — 清空事件（发布后调用）
+AggregateRoot extends DomainEntity    — 聚合根标记接口，继承 DomainEntity
 ```
 
 只有实现 `AggregateRoot` 的实体才能拥有 Repository——这通过 `BaseRepository<T extends AggregateRoot>` 的泛型约束在编译期强制。
@@ -211,17 +205,6 @@ Identity<T>
 ```
 
 用于类型安全的 ID 封装。避免 `Long userId` 和 `Long orderId` 被混用——`UserId` 和 `OrderId` 是不同类型。
-
-**DomainEvent 基类：**
-
-```
-DomainEvent
-  - eventId: String                    — 唯一标识（UUID）
-  - occurredAt: Instant                — 发生时间
-  - aggregateId: String                — 触发事件的聚合根 ID
-```
-
-所有业务事件继承此基类。
 
 **Auditable 基类：**
 
@@ -477,15 +460,9 @@ BaseRepository<T extends AggregateRoot, ID extends Serializable>
 **BaseRepositoryImpl — 增强实现：**
 
 ```
-在 save() 方法中：
-  1. 调用 JPA save
-  2. 如果实体是 AbstractAggregateRoot：
-     a. 获取 domainEvents 列表
-     b. 通过 DomainEventPublisher 逐一发布
-     c. 清空 domainEvents
-  
-  效果：业务代码只需要在领域模型中 registerEvent()，
-  save 时事件自动发布，业务代码不需要手动发布事件。
+增强 save() 和 delete() 方法：
+  - 软删除支持：自动检测 SoftDeletable 接口，调用 markAsDeleted()
+  - 物理删除：非软删除实体调用 super.delete()
 ```
 
 **TSID — 分布式 ID 生成：**
@@ -568,7 +545,7 @@ JooqTenantSupport
 
 可选增强（CQRS 共存验证）：
   - JPA 写 → jOOQ 读 数据一致性
-  - 不涉及事务边界、领域事件等复杂场景
+  - 不涉及事务边界等复杂场景
 ```
 
 **CQRS 使用模式：**
@@ -585,29 +562,34 @@ JooqTenantSupport
 
 ---
 
-### 4.7 cartisan-event（领域事件基础设施）
+### 4.7 cartisan-event（应用事件基础设施）
 
 #### 包结构
 
 ```
 com.cartisan.event/
-├── DomainEventPublisher.java           # 发布器接口
-├── SpringDomainEventPublisher.java     # Spring Events 实现
+├── ApplicationEventPublisher.java           # 发布器接口
+├── CompositeApplicationEventPublisher.java  # 复合发布器
+├── SpringApplicationEventPublisher.java     # Spring Events 实现
 └── config/
 ```
 
 #### 设计
 
 ```
-DomainEventPublisher（接口）
-  - publish(DomainEvent event)
+ApplicationEventPublisher（接口）
+  - publish(ApplicationEvent event)
 
-SpringDomainEventPublisher（实现）
-  - 将 DomainEvent 包装为 Spring ApplicationEvent 发布
+SpringApplicationEventPublisher（实现）
+  - 将 ApplicationEvent 包装为 Spring ApplicationEvent 发布
   - 同一事务内同步处理（@TransactionalEventListener 可选异步）
 
+CompositeApplicationEventPublisher（复合发布器）
+  - 支持同时向多个发布器发布事件
+  - 通过 EventPublishFailureHandler SPI 处理发布失败
+
 扩展路径：
-  后续可增加 MQ 实现（如 KafkaDomainEventPublisher），
+  后续可增加 MQ 实现（如 KafkaApplicationEventPublisher），
   将事件发布到消息队列供其他服务消费。
   业务代码不变，只切换 Publisher 实现。
 ```
@@ -615,10 +597,8 @@ SpringDomainEventPublisher（实现）
 **使用方式（在业务项目中）：**
 
 ```
-领域模型中：
-  this.registerEvent(new OrderCreatedEvent(this.id));
-
-Repository save 时自动发布（cartisan-data-jpa 处理）。
+应用服务中：
+  eventPublisher.publish(new OrderCreatedEvent(orderId, customerId));
 
 消费方：
   @EventListener
@@ -960,7 +940,7 @@ cartisan:
 ## 五、模块间依赖关系
 
 ```
-cartisan-core（零外部依赖，纯 Java）
+cartisan-core（stereotype 注解基于 Spring @Component，provided scope）
     │
     ├──→ cartisan-web        （core + Spring MVC）
     ├──→ cartisan-data-jpa   （core + Spring Data JPA）
@@ -976,13 +956,11 @@ cartisan-storage             （Spring Boot Starter，不依赖 core）
 
 cartisan-payment             （Spring Boot Starter，不依赖 core）
 
-cartisan-data-jpa ──→ cartisan-event（save 时发布领域事件）
 cartisan-data-query ──→ cartisan-web（复用 PageResponse，读侧与写侧分页 API 一致）
 ```
 
 **依赖方向铁律：**
 - core 不依赖任何其他 cartisan 模块
-- core 不依赖 Spring
 - web、data-jpa、event、ai、test 依赖 core
 - security 依赖 core + web
 - data-query 依赖 web（复用 PageResponse，读侧与写侧分页 API 一致）
@@ -1083,7 +1061,7 @@ cartisan-boot 的开发可按以下 Epic 顺序推进：
 | Epic | 内容 | 依赖 | 复杂度 | 优先级 |
 |------|------|------|--------|--------|
 | **Epic 1: 项目骨架 + Core + Test** | Maven 多模块项目搭建、cartisan-core 全部类型、cartisan-test 的 ArchUnit 规则集 | 无 | M | P0 |
-| **Epic 2: Web + Data-JPA + Event** | cartisan-web 统一响应和异常处理、cartisan-data-jpa Repository 和审计、cartisan-event 事件发布 | Epic 1 | L | P0 |
+| **Epic 2: Web + Data-JPA + Event** | cartisan-web 统一响应和异常处理、cartisan-data-jpa Repository 和审计、cartisan-event 应用事件发布 | Epic 1 | L | P0 |
 | **Epic 3: Security** | cartisan-security 认证抽象、多租户上下文、Sa-Token 集成 | Epic 2 | M | P0 |
 | **Epic 4: Data-Query** | cartisan-data-query jOOQ 自动配置、代码生成、分页工具 | Epic 2 | S | P0 |
 | **Epic 5: AI** | cartisan-ai 统一模型、Provider SPI + OpenAI/Anthropic/DeepSeek 实现、SSE 工具 | Epic 1 | M | P1 |

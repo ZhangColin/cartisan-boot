@@ -11,7 +11,7 @@
 
 ## 架构约束
 
-- 领域层（domain）零外部依赖，不引入 Spring/JPA/任何框架注解
+- core 层提供 DDD 基础设施（stereotype 注解基于 Spring @Component）
 - 只有聚合根可以拥有 Repository
 - 所有金额使用 BigDecimal，禁止浮点数
 - 构造函数注入，禁止 @Autowired 字段注入

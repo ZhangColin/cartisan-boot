@@ -61,7 +61,6 @@
     </properties>
 
     <modules>
-        <module>cartisan-dependencies</module>
         <module>cartisan-core</module>
         <module>cartisan-web</module>
         <module>cartisan-test</module>
