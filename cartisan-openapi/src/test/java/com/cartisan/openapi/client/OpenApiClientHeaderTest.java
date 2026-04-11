@@ -76,12 +76,66 @@ class OpenApiClientHeaderTest {
         assertThat(headers).doesNotContainKey("X-User-Id");
     }
 
+    @Test
+    void shouldGenerateDifferentSign_whenUrlHasQueryParams() {
+        CartisanOpenapiProperties props = new CartisanOpenapiProperties();
+        props.getSelf().setAppId("test-app");
+        props.getSelf().setAppSecret("test-secret");
+
+        OpenApiClient client = new OpenApiClient(props,
+                new HmacSha256SignatureCalculator(), new ObjectMapper());
+
+        Map<String, String> headersWithParams = invokeBuildHeaders(client, new byte[0], Map.of("key", "value"));
+        Map<String, String> headersWithoutParams = invokeBuildHeaders(client, new byte[0], null);
+
+        assertThat(headersWithParams.get("X-Sign")).isNotEqualTo(headersWithoutParams.get("X-Sign"));
+    }
+
+    @Test
+    void shouldHandleEmptyQueryString() {
+        CartisanOpenapiProperties props = new CartisanOpenapiProperties();
+        props.getSelf().setAppId("test-app");
+        props.getSelf().setAppSecret("test-secret");
+
+        OpenApiClient client = new OpenApiClient(props,
+                new HmacSha256SignatureCalculator(), new ObjectMapper());
+
+        Map<String, String> params = invokeExtractQueryParams(client, "");
+
+        assertThat(params).isEmpty();
+    }
+
+    @Test
+    void shouldHandleNullQueryParams() {
+        CartisanOpenapiProperties props = new CartisanOpenapiProperties();
+        props.getSelf().setAppId("test-app");
+        props.getSelf().setAppSecret("test-secret");
+
+        OpenApiClient client = new OpenApiClient(props,
+                new HmacSha256SignatureCalculator(), new ObjectMapper());
+
+        Map<String, String> params = invokeExtractQueryParams(client, null);
+
+        assertThat(params).isEmpty();
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, String> invokeBuildHeaders(OpenApiClient client, byte[] body, Map<String, String> queryParams) {
         try {
             var method = OpenApiClient.class.getDeclaredMethod("buildHeaders", String.class, byte[].class, Map.class);
             method.setAccessible(true);
             return (Map<String, String>) method.invoke(client, "POST", body, queryParams);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> invokeExtractQueryParams(OpenApiClient client, String query) {
+        try {
+            var method = OpenApiClient.class.getDeclaredMethod("extractQueryParams", String.class);
+            method.setAccessible(true);
+            return (Map<String, String>) method.invoke(client, query);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

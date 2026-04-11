@@ -71,7 +71,9 @@ public class OpenApiClient {
      */
     public <T> T get(String url, TypeReference<T> responseType) {
         try {
-            Map<String, String> headers = buildHeaders("GET", new byte[0], null);
+            URI uri = URI.create(url);
+            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -145,6 +147,19 @@ public class OpenApiClient {
         }
 
         return headers;
+    }
+
+    private Map<String, String> extractQueryParams(String query) {
+        Map<String, String> params = new TreeMap<>();
+        if (query != null && !query.isEmpty()) {
+            for (String pair : query.split("&")) {
+                String[] kv = pair.split("=", 2);
+                if (kv.length == 2) {
+                    params.put(kv[0], kv[1]);
+                }
+            }
+        }
+        return params;
     }
 
     private String calculateBodyDigest(byte[] body) {
