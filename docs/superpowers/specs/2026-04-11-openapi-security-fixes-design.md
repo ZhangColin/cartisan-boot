@@ -33,7 +33,7 @@
 - **Order**: HIGHEST_PRECEDENCE + 15（在 TenantFilter 之后）
 - **触发条件**: 请求包含 `X-App-Id` header
 - **职责**:
-  1. 提取签名相关 headers（X-App-Id, X-Timestamp, X-X-Nonce, X-Body-Digest, X-Sign）
+  1. 提取签名相关 headers（X-App-Id, X-Timestamp, X-Nonce, X-Body-Digest, X-Sign）
   2. 校验 timestamp 容差
   3. 校验 nonce 唯一性
   4. 查询 ApiKeyInfo 并检查 isActive
@@ -66,16 +66,19 @@ SignatureVerificationFilter (HIGHEST_PRECEDENCE + 15)  ← 新增
 #### 重构细节
 
 - 将 `SignatureException`（内部类）提升为 Filter 的内部类，或提取为包级私有异常
-- Filter 和 Interceptor 共享的常量（request attribute key）定义在 Filter 中
+- Filter 和 Interceptor 共享的常量（request attribute key `openapi.apiKeyInfo`）定义在 Filter 中作为 `public static final`
+- 删除现有 Interceptor 中的 `callerAppId`/`callerAppName` request attribute 设置（第 138-139 行），改由 Filter 通过 `RequestContext.run()` 统一处理
 - AutoConfiguration 中注册 Filter（FilterRegistrationBean），Interceptor 通过 WebMvcConfigurer 注册
+- Interceptor 构造函数精简为只接收 `ObjectMapper`（用于写错误响应），移除 `SignatureCalculator`、`ApiKeyProvider`、`NonceRepository`、`CartisanOpenapiProperties` 依赖
+- `RequestContext.run()` 在 Filter 链中的嵌套是安全的：`ScopedValue.where()` 创建的新绑定会遮蔽外层绑定，下游通过 `RequestContext.getCallerAppId()` 可正确读取
 
 #### 涉及文件
 
 - 新增：`cartisan-openapi/.../filter/SignatureVerificationFilter.java`
-- 修改：`cartisan-openapi/.../interceptor/SignatureVerificationInterceptor.java`（精简，移除验签逻辑）
-- 修改：`cartisan-openapi/.../config/CartisanOpenapiAutoConfiguration.java`（注册 Filter）
-- 新增测试：`SignatureVerificationFilterTest.java`
-- 修改测试：`SignatureVerificationInterceptorTest.java`（如有）
+- 修改：`cartisan-openapi/.../interceptor/SignatureVerificationInterceptor.java`（精简，移除验签逻辑和多余依赖）
+- 修改：`cartisan-openapi/.../config/CartisanOpenapiAutoConfiguration.java`（注册 Filter，调整 Interceptor 构造参数）
+- 新增：`cartisan-openapi/src/test/java/com/cartisan/openapi/filter/SignatureVerificationFilterTest.java`
+- 新增：`cartisan-openapi/src/test/java/com/cartisan/openapi/interceptor/SignatureVerificationInterceptorTest.java`
 
 ---
 
@@ -96,18 +99,19 @@ String userName = (String) StpUtil.getSession().get("userName");
 ```
 
 - userName 为 null 时合法（某些场景无用户名），`withUser(userId, null)` 可正常工作
-- 业务层需在调用 `authenticationService.login()` 之前将 userName 存入 Session：
+- 业务层需在 `authenticationService.login()` 之后将 userName 存入 Session：
   ```java
-  StpUtil.getSession().set("userName", user.getNickname());
-  authenticationService.login(user.getId());
+  authenticationService.login(user.getId());  // 先登录，创建 Session
+  StpUtil.getSession().set("userName", user.getNickname());  // 再写入
   ```
-- 框架层在 SaTokenAuthenticationService 的 login 文档中说明此约定
+  注意：`StpUtil.getSession()` 需要登录状态才能获取 Session，因此 `set("userName", ...)` 必须在 `login()` 之后调用。
+- 框架层在 `AuthenticationService.login()` 的 JavaDoc 中说明此约定
 
 ### 涉及文件
 
 - 修改：`cartisan-security/.../context/SecurityFilter.java`（一行改动）
-- 修改：`cartisan-security/.../authentication/SaTokenAuthenticationService.java`（JavaDoc 说明 Session 约定）
-- 修改/新增测试：SecurityFilter 相关测试
+- 修改：`cartisan-security/.../authentication/AuthenticationService.java`（login() JavaDoc 说明 Session 约定）
+- 新增：`cartisan-security/src/test/java/com/cartisan/security/context/SecurityFilterTest.java`
 
 ---
 
@@ -154,7 +158,7 @@ Map<String, String> queryParams = extractQueryParams(uri.getQuery());
 Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
 ```
 
-新增 `extractQueryParams(String query)` 方法，复用服务端 `SignatureVerificationInterceptor` 中相同的参数解析逻辑。
+新增 `extractQueryParams(String query)` 方法，复用服务端 `SignatureVerificationInterceptor` 中相同的参数解析逻辑（简单 split，不做 URL 解码，客户端与服务端保持一致的规范化策略）。
 
 ### 涉及文件
 
@@ -187,7 +191,9 @@ Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
 
 - 修改：`cartisan-openapi/.../config/CartisanOpenapiProperties.java`（新增 maxBodySize）
 - 修改：`cartisan-openapi/.../filter/CachingRequestBodyFilter.java`
-- 新增/修改测试
+- 新增：`cartisan-openapi/src/test/java/com/cartisan/openapi/filter/CachingRequestBodyFilterTest.java`
+
+> 注：当前 Filter 仅缓存 `application/json` 请求体，body 大小限制同样只对 JSON 请求生效。非 JSON 请求（如 `application/x-www-form-urlencoded`）不经过缓存和大小检查，这是已有行为，本次不改变。
 
 ---
 
