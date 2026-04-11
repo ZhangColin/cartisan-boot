@@ -51,7 +51,7 @@ public class CartisanOpenapiAutoConfiguration implements WebMvcConfigurer {
     @Bean
     @ConditionalOnMissingBean
     public CachingRequestBodyFilter cachingRequestBodyFilter() {
-        return new CachingRequestBodyFilter();
+        return new CachingRequestBodyFilter(properties);
     }
 
     @Bean

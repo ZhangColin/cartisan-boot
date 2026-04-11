@@ -2,6 +2,7 @@ package com.cartisan.openapi.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
+import org.springframework.util.unit.DataSize;
 
 import java.time.Duration;
 
@@ -16,6 +17,7 @@ public class CartisanOpenapiProperties {
     private long timestampTolerance = 300;
     private long nonceTtl = 300;
     private Cache cache = new Cache();
+    private DataSize maxBodySize = DataSize.ofMegabytes(1);
 
     public Self getSelf() { return self; }
     public void setSelf(Self self) { this.self = self; }
@@ -31,6 +33,9 @@ public class CartisanOpenapiProperties {
 
     public Cache getCache() { return cache; }
     public void setCache(Cache cache) { this.cache = cache; }
+
+    public DataSize getMaxBodySize() { return maxBodySize; }
+    public void setMaxBodySize(DataSize maxBodySize) { this.maxBodySize = maxBodySize; }
 
     public static class Self {
         private String appId;

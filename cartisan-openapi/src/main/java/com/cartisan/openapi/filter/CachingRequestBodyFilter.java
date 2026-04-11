@@ -1,14 +1,11 @@
 package com.cartisan.openapi.filter;
 
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import com.cartisan.openapi.config.CartisanOpenapiProperties;
 import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -19,6 +16,14 @@ import java.io.IOException;
  * 缓存请求体 Filter，使请求体可多次读取（验签需要读取请求体计算 digest）。
  */
 public class CachingRequestBodyFilter extends OncePerRequestFilter implements Ordered {
+
+    private static final String BODY_TOO_LARGE_MESSAGE = "Request body too large";
+
+    private final CartisanOpenapiProperties properties;
+
+    public CachingRequestBodyFilter(CartisanOpenapiProperties properties) {
+        this.properties = properties;
+    }
 
     @Override
     public int getOrder() {
@@ -31,11 +36,32 @@ public class CachingRequestBodyFilter extends OncePerRequestFilter implements Or
                                      FilterChain filterChain) throws ServletException, IOException {
         String contentType = request.getContentType();
         if (contentType != null && contentType.contains("application/json")) {
+            long maxBytes = properties.getMaxBodySize().toBytes();
+
+            // Check Content-Length header first (fast path)
+            long contentLength = request.getContentLengthLong();
+            if (contentLength > maxBytes) {
+                sendBodyTooLarge(response);
+                return;
+            }
+
+            // Read body and check actual size
             byte[] body = request.getInputStream().readAllBytes();
+            if (body.length > maxBytes) {
+                sendBodyTooLarge(response);
+                return;
+            }
+
             filterChain.doFilter(new CachedBodyHttpServletRequest(request, body), response);
         } else {
             filterChain.doFilter(request, response);
         }
+    }
+
+    private void sendBodyTooLarge(jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+        response.setContentType("text/plain");
+        response.getWriter().write(BODY_TOO_LARGE_MESSAGE);
     }
 
     /**
