@@ -10,7 +10,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
@@ -58,7 +57,10 @@ public class OpenApiClient {
             HttpResponse<String> response = httpClient.send(requestBuilder.build(),
                     HttpResponse.BodyHandlers.ofString());
 
+            validateResponse(response);
             return objectMapper.readValue(response.body(), responseType);
+        } catch (OpenApiClientException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("OpenApiClient POST failed: " + url, e);
         }
@@ -81,9 +83,18 @@ public class OpenApiClient {
             HttpResponse<String> response = httpClient.send(requestBuilder.build(),
                     HttpResponse.BodyHandlers.ofString());
 
+            validateResponse(response);
             return objectMapper.readValue(response.body(), responseType);
+        } catch (OpenApiClientException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("OpenApiClient GET failed: " + url, e);
+        }
+    }
+
+    void validateResponse(HttpResponse<String> response) {
+        if (response.statusCode() >= 400) {
+            throw new OpenApiClientException(response.statusCode(), response.body());
         }
     }
 
