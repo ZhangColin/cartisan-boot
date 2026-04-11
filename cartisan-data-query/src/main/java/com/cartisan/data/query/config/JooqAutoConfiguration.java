@@ -19,7 +19,7 @@ import static org.jooq.impl.DSL.using;
  * <p>配置内容：
  * <ul>
  *   <li>{@link DSLContext} — jOOQ 核心 API 入口，基于项目的 {@link DataSource} 创建</li>
-   *   <li>SQL 方言 — 固定使用 PostgreSQL 方言（{@link SQLDialect#POSTGRES}）</li>
+   *   <li>SQL 方言 — 通过 {@link JooqProperties#getDialect()} 配置，默认 PostgreSQL</li>
  *   <li>SQL 日志 — 根据 {@link JooqProperties#isSqlLogging()} 决定是否启用</li>
  * </ul>
  *
@@ -47,7 +47,7 @@ public class JooqAutoConfiguration {
      * <p>配置要点：
      * <ul>
      *   <li>使用项目已有的 {@link DataSource}</li>
-     *   <li>方言固定为 PostgreSQL</li>
+     *   <li>方言通过配置属性指定，默认 PostgreSQL</li>
      *   <li>根据 {@code cartisan.data-query.jooq.sql-logging} 决定是否打印 SQL</li>
      * </ul>
      *
@@ -59,6 +59,6 @@ public class JooqAutoConfiguration {
     public DSLContext dslContext(DataSource dataSource, JooqProperties properties) {
         Settings settings = new Settings()
             .withExecuteLogging(properties.isSqlLogging());
-        return using(dataSource, SQLDialect.POSTGRES, settings);
+        return using(dataSource, SQLDialect.valueOf(properties.getDialect().toUpperCase()), settings);
     }
 }

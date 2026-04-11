@@ -10,12 +10,23 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <h2>可配置项</h2>
  * <ul>
  *   <li>{@code sql-logging} — 是否打印 SQL 执行日志，默认 {@code false}</li>
+ *   <li>{@code dialect} — SQL 方言，默认 {@code POSTGRES}，可选值参考 {@link org.jooq.SQLDialect}</li>
  * </ul>
  *
  * @since 0.3.0
  */
 @ConfigurationProperties("cartisan.data-query.jooq")
 public class JooqProperties {
+
+    /**
+     * SQL 方言。
+     *
+     * <p>默认 {@code POSTGRES}。可选值参考 {@link org.jooq.SQLDialect}。</p>
+     */
+    private String dialect = "POSTGRES";
+
+    public String getDialect() { return dialect; }
+    public void setDialect(String dialect) { this.dialect = dialect; }
 
     /**
      * 是否启用 SQL 执行日志。
