@@ -112,6 +112,16 @@ public record ApiResponse<T>(
     }
 
     /**
+     * 返回带有指定 requestId 的新 ApiResponse 实例。
+     *
+     * @param requestId 请求追踪 ID
+     * @return 新的 ApiResponse 实例，requestId 被替换
+     */
+    public ApiResponse<T> withRequestId(String requestId) {
+        return new ApiResponse<>(this.code, this.message, this.data, requestId, this.errors);
+    }
+
+    /**
      * 构造校验失败响应（带字段级错误）。
      *
      * @param errors 字段级错误列表

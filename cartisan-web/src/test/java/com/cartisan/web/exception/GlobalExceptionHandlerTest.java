@@ -34,7 +34,7 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.data").isEmpty())
-                .andExpect(jsonPath("$.requestId").isEmpty())
+                .andExpect(jsonPath("$.requestId").isNotEmpty())
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 

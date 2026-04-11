@@ -2,6 +2,7 @@ package com.cartisan.web.exception;
 
 import com.cartisan.core.exception.BaseCodeMessage;
 import com.cartisan.core.exception.CartisanException;
+import com.cartisan.web.context.RequestContext;
 import com.cartisan.web.resubmit.ResubmitException;
 import com.cartisan.web.response.ApiResponse;
 import com.cartisan.web.response.FieldError;
@@ -54,14 +55,14 @@ public class GlobalExceptionHandler {
         }
 
         return ResponseEntity.status(status)
-                .body(ApiResponse.error(ex.getCodeMessage()));
+                .body(ApiResponse.error(ex.getCodeMessage()).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(ResubmitException.class)
     public ResponseEntity<ApiResponse<Void>> handleResubmitException(ResubmitException ex) {
         log.warn("Resubmit blocked: {}", ex.getMessage());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(400, ex.getMessage()));
+                .body(ApiResponse.error(400, ex.getMessage()).withRequestId(currentRequestId()));
     }
 
     // ========== 校验异常 ==========
@@ -78,7 +79,7 @@ public class GlobalExceptionHandler {
 
         log.warn("Validation failed: {}", errors);
         return ResponseEntity.badRequest()
-                .body(ApiResponse.validationError(errors));
+                .body(ApiResponse.validationError(errors).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -93,7 +94,7 @@ public class GlobalExceptionHandler {
 
         log.warn("Validation failed: {}", errors);
         return ResponseEntity.badRequest()
-                .body(ApiResponse.validationError(errors));
+                .body(ApiResponse.validationError(errors).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(org.springframework.validation.BindException.class)
@@ -108,7 +109,7 @@ public class GlobalExceptionHandler {
 
         log.warn("Binding failed: {}", errors);
         return ResponseEntity.badRequest()
-                .body(ApiResponse.validationError(errors));
+                .body(ApiResponse.validationError(errors).withRequestId(currentRequestId()));
     }
 
     // ========== HTTP 方法/媒体类型异常 ==========
@@ -122,13 +123,14 @@ public class GlobalExceptionHandler {
         log.warn("Method not supported: {} (supported: {})", ex.getMethod(), supportedMethods);
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
                 .body(ApiResponse.error(405, "Method " + ex.getMethod() + " not supported" +
-                        (supportedMethods.isEmpty() ? "" : ". Supported: " + supportedMethods)));
+                        (supportedMethods.isEmpty() ? "" : ". Supported: " + supportedMethods))
+                        .withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND));
+                .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -142,7 +144,7 @@ public class GlobalExceptionHandler {
         if (cause instanceof IllegalArgumentException illegalArgEx) {
             log.warn("Invalid parameter value: {} = {}", paramName, paramValue);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(400, illegalArgEx.getMessage()));
+                    .body(ApiResponse.error(400, illegalArgEx.getMessage()).withRequestId(currentRequestId()));
         }
 
         // Also check if there's an IllegalArgumentException deeper in the chain
@@ -150,41 +152,41 @@ public class GlobalExceptionHandler {
         if (rootCause instanceof IllegalArgumentException illegalArgEx) {
             log.warn("Invalid parameter value: {} = {}", paramName, paramValue);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error(400, illegalArgEx.getMessage()));
+                    .body(ApiResponse.error(400, illegalArgEx.getMessage()).withRequestId(currentRequestId()));
         }
 
         // 其他类型不匹配（如路径变量类型错误），仍返回 404
         log.warn("Type mismatch: {}", paramName);
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND));
+                .body(ApiResponse.error(BaseCodeMessage.NOT_FOUND).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
         log.warn("Media type not supported: {}", ex.getContentType());
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                .body(ApiResponse.error(415, "Media type not supported"));
+                .body(ApiResponse.error(415, "Media type not supported").withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
         log.warn("Request body not readable");
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(400, "Malformed request body"));
+                .body(ApiResponse.error(400, "Malformed request body").withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParameter(MissingServletRequestParameterException ex) {
         log.warn("Missing parameter: {}", ex.getParameterName());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(400, "Missing required parameter: " + ex.getParameterName()));
+                .body(ApiResponse.error(400, "Missing required parameter: " + ex.getParameterName()).withRequestId(currentRequestId()));
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingHeader(MissingRequestHeaderException ex) {
         log.warn("Missing header: {}", ex.getHeaderName());
         return ResponseEntity.badRequest()
-                .body(ApiResponse.error(400, "Missing required header: " + ex.getHeaderName()));
+                .body(ApiResponse.error(400, "Missing required header: " + ex.getHeaderName()).withRequestId(currentRequestId()));
     }
 
     // ========== 兜底处理 ==========
@@ -193,10 +195,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleException(Exception ex) {
         log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(BaseCodeMessage.INTERNAL_SERVER_ERROR));
+                .body(ApiResponse.error(BaseCodeMessage.INTERNAL_SERVER_ERROR).withRequestId(currentRequestId()));
     }
 
     // ========== 辅助方法 ==========
+
+    private String currentRequestId() {
+        return RequestContext.getRequestId();
+    }
 
     /**
      * 从 Spring FieldError 提取错误码。
