@@ -328,7 +328,7 @@ info "构建完成"
 
 EOF
 
-  cat << 'PUBLISH_EOF3' >> "$project_name/publish.sh"
+  cat << 'PUBLISH_EOF3A' >> "$project_name/publish.sh"
 # 3. 检查 sshpass
 if ! command -v sshpass &>/dev/null; then
   error "sshpass 未安装"
@@ -339,7 +339,14 @@ fi
 # 4. 创建临时目录，只包含需要的文件
 TMP_DIR=$(mktemp -d)
 info "准备部署文件..."
-cp "target/${jarName}" "$TMP_DIR/"
+PUBLISH_EOF3A
+
+  # JAR file copy needs variable substitution
+  cat << EOF >> "$project_name/publish.sh"
+cp "target/${jarName}" "\$TMP_DIR/"
+EOF
+
+  cat << 'PUBLISH_EOF3B' >> "$project_name/publish.sh"
 cp Dockerfile "$TMP_DIR/"
 cp docker-compose.prod.yml "$TMP_DIR/"
 cp deploy.sh "$TMP_DIR/"
@@ -347,7 +354,7 @@ cp .env.production "$TMP_DIR/"
 
 # 5. rsync 到服务器
 info "正在上传文件到服务器..."
-sshpass -p "$SERVER_PASSWORD" rsync -avz --delete "$TMP_DIR/" "${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/"
+sshpass -p "$SERVER_PASSWORD" rsync -avz "$TMP_DIR/" "${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/"
 
 # 6. SSH 执行部署
 info "正在远程部署..."
@@ -356,7 +363,7 @@ sshpass -p "$SERVER_PASSWORD" ssh "${SERVER_USER}@${SERVER_HOST}" "cd ${SERVER_P
 # 7. 清理临时目录
 rm -rf "$TMP_DIR"
 info "部署完成！临时文件已清理"
-PUBLISH_EOF3
+PUBLISH_EOF3B
 
   # --- .gitignore ---
   cat << 'EOF' > "$project_name/.gitignore"
