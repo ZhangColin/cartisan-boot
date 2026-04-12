@@ -19,6 +19,7 @@ GROUP_ID_PATH="com/aieducenter"
 SERVER_IP="43.140.211.9"
 DEPLOY_BASE_DIR="/opt/hcy"
 CARTISAN_VERSION="0.1.0-SNAPSHOT"  # 从 pom.xml 自动读取
+SPRING_BOOT_VERSION="3.4.1"        # spring-boot-maven-plugin 版本
 JAVA_BASE_IMAGE="eclipse-temurin:21-jre-alpine"
 NODE_BASE_IMAGE="node:20-alpine"
 ```
@@ -27,7 +28,7 @@ NODE_BASE_IMAGE="node:20-alpine"
 ```bash
 SERVER_IP="43.140.211.9"
 DEPLOY_DIR="/opt/hcy/{project_name}"
-SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段读取
+SERVER_PASSWORD=$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
 ```
 
 ## 交互流程
@@ -49,11 +50,11 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 | 值 | 推导规则 | 示例 |
 |---|---|---|
 | artifactId | 项目名 | hcy_payment |
-| mainClass | 项目名转大驼峰 + Application | HcyPaymentApplication |
+| mainClass | 应用名称（默认项目名转大驼峰）+ Application | HcyPaymentApplication |
 | dockerName | 项目名（连字符转下划线） | hcy_payment |
 | deployDir | DEPLOY_BASE_DIR + / + dockerName | /opt/hcy/hcy_payment |
 | jarName | artifactId + -1.0.0-SNAPSHOT.jar | hcy_payment-1.0.0-SNAPSHOT.jar |
-| packageName | GROUP_ID + . + 项目名（去分隔符） | com.aieducenter.hcypayment |
+| packageName | GROUP_ID + . + 应用名称转小写 | com.aieducenter.hcypayment |
 
 端口号默认值：服务类 8081，网关类 8081，前端 3001。
 
@@ -82,6 +83,7 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
     │       ├── application.yml      # 基础配置 + openapi 签名
     │       ├── application-local.yml
     │       ├── application-prod.yml
+    │       ├── logback-spring.xml   # 日志配置
     │       └── db/migration/
     └── test/
         └── java/com/aieducenter/{pkg}/
@@ -92,12 +94,18 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 - parent: com.cartisan:cartisan-boot:${CARTISAN_VERSION}
 - 依赖: spring-boot-starter-web, spring-boot-starter-data-jpa, spring-boot-starter-data-redis, spring-boot-starter-actuator
 - cartisan: core, web, data-jpa, openapi, test
-- 数据库: postgresql, flyway, druid
-- 工具: hutool, mapstruct, springdoc-openapi
-- build: spring-boot-maven-plugin, pitest (70%)
+- 数据库: postgresql, flyway-core, flyway-database-postgresql, druid-spring-boot-3-starter
+- 工具: hutool-all, mapstruct + mapstruct-processor, lombok + lombok-mapstruct-binding, springdoc-openapi
+- 安全: spring-security-crypto
+- properties: `pitest.junit5.plugin.version=1.2.3`, `postgresql.version=42.7.4`
+- build plugins:
+  - maven-compiler-plugin: source/target 21, `--enable-preview`
+  - maven-surefire-plugin: `--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED`
+  - spring-boot-maven-plugin: version ${SPRING_BOOT_VERSION}, mainClass, jvmArguments `--enable-preview`, repackage goal
+  - pitest-maven: targetClasses=${packageName}.*, mutationThreshold=70, jvmArgs `--enable-preview`
 
 **application.yml 要点：**
-- server.port: ${PORT}
+- server.port: {port}（硬编码端口号）
 - spring.profiles.active: ${SPRING_PROFILES_ACTIVE:local}
 - cartisan.openapi.sign.enabled: true
 - cartisan.openapi.sign.app-id: ${OPENAPI_APP_ID:}
@@ -105,6 +113,10 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 - spring.flyway enabled, locations: classpath:db/migration
 - spring.jpa ddl-auto: none
 - management.endpoints: health
+
+**logback-spring.xml 要点：**
+- com.cartisan: DEBUG
+- com.aieducenter: INFO
 
 **application-local.yml：**
 - postgresql: localhost:5432/{project_name}
@@ -125,9 +137,11 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 
 1. **pom.xml** 额外引入 `cartisan-security`
 2. **application.yml** 额外包含：
-   - Sa-Token 配置（token-name, timeout, active-timeout）
-   - cartisan.security.interceptor 配置（路径匹配规则）
+   - Sa-Token 配置（token-name: Authorization, timeout: 604800, active-timeout: -1）
+   - cartisan.security.interceptor 配置（路径匹配规则：include / exclude patterns）
    - cartisan.openapi 签名配置（作为客户端调用下游服务）
+   - flyway.table: {project_name}_flyway_schema_history
+   - flyway.baseline-on-migrate: true
 3. **.env.production.example** 额外包含 Sa-Token 和 OpenAPI 相关配置
 
 ### 前端 (Frontend)
@@ -142,7 +156,7 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 ├── Dockerfile                       # 多阶段构建: node:20-alpine
 ├── docker-compose.prod.yml          # webnet + BACKEND_URL
 ├── .env.production.example          # BACKEND_URL
-├── deploy.sh                        # 服务器端构建 + 部署
+├── deploy.sh                        # Docker Compose 构建 + 部署
 ├── publish.sh                       # rsync 上传 + 远程部署
 ├── .gitignore
 ├── next.config.mjs                  # standalone output + API rewrite
@@ -157,12 +171,13 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
     │   └── globals.css              # Tailwind 基础样式
     ├── lib/
     │   └── utils.ts                 # cn() 工具函数
-    └── middleware.ts                # 认证中间件
+    └── public/
+        └── .gitkeep                 # 静态资源目录
 ```
 
 **package.json 要点：**
 - next, react, react-dom
-- tailwindcss, postcss, autoprefixer
+- tailwindcss, postcss, autoprefixer, tailwindcss-animate
 - @radix-ui 相关 (shadcn/ui 基础)
 - zustand (状态管理)
 - lucide-react (图标)
@@ -174,12 +189,12 @@ SSHPASS_FILE=".env.production"  # 密码从此文件的 SERVER_PASSWORD 字段�
 - builder: 构建 Next.js standalone output
 - runner: 生产运行时，非 root 用户，仅复制必要文件
 
-**deploy.sh（前端特殊）：**
-- 服务器上执行 pnpm install + pnpm build（在 Docker 内）
-- 不需要本地构建产物
+**deploy.sh（前端）：**
+- 通过 Docker Compose 触发多阶段构建，Dockerfile 内执行 pnpm install + build
+- deploy.sh 本身只调用 `docker compose build && up -d`
 
-**publish.sh（前端特殊）：**
-- rsync 排除 node_modules, .next, .git, docs
+**publish.sh（前端）：**
+- rsync 排除 node_modules, .next, .git, docs, .claude（不使用 --delete）
 - 只上传源码和 Docker 配置
 
 ## 部署脚本设计
@@ -200,9 +215,11 @@ MAX_WAIT=30
 3. docker compose -f $COMPOSE_FILE down
 4. docker compose -f $COMPOSE_FILE build
 5. docker compose -f $COMPOSE_FILE up -d
-6. 等待健康检查通过（循环 curl，最多 MAX_WAIT 秒）
+6. 等待健康检查通过（循环 wget/curl，最多 MAX_WAIT 秒）
 7. 输出部署结果
 ```
+
+注意：使用 `docker compose`（v2 插件语法，无连字符）。
 
 ### publish.sh（Java 项目）
 
@@ -212,13 +229,12 @@ SERVER_IP="43.140.211.9"
 DEPLOY_DIR="/opt/hcy/{docker_name}"
 SERVER_PASSWORD=$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
 JAR_FILE="target/{jarName}"
-UPLOAD_FILES="Dockerfile docker-compose.prod.yml deploy.sh .env.production $JAR_FILE"
 
 # ========== 逻辑区 ==========
 1. mvn package -DskipTests
 2. 检查 JAR 文件存在
-3. sshpass -p $PASSWORD scp $UPLOAD_FILES root@$SERVER_IP:$DEPLOY_DIR/
-4. sshpass -p $PASSWORD ssh root@$SERVER_IP "cd $DEPLOY_DIR && chmod +x deploy.sh && ./deploy.sh"
+3. sshpass -p $SERVER_PASSWORD scp $JAR_FILE Dockerfile docker-compose.prod.yml deploy.sh .env.production root@$SERVER_IP:$DEPLOY_DIR/
+4. sshpass -p $SERVER_PASSWORD ssh root@$SERVER_IP "cd $DEPLOY_DIR && chmod +x deploy.sh && ./deploy.sh"
 ```
 
 ### publish.sh（前端项目）
@@ -231,8 +247,117 @@ SERVER_PASSWORD=$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
 RSYNC_EXCLUDE="--exclude node_modules --exclude .next --exclude .git --exclude docs --exclude .claude"
 
 # ========== 逻辑区 ==========
-1. sshpass -p $PASSWORD rsync -avz --delete $RSYNC_EXCLUDE ./ root@$SERVER_IP:$DEPLOY_DIR/
-2. sshpass -p $PASSWORD ssh root@$SERVER_IP "cd $DEPLOY_DIR && chmod +x deploy.sh && ./deploy.sh"
+1. sshpass -p $SERVER_PASSWORD rsync -avz $RSYNC_EXCLUDE ./ root@$SERVER_IP:$DEPLOY_DIR/
+2. sshpass -p $SERVER_PASSWORD ssh root@$SERVER_IP "cd $DEPLOY_DIR && chmod +x deploy.sh && ./deploy.sh"
+```
+
+## Dockerfile 模板
+
+### Java 项目 Dockerfile
+
+```dockerfile
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+RUN apk add --no-cache tzdata curl && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+COPY target/{jarName} app.jar
+EXPOSE {port}
+ENTRYPOINT ["java", "--enable-preview", "-Duser.timezone=Asia/Shanghai", "-jar", "app.jar"]
+```
+
+### 前端 Dockerfile（多阶段）
+
+```dockerfile
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable && pnpm build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
+EXPOSE {port}
+ENV PORT={port}
+CMD ["node", "server.js"]
+```
+
+## docker-compose.prod.yml 模板
+
+### Java 项目
+
+```yaml
+services:
+  {docker_name}:
+    build: .
+    container_name: {docker_name}
+    restart: unless-stopped
+    ports:
+      - "{port}:{port}"
+    env_file:
+      - .env.production
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:{port}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  webnet:
+    external: true
+```
+
+### 前端项目
+
+```yaml
+services:
+  {docker_name}:
+    build: .
+    container_name: {docker_name}
+    restart: unless-stopped
+    ports:
+      - "{port}:{port}"
+    env_file:
+      - .env.production
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:{port}/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  webnet:
+    external: true
 ```
 
 ## .env.production.example 模板
@@ -240,6 +365,9 @@ RSYNC_EXCLUDE="--exclude node_modules --exclude .next --exclude .git --exclude d
 ### Java 项目
 
 ```env
+# Spring Profile
+SPRING_PROFILES_ACTIVE=prod
+
 # 数据库
 SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/{project_name}
 SPRING_DATASOURCE_USERNAME=
@@ -282,3 +410,5 @@ SERVER_PASSWORD=
 - 不初始化 git（用户自己决定何时 init）
 - 不预装 shadcn/ui 组件（用户按需添加）
 - 不生成业务代码（Controller/Service/Repository 等）
+- 不导入 cartisan-dependencies BOM（parent POM 已管理依赖版本）
+- 不生成 middleware.ts（前端 API 代理通过 next.config.mjs rewrites 实现，更简洁）
