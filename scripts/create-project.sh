@@ -417,11 +417,682 @@ EOF
 # ----------------------------------------------------------------------------
 
 generate_service() {
-  echo "TODO: generate service project for $project_name"
+  generate_java_common
+
+  # --- 目录结构 ---
+  mkdir -p "$project_name/src/main/java/$packagePath"
+  mkdir -p "$project_name/src/main/resources/db/migration"
+  mkdir -p "$project_name/src/test/java/$packagePath"
+
+  # --- pom.xml ---
+  cat << EOF > "$project_name/pom.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-boot</artifactId>
+        <version>${CARTISAN_VERSION}</version>
+    </parent>
+
+    <groupId>${GROUP_ID}</groupId>
+    <artifactId>${artifactId}</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <postgresql.version>42.7.4</postgresql.version>
+        <pitest.junit5.plugin.version>1.2.3</pitest.junit5.plugin.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>10.18.0</version>
+        </dependency>
+
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>\${postgresql.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Cartisan Modules -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-core</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-web</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-data-jpa</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-openapi</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+
+        <!-- Security -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Utilities -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok-mapstruct-binding</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-test</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${SPRING_BOOT_VERSION}</version>
+                <configuration>
+                    <mainClass>${packageName}.${mainClass}</mainClass>
+                    <jvmArguments>--enable-preview</jvmArguments>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>\${pitest.junit5.plugin.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetClasses>
+                        <param>${packageName}.*</param>
+                    </targetClasses>
+                    <mutators>DEFAULTS</mutators>
+                    <mutationThreshold>70</mutationThreshold>
+                    <jvmArgs>
+                        <arg>--enable-preview</arg>
+                    </jvmArgs>
+                    <threads>2</threads>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+EOF
+
+  # --- application.yml ---
+  cat << EOF > "$project_name/src/main/resources/application.yml"
+server:
+  port: ${port}
+
+spring:
+  application:
+    name: ${project_name}
+  profiles:
+    active: \${SPRING_PROFILES_ACTIVE:local}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+# OpenAPI 签名配置
+cartisan:
+  openapi:
+    sign:
+      enabled: true
+      app-id: \${OPENAPI_APP_ID:}
+      app-secret: \${OPENAPI_APP_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+EOF
+
+  # --- application-local.yml ---
+  cat << EOF > "$project_name/src/main/resources/application-local.yml"
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${project_name}
+    username: aiedu
+    password: dev123
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+spring.jpa.show-sql: true
+EOF
+
+  # --- application-prod.yml ---
+  cat << EOF > "$project_name/src/main/resources/application-prod.yml"
+spring:
+  datasource:
+    url: \${SPRING_DATASOURCE_URL}
+    username: \${SPRING_DATASOURCE_USERNAME}
+    password: \${SPRING_DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: \${REDIS_HOST}
+      port: \${REDIS_PORT:6379}
+
+spring.jpa.show-sql: false
+logging.level.root: INFO
+EOF
+
+  # --- logback-spring.xml ---
+  cat << 'EOF' > "$project_name/src/main/resources/logback-spring.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <logger name="com.cartisan" level="DEBUG"/>
+    <logger name="com.aieducenter" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+EOF
+
+  # --- MainApplication.java ---
+  cat << EOF > "$project_name/src/main/java/$packagePath/${mainClass}.java"
+package ${packageName};
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ${mainClass} {
+    public static void main(String[] args) {
+        SpringApplication.run(${mainClass}.class, args);
+    }
+}
+EOF
+
+  # --- ApplicationTest.java ---
+  cat << EOF > "$project_name/src/test/java/$packagePath/${mainClass}Test.java"
+package ${packageName};
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class ${mainClass}Test {
+    @Test
+    void contextLoads() {
+    }
+}
+EOF
+
+  # --- db/migration/.gitkeep ---
+  touch "$project_name/src/main/resources/db/migration/.gitkeep"
 }
 
 generate_gateway() {
-  echo "TODO: generate gateway project for $project_name"
+  generate_java_common
+
+  # --- 目录结构 ---
+  mkdir -p "$project_name/src/main/java/$packagePath"
+  mkdir -p "$project_name/src/main/resources/db/migration"
+  mkdir -p "$project_name/src/test/java/$packagePath"
+
+  # --- pom.xml ---
+  cat << EOF > "$project_name/pom.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.cartisan</groupId>
+        <artifactId>cartisan-boot</artifactId>
+        <version>${CARTISAN_VERSION}</version>
+    </parent>
+
+    <groupId>${GROUP_ID}</groupId>
+    <artifactId>${artifactId}</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <postgresql.version>42.7.4</postgresql.version>
+        <pitest.junit5.plugin.version>1.2.3</pitest.junit5.plugin.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>10.18.0</version>
+        </dependency>
+
+        <!-- PostgreSQL -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>\${postgresql.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Cartisan Modules -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-core</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-web</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-data-jpa</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-openapi</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-security</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+        </dependency>
+
+        <!-- Security -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+
+        <!-- Utilities -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok-mapstruct-binding</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-3-starter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-test</artifactId>
+            <version>${CARTISAN_VERSION}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--enable-preview --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${SPRING_BOOT_VERSION}</version>
+                <configuration>
+                    <mainClass>${packageName}.${mainClass}</mainClass>
+                    <jvmArguments>--enable-preview</jvmArguments>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>\${pitest.junit5.plugin.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetClasses>
+                        <param>${packageName}.*</param>
+                    </targetClasses>
+                    <mutators>DEFAULTS</mutators>
+                    <mutationThreshold>70</mutationThreshold>
+                    <jvmArgs>
+                        <arg>--enable-preview</arg>
+                    </jvmArgs>
+                    <threads>2</threads>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+EOF
+
+  # --- application.yml ---
+  cat << EOF > "$project_name/src/main/resources/application.yml"
+server:
+  port: ${port}
+
+spring:
+  application:
+    name: ${project_name}
+  profiles:
+    active: \${SPRING_PROFILES_ACTIVE:local}
+  flyway:
+    enabled: true
+    table: ${project_name}_flyway_schema_history
+    baseline-on-migrate: true
+    baseline-version: "0"
+    locations: classpath:db/migration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+# Security 拦截配置
+cartisan:
+  security:
+    interceptor:
+      path-patterns:
+        - "/**"
+      exclude-path-patterns:
+        - "/error"
+        - "/actuator/**"
+        - "/auth/login"
+        - "/auth/captcha"
+        - "/health"
+        - "/swagger-ui/**"
+        - "/api-docs/**"
+  openapi:
+    sign:
+      enabled: true
+      app-id: \${OPENAPI_APP_ID:}
+      app-secret: \${OPENAPI_APP_SECRET:}
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization
+  timeout: 604800
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: never
+EOF
+
+  # --- application-local.yml ---
+  cat << EOF > "$project_name/src/main/resources/application-local.yml"
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${project_name}
+    username: aiedu
+    password: dev123
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+spring.jpa.show-sql: true
+EOF
+
+  # --- application-prod.yml ---
+  cat << EOF > "$project_name/src/main/resources/application-prod.yml"
+spring:
+  datasource:
+    url: \${SPRING_DATASOURCE_URL}
+    username: \${SPRING_DATASOURCE_USERNAME}
+    password: \${SPRING_DATASOURCE_PASSWORD}
+  data:
+    redis:
+      host: \${REDIS_HOST}
+      port: \${REDIS_PORT:6379}
+
+spring.jpa.show-sql: false
+logging.level.root: INFO
+EOF
+
+  # --- logback-spring.xml ---
+  cat << 'EOF' > "$project_name/src/main/resources/logback-spring.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <logger name="com.cartisan" level="DEBUG"/>
+    <logger name="com.aieducenter" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+EOF
+
+  # --- MainApplication.java ---
+  cat << EOF > "$project_name/src/main/java/$packagePath/${mainClass}.java"
+package ${packageName};
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ${mainClass} {
+    public static void main(String[] args) {
+        SpringApplication.run(${mainClass}.class, args);
+    }
+}
+EOF
+
+  # --- ApplicationTest.java ---
+  cat << EOF > "$project_name/src/test/java/$packagePath/${mainClass}Test.java"
+package ${packageName};
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class ${mainClass}Test {
+    @Test
+    void contextLoads() {
+    }
+}
+EOF
+
+  # --- db/migration/.gitkeep ---
+  touch "$project_name/src/main/resources/db/migration/.gitkeep"
 }
 
 generate_frontend() {
