@@ -392,9 +392,9 @@ EOF
 SPRING_PROFILES_ACTIVE=prod
 
 # 数据库
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${project_name}
-SPRING_DATASOURCE_USERNAME=
-SPRING_DATASOURCE_PASSWORD=
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/aieducenter
+SPRING_DATASOURCE_USERNAME=aiedu
+SPRING_DATASOURCE_PASSWORD=dev123
 
 # Redis
 REDIS_HOST=redis
@@ -407,6 +407,9 @@ OPENAPI_APP_SECRET=
 # 服务器部署（publish.sh 使用）
 SERVER_PASSWORD=
 EOF
+
+  # 同时生成 .env.production（填入实际值）
+  cp "$project_name/.env.production.example" "$project_name/.env.production"
 
   # 设置可执行权限
   chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
@@ -664,7 +667,7 @@ EOF
   cat << EOF > "$project_name/src/main/resources/application-local.yml"
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/${project_name}
+    url: jdbc:postgresql://localhost:5432/aieducenter
     username: aiedu
     password: dev123
   data:
@@ -1018,7 +1021,7 @@ EOF
   cat << EOF > "$project_name/src/main/resources/application-local.yml"
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/${project_name}
+    url: jdbc:postgresql://localhost:5432/aieducenter
     username: aiedu
     password: dev123
   data:
@@ -1452,6 +1455,9 @@ BACKEND_URL=http://${BACKEND_SERVICE}:8081
 SERVER_PASSWORD=
 EOF
 
+  # 同时生成 .env.production（填入实际值）
+  cp "$project_name/.env.production.example" "$project_name/.env.production"
+
   # --- .gitignore ---
   cat << 'EOF' > "$project_name/.gitignore"
 node_modules/
@@ -1599,14 +1605,12 @@ echo "========================================="
 case "$PROJECT_TYPE" in
   service|gateway)
     echo "  cd $project_name"
-    echo "  cp .env.production.example .env.production"
-    echo "  # 编辑 .env.production"
+    echo "  # 编辑 .env.production 中的 OPENAPI_APP_ID / SERVER_PASSWORD"
     echo "  mvn install"
     ;;
   frontend)
     echo "  cd $project_name"
-    echo "  cp .env.production.example .env.production"
-    echo "  # 编辑 .env.production"
+    echo "  # 编辑 .env.production 中的 SERVER_PASSWORD"
     echo "  pnpm install"
     ;;
 esac
