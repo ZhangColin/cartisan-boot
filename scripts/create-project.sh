@@ -295,7 +295,7 @@ PUBLISH_HEAD
   # SERVER_PATH needs variable substitution, SERVER_PASSWORD needs escaping
   cat << EOF >> "$project_name/publish.sh"
 SERVER_PATH="${deployDir}"
-SERVER_PASSWORD=\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
+SERVER_PASSWORD=Hcy@20260327\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
 
 EOF
 
@@ -405,7 +405,7 @@ OPENAPI_APP_ID=
 OPENAPI_APP_SECRET=
 
 # 服务器部署（publish.sh 使用）
-SERVER_PASSWORD=
+SERVER_PASSWORD=Hcy@20260327
 EOF
 
   # 同时生成 .env.production（填入实际值）
@@ -1405,7 +1405,7 @@ PUBLISH_HEAD
 
   cat << EOF >> "$project_name/publish.sh"
 SERVER_PATH="${deployDir}"
-SERVER_PASSWORD=\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
+SERVER_PASSWORD=Hcy@20260327\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
 
 EOF
 
@@ -1452,7 +1452,7 @@ PUBLISH_BODY
 BACKEND_URL=http://${BACKEND_SERVICE}:8081
 
 # 服务器部署（publish.sh 使用）
-SERVER_PASSWORD=
+SERVER_PASSWORD=Hcy@20260327
 EOF
 
   # 同时生成 .env.production（填入实际值）
