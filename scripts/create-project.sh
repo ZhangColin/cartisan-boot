@@ -92,7 +92,7 @@ case "$type_choice" in
 esac
 
 # 项目名
-read -p "请输入项目名 (例: hcy_payment): " project_name
+read -p "请输入项目名 (例: aieducenter-admin): " project_name
 if [ -z "$project_name" ]; then
   echo "错误: 项目名不能为空"
   exit 1
@@ -391,13 +391,13 @@ EOF
 # Spring Profile
 SPRING_PROFILES_ACTIVE=prod
 
-# 数据库
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/aieducenter
-SPRING_DATASOURCE_USERNAME=aiedu
-SPRING_DATASOURCE_PASSWORD=dev123
+# 数据库连接（通过 webnet 网络直连 PG 容器）
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-server:5432/aieducenter
+SPRING_DATASOURCE_USERNAME=hcy_pgsql
+SPRING_DATASOURCE_PASSWORD=hcy_admin_pgsql
 
-# Redis
-REDIS_HOST=redis
+# Redis（通过 webnet 网络直连已有 Redis 容器）
+REDIS_HOST=redis-cache
 REDIS_PORT=6379
 
 # OpenAPI 签名
