@@ -58,6 +58,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Data Redis (optional, for RedisNonceRepository) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Lombok (compile time) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
