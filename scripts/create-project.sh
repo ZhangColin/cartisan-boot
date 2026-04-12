@@ -33,8 +33,6 @@ CARTISAN_VERSION="${CARTISAN_VERSION:-0.1.0-SNAPSHOT}"
 to_camel_case() {
   local input="$1"
   local result=""
-  local capitalize_next=true
-
   # Replace underscores and hyphens with spaces for word splitting
   local normalized
   normalized=$(echo "$input" | tr '_-' '  ')
