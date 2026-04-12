@@ -1096,7 +1096,487 @@ EOF
 }
 
 generate_frontend() {
-  echo "TODO: generate frontend project for $project_name"
+  # --- 目录结构 ---
+  mkdir -p "$project_name/src/app"
+  mkdir -p "$project_name/src/lib"
+  mkdir -p "$project_name/src/public"
+
+  # --- package.json ---
+  cat << EOF > "$project_name/package.json"
+{
+  "name": "${project_name}",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p ${port}",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lucide-react": "^0.577.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.12",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.2.0",
+    "class-variance-authority": "^0.7.1",
+    "next-themes": "^0.4.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^10.0.3",
+    "eslint-config-next": "^16.1.6",
+    "postcss": "^8.4.47",
+    "tailwindcss": "3.4.19",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.0.0"
+  }
+}
+EOF
+
+  # --- next.config.mjs ---
+  cat << 'EOF' > "$project_name/next.config.mjs"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  output: 'standalone',
+  rewrites: async () => {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8081'
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ]
+  },
+}
+
+export default nextConfig
+EOF
+
+  # --- tsconfig.json ---
+  cat << 'EOF' > "$project_name/tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+EOF
+
+  # --- tailwind.config.ts ---
+  cat << 'EOF' > "$project_name/tailwind.config.ts"
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  darkMode: 'class',
+  content: [
+    './src/**/*.{ts,tsx}',
+  ],
+  theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
+    extend: {
+      colors: {
+        primary: '#308ce8',
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+}
+
+export default config
+EOF
+
+  # --- postcss.config.mjs ---
+  cat << 'EOF' > "$project_name/postcss.config.mjs"
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+export default config
+EOF
+
+  # --- .eslintrc.json ---
+  cat << 'EOF' > "$project_name/.eslintrc.json"
+{
+  "extends": "next/core-web-vitals"
+}
+EOF
+
+  # --- Dockerfile (3-stage multi-stage build) ---
+  cat << EOF > "$project_name/Dockerfile"
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable && pnpm install --frozen-lockfile || pnpm install
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable && pnpm build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN addgroup --system --gid 1001 nodejs && \\
+    adduser --system --uid 1001 nextjs
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+USER nextjs
+EXPOSE ${port}
+ENV PORT=${port}
+CMD ["node", "server.js"]
+EOF
+
+  # --- docker-compose.prod.yml ---
+  cat << EOF > "$project_name/docker-compose.prod.yml"
+services:
+  app:
+    build: .
+    container_name: ${dockerName}
+    restart: unless-stopped
+    ports:
+      - "${port}:${port}"
+    env_file:
+      - .env.production
+    networks:
+      - webnet
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${port}/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  webnet:
+    external: true
+EOF
+
+  # --- deploy.sh ---
+  cat << 'DEPLOY_EOF' > "$project_name/deploy.sh"
+#!/bin/bash
+set -e
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# 步骤 1：检查 .env.production
+if [ ! -f .env.production ]; then
+  error "找不到 .env.production 文件"
+  exit 1
+fi
+info "环境配置文件检查通过"
+
+# 步骤 2：停止旧容器
+docker compose -f docker-compose.prod.yml down 2>/dev/null || true
+info "旧容器已停止"
+
+# 步骤 3：构建镜像
+info "正在构建 Docker 镜像..."
+docker compose -f docker-compose.prod.yml build
+info "镜像构建完成"
+
+# 步骤 4：启动容器
+info "正在启动容器..."
+docker compose -f docker-compose.prod.yml up -d
+info "容器已启动"
+
+# 步骤 5：等待健康检查
+info "正在等待健康检查..."
+MAX_WAIT=30
+ELAPSED=0
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+  STATUS=$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.prod.yml ps -q) 2>/dev/null || echo "unknown")
+  if [ "$STATUS" = "healthy" ]; then
+    break
+  fi
+  sleep 1
+  ELAPSED=$((ELAPSED + 1))
+done
+
+# 步骤 6：输出结果
+if [ "$STATUS" = "healthy" ]; then
+  info "部署成功！容器状态: healthy"
+else
+  warn "健康检查超时（${MAX_WAIT}s），当前状态: $STATUS"
+  warn "请手动检查: docker compose -f docker-compose.prod.yml logs"
+fi
+DEPLOY_EOF
+
+  # --- publish.sh ---
+  cat << 'PUBLISH_HEAD' > "$project_name/publish.sh"
+#!/bin/bash
+set -e
+
+# ========== 配置区 ==========
+SERVER_USER="root"
+SERVER_HOST="43.140.211.9"
+PUBLISH_HEAD
+
+  cat << EOF >> "$project_name/publish.sh"
+SERVER_PATH="${deployDir}"
+SERVER_PASSWORD=\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
+
+EOF
+
+  cat << 'PUBLISH_BODY' >> "$project_name/publish.sh"
+# ========== 逻辑区 ==========
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
+warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# 1. 检查 sshpass
+if ! command -v sshpass &>/dev/null; then
+  error "sshpass 未安装"
+  echo "请执行: brew install hudochenkov/sshpass/sshpass"
+  exit 1
+fi
+
+# 2. rsync 到服务器
+info "正在上传文件到服务器..."
+sshpass -p "$SERVER_PASSWORD" rsync -avz \
+  --exclude node_modules \
+  --exclude .next \
+  --exclude .git \
+  --exclude docs \
+  --exclude .claude \
+  ./ "${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/"
+
+# 3. SSH 执行部署
+info "正在远程部署..."
+sshpass -p "$SERVER_PASSWORD" ssh "${SERVER_USER}@${SERVER_HOST}" "cd ${SERVER_PATH} && chmod +x deploy.sh && bash deploy.sh"
+
+info "部署完成！"
+PUBLISH_BODY
+
+  # --- .env.production.example ---
+  cat << EOF > "$project_name/.env.production.example"
+# 后端 API 地址
+BACKEND_URL=http://${BACKEND_SERVICE}:8081
+
+# 服务器部署（publish.sh 使用）
+SERVER_PASSWORD=
+EOF
+
+  # --- .gitignore ---
+  cat << 'EOF' > "$project_name/.gitignore"
+node_modules/
+.next/
+out/
+.env.production
+.env*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+EOF
+
+  # --- src/app/layout.tsx ---
+  cat << 'EOF' > "$project_name/src/app/layout.tsx"
+import './globals.css'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="zh-CN">
+      <body>{children}</body>
+    </html>
+  )
+}
+EOF
+
+  # --- src/app/page.tsx ---
+  cat << 'EOF' > "$project_name/src/app/page.tsx"
+export default function Home() {
+  return (
+    <main className="flex min-h-screen items-center justify-center">
+      <h1 className="text-4xl font-bold">Welcome</h1>
+    </main>
+  )
+}
+EOF
+
+  # --- src/app/globals.css ---
+  cat << 'EOF' > "$project_name/src/app/globals.css"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+EOF
+
+  # --- src/lib/utils.ts ---
+  cat << 'EOF' > "$project_name/src/lib/utils.ts"
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+EOF
+
+  # --- src/public/.gitkeep ---
+  touch "$project_name/src/public/.gitkeep"
+
+  # 设置可执行权限
+  chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
 }
 
 # ----------------------------------------------------------------------------
