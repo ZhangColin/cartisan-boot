@@ -58,13 +58,6 @@ to_package_name() {
   echo "$input" | tr '[:upper:]' '[:lower:]' | tr -d '_-'
 }
 
-# Replace hyphens with underscores
-# e.g., my-project -> my_project
-to_snake_case() {
-  local input="$1"
-  echo "$input" | tr '-' '_'
-}
-
 # ----------------------------------------------------------------------------
 # 交互流程
 # ----------------------------------------------------------------------------
@@ -125,7 +118,7 @@ fi
 # ----------------------------------------------------------------------------
 artifactId="$project_name"
 mainClass="${app_name}Application"
-dockerName=$(to_snake_case "$project_name")
+dockerName=$(echo "$project_name" | tr '_' '-')
 deployDir="${DEPLOY_BASE_DIR}/${dockerName}"
 jarName="${artifactId}-1.0.0-SNAPSHOT.jar"
 packageName="${GROUP_ID}.$(to_package_name "$app_name")"
@@ -280,6 +273,9 @@ else
   warn "健康检查超时（${MAX_WAIT}s），当前状态: $STATUS"
   warn "请手动检查: docker compose -f docker-compose.prod.yml logs"
 fi
+
+# 步骤 8：清理悬空镜像
+docker image prune -f >/dev/null 2>&1 || true
 DEPLOY_EOF2
 
   # --- publish.sh ---
@@ -295,7 +291,7 @@ PUBLISH_HEAD
   # SERVER_PATH needs variable substitution, SERVER_PASSWORD needs escaping
   cat << EOF >> "$project_name/publish.sh"
 SERVER_PATH="${deployDir}"
-SERVER_PASSWORD=Hcy@20260327\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
+SERVER_PASSWORD="Hcy@20260327"
 
 EOF
 
@@ -311,6 +307,9 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+SSH_CMD="sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no"
+RSYNC_CMD="sshpass -p $SERVER_PASSWORD rsync"
 
 # 1. 本地构建
 info "正在构建项目..."
@@ -343,7 +342,8 @@ PUBLISH_EOF3A
 
   # JAR file copy needs variable substitution
   cat << EOF >> "$project_name/publish.sh"
-cp "target/${jarName}" "\$TMP_DIR/"
+mkdir -p "\$TMP_DIR/target"
+cp "target/${jarName}" "\$TMP_DIR/target/"
 EOF
 
   cat << 'PUBLISH_EOF3B' >> "$project_name/publish.sh"
@@ -354,11 +354,12 @@ cp .env.production "$TMP_DIR/"
 
 # 5. rsync 到服务器
 info "正在上传文件到服务器..."
-sshpass -p "$SERVER_PASSWORD" rsync -avz "$TMP_DIR/" "${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/"
+$SSH_CMD ${SERVER_USER}@${SERVER_HOST} "mkdir -p ${SERVER_PATH}/target"
+$RSYNC_CMD -avz -e "ssh -o StrictHostKeyChecking=no" "$TMP_DIR/" ${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/
 
 # 6. SSH 执行部署
 info "正在远程部署..."
-sshpass -p "$SERVER_PASSWORD" ssh "${SERVER_USER}@${SERVER_HOST}" "cd ${SERVER_PATH} && chmod +x deploy.sh && bash deploy.sh"
+$SSH_CMD ${SERVER_USER}@${SERVER_HOST} "cd ${SERVER_PATH} && chmod +x deploy.sh && bash deploy.sh"
 
 # 7. 清理临时目录
 rm -rf "$TMP_DIR"
@@ -410,6 +411,71 @@ EOF
 
   # 同时生成 .env.production（填入实际值）
   cp "$project_name/.env.production.example" "$project_name/.env.production"
+
+  # --- CLAUDE.md ---
+  cat << EOF > "$project_name/CLAUDE.md"
+# ${project_name}
+
+${PROJECT_TYPE} 服务，基于 cartisan-boot 框架。
+
+## 技术栈
+
+- Java 21 / Spring Boot 3.4.x / Maven
+- 持久化：Spring Data JPA + PostgreSQL / Redis
+- 测试：JUnit 5 + AssertJ + Mockito
+
+## 架构约束
+
+- DDD 分层架构：controller / application / domain / infrastructure
+- 构造函数注入，禁止 @Autowired 字段注入
+- 金额使用 BigDecimal，禁止浮点数
+
+## 编码规范
+
+- DTO 使用 Java Record，构造函数校验不变量
+- 测试使用 AssertJ，测试命名：shouldX 或 shouldX_whenY
+- 主类：${packageName}.${mainClass}
+
+## 常用命令
+
+- 编译：\`mvn compile\`
+- 单元测试：\`mvn test\`
+- 打包：\`mvn package -DskipTests\`
+- 变异测试：\`mvn org.pitest:pitest-maven:mutationCoverage\`
+
+## 开发流程
+
+使用 Superpowers 技能驱动开发，按需求规模分层：
+
+- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
+- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
+- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
+EOF
+
+  # --- .claude/settings.local.json ---
+  mkdir -p "$project_name/.claude"
+  cat << 'SETTINGS_EOF' > "$project_name/.claude/settings.local.json"
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "WebSearch",
+      "Skill(update-config)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)"
+    ]
+  }
+}
+SETTINGS_EOF
 
   # 设置可执行权限
   chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
@@ -636,6 +702,9 @@ spring:
     active: \${SPRING_PROFILES_ACTIVE:local}
   flyway:
     enabled: true
+    table: ${project_name}_flyway_schema_history
+    baseline-on-migrate: true
+    baseline-version: "0"
     locations: classpath:db/migration
   datasource:
     driver-class-name: org.postgresql.Driver
@@ -651,6 +720,7 @@ cartisan:
       enabled: true
       app-id: \${OPENAPI_APP_ID:}
       app-secret: \${OPENAPI_APP_SECRET:}
+      apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
 
 management:
   endpoints:
@@ -996,6 +1066,7 @@ cartisan:
       enabled: true
       app-id: \${OPENAPI_APP_ID:}
       app-secret: \${OPENAPI_APP_SECRET:}
+      apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
 
 # Sa-Token 配置
 sa-token:
@@ -1391,6 +1462,9 @@ else
   warn "健康检查超时（${MAX_WAIT}s），当前状态: $STATUS"
   warn "请手动检查: docker compose -f docker-compose.prod.yml logs"
 fi
+
+# 步骤 7：清理悬空镜像
+docker image prune -f >/dev/null 2>&1 || true
 DEPLOY_EOF
 
   # --- publish.sh ---
@@ -1405,7 +1479,7 @@ PUBLISH_HEAD
 
   cat << EOF >> "$project_name/publish.sh"
 SERVER_PATH="${deployDir}"
-SERVER_PASSWORD=Hcy@20260327\$(grep SERVER_PASSWORD .env.production | cut -d= -f2)
+SERVER_PASSWORD="Hcy@20260327"
 
 EOF
 
@@ -1422,6 +1496,9 @@ info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+SSH_CMD="sshpass -p $SERVER_PASSWORD ssh -o StrictHostKeyChecking=no"
+RSYNC_CMD="sshpass -p $SERVER_PASSWORD rsync"
+
 # 1. 检查 sshpass
 if ! command -v sshpass &>/dev/null; then
   error "sshpass 未安装"
@@ -1431,17 +1508,17 @@ fi
 
 # 2. rsync 到服务器
 info "正在上传文件到服务器..."
-sshpass -p "$SERVER_PASSWORD" rsync -avz \
+$RSYNC_CMD -avz -e "ssh -o StrictHostKeyChecking=no" \
   --exclude node_modules \
   --exclude .next \
   --exclude .git \
   --exclude docs \
   --exclude .claude \
-  ./ "${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/"
+  ./ ${SERVER_USER}@${SERVER_HOST}:${SERVER_PATH}/
 
 # 3. SSH 执行部署
 info "正在远程部署..."
-sshpass -p "$SERVER_PASSWORD" ssh "${SERVER_USER}@${SERVER_HOST}" "cd ${SERVER_PATH} && chmod +x deploy.sh && bash deploy.sh"
+$SSH_CMD ${SERVER_USER}@${SERVER_HOST} "cd ${SERVER_PATH} && chmod +x deploy.sh && bash deploy.sh"
 
 info "部署完成！"
 PUBLISH_BODY
@@ -1580,6 +1657,66 @@ EOF
 
   # --- src/public/.gitkeep ---
   touch "$project_name/src/public/.gitkeep"
+
+  # --- CLAUDE.md ---
+  cat << EOF > "$project_name/CLAUDE.md"
+# ${project_name}
+
+前端项目，基于 Next.js。
+
+## 技术栈
+
+- Next.js 15 / React 19 / TypeScript
+- Tailwind CSS / Zustand
+- pnpm 包管理
+
+## 编码规范
+
+- 函数组件 + hooks，禁止 class 组件
+- TypeScript strict 模式
+- 路径别名：\`@/*\` 映射 \`./src/*\`
+- 端口：${port}
+
+## 常用命令
+
+- 开发：\`pnpm dev\`
+- 构建：\`pnpm build\`
+- 代码检查：\`pnpm lint\`
+- 类型检查：\`pnpm typecheck\`
+
+## 开发流程
+
+使用 Superpowers 技能驱动开发，按需求规模分层：
+
+- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
+- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
+- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
+EOF
+
+  # --- .claude/settings.local.json ---
+  mkdir -p "$project_name/.claude"
+  cat << 'SETTINGS_EOF' > "$project_name/.claude/settings.local.json"
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(cd *)",
+      "Bash(mkdir *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "WebSearch",
+      "Skill(update-config)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)"
+    ]
+  }
+}
+SETTINGS_EOF
 
   # 设置可执行权限
   chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
