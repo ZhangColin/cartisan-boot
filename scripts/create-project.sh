@@ -716,11 +716,10 @@ spring:
 # OpenAPI 签名配置
 cartisan:
   openapi:
-    sign:
-      enabled: true
+    self:
       app-id: \${OPENAPI_APP_ID:}
       app-secret: \${OPENAPI_APP_SECRET:}
-      apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
+    apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
 
 management:
   endpoints:
@@ -1062,11 +1061,10 @@ cartisan:
         - "/swagger-ui/**"
         - "/api-docs/**"
   openapi:
-    sign:
-      enabled: true
+    self:
       app-id: \${OPENAPI_APP_ID:}
       app-secret: \${OPENAPI_APP_SECRET:}
-      apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
+    apikey-service-url: https://openapi.aieducenter.com/api/v1/api-keys/by-appId
 
 # Sa-Token 配置
 sa-token:
