@@ -3,6 +3,7 @@ package com.cartisan.security.config;
 import com.cartisan.security.annotation.RequireAuth;
 import com.cartisan.security.annotation.RequirePermission;
 import com.cartisan.security.annotation.RequireRole;
+import com.cartisan.security.authorization.AuthorizationBypassResolver;
 import cn.dev33.satoken.stp.StpUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.method.HandlerMethod;
 
 import java.lang.reflect.Method;
@@ -25,6 +27,9 @@ import static org.mockito.Mockito.never;
  * SecurityInterceptor 单元测试。
  * <p>
  * 测试命名规范：given_{条件}_when_{操作}_then_{预期结果}
+ * <p>
+ * 构造注入 mock 的 {@link ObjectProvider}（默认返回 null，即无 bypass resolver），
+ * 验证未提供 resolver 时行为向后兼容。
  */
 @ExtendWith(MockitoExtension.class)
 class SecurityInterceptorTest {
@@ -37,11 +42,15 @@ class SecurityInterceptorTest {
     @Mock
     private HttpServletResponse response;
 
+    @Mock
+    private ObjectProvider<AuthorizationBypassResolver> bypassResolverProvider;
+
     private MockedStatic<StpUtil> mockedStpUtil;
 
     @BeforeEach
     void setUp() {
-        interceptor = new SecurityInterceptor();
+        // bypassResolverProvider 默认 getIfAvailable() 返回 null（无 resolver），验证向后兼容
+        interceptor = new SecurityInterceptor(bypassResolverProvider);
         mockedStpUtil = mockStatic(StpUtil.class);
     }
 

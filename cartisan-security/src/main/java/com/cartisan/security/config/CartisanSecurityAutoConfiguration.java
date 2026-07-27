@@ -2,6 +2,7 @@ package com.cartisan.security.config;
 
 import cn.dev33.satoken.filter.SaTokenContextFilterForJakartaServlet;
 import cn.dev33.satoken.stp.StpUtil;
+import com.cartisan.security.authorization.AuthorizationBypassResolver;
 import com.cartisan.security.authentication.AuthenticationService;
 import com.cartisan.security.authentication.SaTokenAuthenticationService;
 import com.cartisan.security.config.properties.CartisanSecurityProperties;
@@ -46,8 +47,9 @@ public class CartisanSecurityAutoConfiguration implements WebMvcConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
-    public SecurityInterceptor securityInterceptor() {
-        return new SecurityInterceptor();
+    public SecurityInterceptor securityInterceptor(
+            ObjectProvider<AuthorizationBypassResolver> bypassResolverProvider) {
+        return new SecurityInterceptor(bypassResolverProvider);
     }
 
     @Override

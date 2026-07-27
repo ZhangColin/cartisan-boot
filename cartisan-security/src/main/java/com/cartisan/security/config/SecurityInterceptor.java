@@ -4,8 +4,10 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.cartisan.security.annotation.RequireAuth;
 import com.cartisan.security.annotation.RequirePermission;
 import com.cartisan.security.annotation.RequireRole;
+import com.cartisan.security.authorization.AuthorizationBypassResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -25,8 +27,17 @@ import java.lang.reflect.Method;
  * 注解优先级：方法注解优先于类注解（仅 @RequireAuth 和 @RequireRole）。
  * @RequirePermission 仅支持方法级别注解。
  * 鉴权顺序：@RequireAuth → @RequireRole → @RequirePermission（AND 逻辑）
+ * <p>
+ * 授权 bypass：若应用提供了 {@link AuthorizationBypassResolver} 且对当前 loginId 返回 true，
+ * 则跳过 @RequireRole / @RequirePermission 检查；@RequireAuth 的登录要求不受影响（超管也须先登录）。
  */
 public class SecurityInterceptor implements HandlerInterceptor {
+
+    private final ObjectProvider<AuthorizationBypassResolver> bypassResolverProvider;
+
+    public SecurityInterceptor(ObjectProvider<AuthorizationBypassResolver> bypassResolverProvider) {
+        this.bypassResolverProvider = bypassResolverProvider;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request,
@@ -41,10 +52,15 @@ public class SecurityInterceptor implements HandlerInterceptor {
         Method method = handlerMethod.getMethod();
         Class<?> beanType = handlerMethod.getBeanType();
 
-        // @RequireAuth 检查
+        // @RequireAuth 检查（不参与 bypass，超管也须登录）
         RequireAuth requireAuth = findAnnotation(method, beanType, RequireAuth.class);
         if (requireAuth != null && requireAuth.value()) {
             StpUtil.checkLogin();
+        }
+
+        // 授权 bypass：在登录确认之后、角色/权限检查之前判断
+        if (shouldBypassAuthorization()) {
+            return true;
         }
 
         // @RequireRole 检查
@@ -60,6 +76,24 @@ public class SecurityInterceptor implements HandlerInterceptor {
         }
 
         return true;
+    }
+
+    /**
+     * 判断是否跳过授权检查（@RequireRole / @RequirePermission）。
+     * <p>仅在应用提供了 {@link AuthorizationBypassResolver}、当前用户已登录、且 resolver 对其 loginId
+     * 返回 true 时跳过。未登录不 bypass（避免免登录后门），未提供 resolver 时行为不变（向后兼容）。</p>
+     *
+     * @return true 表示跳过授权检查
+     */
+    private boolean shouldBypassAuthorization() {
+        AuthorizationBypassResolver resolver = bypassResolverProvider.getIfAvailable();
+        if (resolver == null) {
+            return false;
+        }
+        if (!StpUtil.isLogin()) {
+            return false;
+        }
+        return resolver.shouldBypass(StpUtil.getLoginIdAsLong());
     }
 
     /**

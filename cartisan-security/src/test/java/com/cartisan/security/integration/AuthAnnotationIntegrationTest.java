@@ -116,4 +116,44 @@ class AuthAnnotationIntegrationTest extends AbstractSecurityIntegrationTest {
             StpUtil.logout(100L);
         }
     }
+
+    @Test
+    @DisplayName("超管（bypass）无权限访问 @RequirePermission 接口应返回 200")
+    void shouldBypassPermissionCheck_whenSuperAdminRequests() throws Exception {
+        // 超管登录（不授予任何权限，依赖 bypass 放行）
+        Long superAdminId = TestAuthorizationBypassResolver.SUPER_ADMIN_ID;
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login/" + superAdminId))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        try {
+            mvc.perform(MockMvcRequestBuilders.get("/test/auth/require-permission")
+                            .header("satoken", token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").value("permission granted"));
+        } finally {
+            StpUtil.logout(superAdminId);
+        }
+    }
+
+    @Test
+    @DisplayName("超管（bypass）无角色访问 @RequireRole 接口应返回 200")
+    void shouldBypassRoleCheck_whenSuperAdminRequests() throws Exception {
+        // 超管登录（不授予任何角色，依赖 bypass 放行）
+        Long superAdminId = TestAuthorizationBypassResolver.SUPER_ADMIN_ID;
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login/" + superAdminId))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        try {
+            mvc.perform(MockMvcRequestBuilders.get("/test/auth/require-admin")
+                            .header("satoken", token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").value("admin access"));
+        } finally {
+            StpUtil.logout(superAdminId);
+        }
+    }
 }
