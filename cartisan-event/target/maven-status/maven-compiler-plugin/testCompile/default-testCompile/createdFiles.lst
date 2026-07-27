@@ -1,5 +1,0 @@
-com/cartisan/event/config/TestConfiguration.class
-com/cartisan/event/example/OrderCreatedEvent.class
-com/cartisan/event/CompositeApplicationEventPublisherTest$1.class
-com/cartisan/event/CompositeApplicationEventPublisherTest.class
-com/cartisan/event/TestEvent.class
