@@ -32,12 +32,16 @@
 - 安装到本地仓库：`mvn install`
 - 打包：`mvn package`
 
-## 开发流程
+## Agent skills
 
-使用 Superpowers 技能驱动开发，按需求规模分层：
+### Issue tracker
 
-- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
-- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
-- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
+Issues 与 specs 以本地 markdown 文件存放在 `.scratch/` 下。详见 `docs/agents/issue-tracker.md`。
 
-阶段性完成后人工触发归档：提取有价值内容到 docs/guide/（功能清单、API 说明、使用示例、注意事项），然后清理过程文档。
+### Triage labels
+
+Triage 使用五个 canonical 角色标签（needs-triage / needs-info / ready-for-agent / ready-for-human / wontfix）。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+Single-context 布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。
