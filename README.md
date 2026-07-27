@@ -127,6 +127,5 @@ cartisan-test ──────────────────────
 - ✅ cartisan-data-query (Epic 04)
 
 **计划中模块**：
-- ⏳ cartisan-ai
 - ⏳ cartisan-storage
 - ⏳ cartisan-payment

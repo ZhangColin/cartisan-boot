@@ -1,7 +1,7 @@
 # Cartisan-boot 框架深度 Review
 
 > Review 日期：2026-04-11（第二轮）
-> 范围：cartisan-core, cartisan-web, cartisan-data-jpa, cartisan-data-query, cartisan-event, cartisan-security, cartisan-ai, cartisan-test, cartisan-openapi
+> 范围：cartisan-core, cartisan-web, cartisan-data-jpa, cartisan-data-query, cartisan-event, cartisan-security, cartisan-test, cartisan-openapi
 
 ---
 
@@ -34,7 +34,6 @@
 | 21 | cartisan-core Spring provided | **已处理** | 文档已更新 |
 | 22 | fastjson2 依赖 | **已处理** | 改用 Jackson |
 | 23 | 没有统一分页请求 DTO | **未处理** | 仍缺失 |
-| 24 | cartisan-ai 缺少 JavaDoc | **未处理** | 仍缺失 |
 | 25 | requestId 未填入 ApiResponse | **已处理** | 9d2a631 |
 
 ---
@@ -196,41 +195,6 @@ HttpResponse<String> response = httpClient.send(request.build(), ...);
 
 ## 三、编码质量问题（遗留 + 新发现）
 
-### [MEDIUM] 11. OpenAiCompatibleClient 无超时配置
-
-**文件**: `cartisan-ai/.../provider/openaicompat/OpenAiCompatibleClient.java:31-33, 42-44`
-
-HttpClient 和 WebClient 都没有配置 connect/read timeout。AI API 调用可能长时间不返回，影响系统稳定性。
-
-```java
-HttpClient httpClient = HttpClient.newBuilder()
-        .version(HttpClient.Version.HTTP_1_1)
-        .build();  // 无 connectTimeout
-
-this.webClient = WebClient.builder()
-        .clientConnector(...)
-        .build();  // 无 responseTimeout
-```
-
-**建议**: 配置合理超时（connectTimeout=10s, readTimeout=60s），并支持外部配置。
-
----
-
-### [MEDIUM] 12. ModelProviderRegistry.chatStream 的 usage 统计用 request.model()
-
-**文件**: `cartisan-ai/.../provider/ModelProviderRegistry.java:81`
-
-```java
-notifyListeners(provider.id(), request.model(), event.usage());  // 请求的模型名
-// 而非流式：
-notifyListeners(provider.id(), response.model(), response.usage());  // 实际模型名
-```
-
-在代理/路由场景下，实际模型可能与请求不同（如 fallback），统计数据不准。
-
-**建议**: 流式场景也应传递实际使用的模型名（从 stream event 中获取）。
-
----
 
 ### [MEDIUM] 13. data-query 依赖 cartisan-web（传递依赖过重）
 
@@ -314,11 +278,6 @@ private Long parseTenantIdFromSession() {
 
 ---
 
-### [LOW] 20. cartisan-ai model 类缺少 JavaDoc
-
-`ChatMessage`、`ChatRequest`、`ChatResponse`、`TokenUsage`、`Role` 等 record 都没有类级别的 JavaDoc。
-
----
 
 ## 优先级总结
 
@@ -332,14 +291,12 @@ private Long parseTenantIdFromSession() {
 | **P1-重要** | #6 | GET 请求 query 参数未参与签名 | ~~已修复 4dfb607~~ |
 | **P1-重要** | #7 | 防重 Key 缺 userId 维度 | web |
 | **P1-重要** | #8 | CachingRequestBodyFilter 无大小限制 | ~~已修复 7626a86~~ |
-| **P1-重要** | #11 | OpenAiCompatibleClient 无超时 | ai |
-| **P1-重要** | #12 | chatStream usage 统计用错 model 名 | ai |
 | **P1-重要** | #13 | data-query 依赖 web（传递依赖过重） | data-query |
 | **P1-重要** | #14 | SecurityFilter 直接调 StpUtil 静态方法 | security |
 | **P1-重要** | #15 | TenantFilter 无租户时静默放行 | security |
 | **P2-改进** | #9 | OpenApiClient 同步阻塞 | openapi |
 | **P2-改进** | #10 | NonceRepository 缺 rate limiting | openapi |
-| **P2-改进** | #16-20 | IP 可信代理、BaseCodeMessage、分页 DTO 等 | 多模块 |
+| **P2-改进** | #16-19 | IP 可信代理、BaseCodeMessage、分页 DTO 等 | 多模块 |
 
 ### 本轮关键发现
 

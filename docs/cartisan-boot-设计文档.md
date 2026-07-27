@@ -117,14 +117,10 @@ cartisan-boot/
 ├── cartisan-data-query/                    # jOOQ 读侧封装
 ├── cartisan-event/                         # 应用事件基础设施
 ├── cartisan-test/                          # 测试工具箱
-├── cartisan-ai/                            # 大模型调用封装
 │
 │  ── 扩展模块（按需实现）──
 ├── cartisan-storage/                       # 文件存储封装
-├── cartisan-payment/                       # 支付对接封装
-│
-│  ── 预留模块（暂不实现）──
-└── cartisan-ai-agent/                      # Agent 框架封装（待生态稳定）
+└── cartisan-payment/                       # 支付对接封装
 ```
 
 ### 3.2 各模块一句话定位
@@ -139,10 +135,8 @@ cartisan-boot/
 | **cartisan-data-query** | 短期实现 | jOOQ 读侧封装：自动配置、分页工具、代码生成配置 |
 | **cartisan-event** | 短期实现 | 应用事件发布/订阅基础设施：Spring Events 桥接，预留消息队列扩展 |
 | **cartisan-test** | 短期实现 | 测试工具箱：ArchUnit 预置规则集、Testcontainers 基类、测试辅助工具 |
-| **cartisan-ai** | 短期实现 | 大模型调用 SPI + 各厂商 Provider 实现 + SSE 流式输出工具 |
 | **cartisan-storage** | 按需实现 | 文件存储 SPI + 各厂商适配器（阿里云 OSS、MinIO 等） |
 | **cartisan-payment** | 按需实现 | 支付 SPI + 各渠道适配器（微信支付、支付宝等） |
-| **cartisan-ai-agent** | 预留 | Agent 编排框架封装。等 LangChain4j / Spring AI Agent 稳定后纳入 |
 
 ---
 
@@ -678,113 +672,7 @@ ApiTestBase
 
 ---
 
-### 4.9 cartisan-ai（大模型调用封装）
-
-#### 包结构
-
-```
-com.cartisan.ai/
-├── model/                 # 统一模型（ChatMessage, ChatCompletion 等）
-├── provider/              # Provider SPI + 各厂商实现
-├── sse/                   # SSE 流式输出工具
-└── config/                # 自动配置
-```
-
-#### 核心设计
-
-**统一对话模型（与具体厂商无关的中间表示）：**
-
-```
-ChatMessage（Record）
-  - role: Role（SYSTEM / USER / ASSISTANT）
-  - content: String
-
-ChatRequest
-  - model: String                          — 模型标识（gpt-4o, claude-sonnet-4 等）
-  - messages: List<ChatMessage>
-  - temperature: Double（可选）
-  - maxTokens: Integer（可选）
-  - stream: boolean
-
-ChatResponse（Record）
-  - content: String
-  - model: String                          — 实际使用的模型
-  - usage: TokenUsage                      — Token 消耗统计
-
-TokenUsage（Record）
-  - promptTokens: int
-  - completionTokens: int
-  - totalTokens: int
-
-ChatStreamEvent（Record）
-  - delta: String                          — 增量内容
-  - finished: boolean
-  - usage: TokenUsage（仅最后一个 event 携带）
-```
-
-**Provider SPI — 各厂商统一抽象：**
-
-```
-ModelProvider（接口）
-  - id() → String                          — 提供商标识（openai / anthropic / deepseek 等）
-  - supportedModels() → List<String>       — 该 Provider 支持的模型列表
-  - chat(ChatRequest) → ChatResponse       — 同步调用
-  - chatStream(ChatRequest) → Flux<ChatStreamEvent>  — 流式调用
-
-内置实现（短期完成核心，其余按需扩展）：
-  OpenAiProvider                           — OpenAI / Azure OpenAI
-  AnthropicProvider                        — Claude 系列
-  DeepSeekProvider                         — DeepSeek
-
-扩展方式：
-  业务项目或后续 cartisan 版本实现新的 ModelProvider，
-  通过 Spring SPI（@Component）注册即可自动发现。
-```
-
-**ModelProviderRegistry — Provider 管理：**
-
-```
-ModelProviderRegistry
-  - getProvider(providerId) → ModelProvider
-  - getProviderByModel(modelName) → ModelProvider
-  - listProviders() → List<ModelProvider>
-
-  自动扫描所有 ModelProvider Bean，建立 model→provider 映射。
-  业务项目可以通过 model name 直接调用，无需关心具体 Provider。
-```
-
-注意边界：**ModelProviderRegistry 只做"按名查找"**。按成本/质量/负载做智能路由，需要业务规则表，属于业务项目（如 aieducenter-platform 的 AI Gateway Context）。
-
-**SSE 流式工具：**
-
-```
-SseHelper
-  - toSse(Flux<ChatStreamEvent>) → SseEmitter   — 将流式事件转为 Spring SSE
-  - toSse(Flux<ChatStreamEvent>, Consumer<TokenUsage>)  — 流结束时回调 usage
-
-  封装 SSE 连接管理：超时、异常、客户端断开等边界情况。
-  业务项目的 Controller 只需一行即可返回流式响应。
-```
-
-**自动配置：**
-
-```
-cartisan:
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      base-url: https://api.openai.com/v1     # 可指向代理
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY}
-    deepseek:
-      api-key: ${DEEPSEEK_API_KEY}
-
-各 Provider 条件装配：配了 api-key 才创建对应 Provider Bean。
-```
-
----
-
-### 4.10 cartisan-storage（文件存储封装）
+### 4.9 cartisan-storage（文件存储封装）
 
 #### 包结构
 
@@ -845,7 +733,7 @@ cartisan:
 
 ---
 
-### 4.11 cartisan-payment（支付对接封装）
+### 4.10 cartisan-payment（支付对接封装）
 
 #### 包结构
 
@@ -921,21 +809,6 @@ cartisan:
 
 ---
 
-### 4.12 cartisan-ai-agent（预留，暂不实现）
-
-**预留理由：** Agent 框架（LangChain4j、Spring AI Agent、AgentScope）当前迭代速度极快，API 频繁 breaking change，不满足收纳准则第 3 条。
-
-**预计纳入时机：** 2026 年底至 2027 年初，待主流框架发布稳定大版本。
-
-**预期能力方向：**
-- Agent 定义与编排 SPI
-- Tool/Function Calling 注册与分发
-- Memory / Context 管理抽象
-- Multi-Agent 协作基础设施
-
-**当前策略：** 在 aieducenter-platform 中直接使用 LangChain4j / Spring AI，积累实践经验。待 API 稳定后，提取通用部分到 cartisan-ai-agent。
-
----
 
 ## 五、模块间依赖关系
 
@@ -945,7 +818,6 @@ cartisan-core（stereotype 注解基于 Spring @Component，provided scope）
     ├──→ cartisan-web        （core + Spring MVC）
     ├──→ cartisan-data-jpa   （core + Spring Data JPA）
     ├──→ cartisan-event      （core + Spring Context）
-    ├──→ cartisan-ai         （core + WebFlux/Reactor for SSE）
     └──→ cartisan-test       （core + JUnit 5 + ArchUnit + Testcontainers）
 
 cartisan-security            （core + web + Sa-Token）
@@ -1024,7 +896,6 @@ mvn install
         <artifactId>cartisan-data-query</artifactId>
     </dependency>
     implementation("com.cartisan:cartisan-event")
-    implementation("com.cartisan:cartisan-ai")         // 按需
     implementation("com.cartisan:cartisan-storage")    // 按需
     implementation("com.cartisan:cartisan-payment")    // 按需
     testImplementation("com.cartisan:cartisan-test")
@@ -1064,13 +935,10 @@ cartisan-boot 的开发可按以下 Epic 顺序推进：
 | **Epic 2: Web + Data-JPA + Event** | cartisan-web 统一响应和异常处理、cartisan-data-jpa Repository 和审计、cartisan-event 应用事件发布 | Epic 1 | L | P0 |
 | **Epic 3: Security** | cartisan-security 认证抽象、多租户上下文、Sa-Token 集成 | Epic 2 | M | P0 |
 | **Epic 4: Data-Query** | cartisan-data-query jOOQ 自动配置、代码生成、分页工具 | Epic 2 | S | P0 |
-| **Epic 5: AI** | cartisan-ai 统一模型、Provider SPI + OpenAI/Anthropic/DeepSeek 实现、SSE 工具 | Epic 1 | M | P1 |
-| **Epic 6: Storage** | cartisan-storage 存储 SPI + 阿里云 OSS / MinIO / Local 实现 | 无 | S | P2 |
-| **Epic 7: Payment** | cartisan-payment 支付 SPI + 微信支付 / 支付宝实现 | 无 | M | P2 |
+| **Epic 5: Storage** | cartisan-storage 存储 SPI + 阿里云 OSS / MinIO / Local 实现 | 无 | S | P2 |
+| **Epic 6: Payment** | cartisan-payment 支付 SPI + 微信支付 / 支付宝实现 | 无 | M | P2 |
 
 **开发节奏：**
 
 - aieducenter-platform 可在 **Epic 1 完成后**即开始领域建模和业务开发（使用 Composite Build 引用）
-- Epic 5（AI）在 aieducenter-platform 需要接入大模型时启动，可与 Epic 3/4 并行
-- Epic 6/7（Storage、Payment）独立于其他模块，在业务需要时按需启动
-- cartisan-ai-agent 不占 Epic，待框架生态稳定后单独规划
+- Epic 5/6（Storage、Payment）独立于其他模块，在业务需要时按需启动
