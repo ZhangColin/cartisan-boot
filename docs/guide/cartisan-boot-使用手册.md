@@ -1,14 +1,10 @@
 # cartisan-boot 使用手册
 
-> **版本**：v2.0 | **日期**：2026-04-05
+> **版本**：v2.1 | **日期**：2026-04-12
 > **更新内容**：
-> - 重构文档结构，删除重复内容
-> - 精简使用示例，聚焦框架使用
-> - 将详细功能指南整合到各模块章节
-> - 将注意事项分散到各模块章节
-> - 添加设计理念和配置说明章节
-> - 更新 ArchUnit 规则到 v1.1（新增3条规则）
-> - 添加新规则迁移策略说明
+> - 新增 cartisan-openapi 模块文档（模块能力、API、使用示例、配置）
+> - 新增 OpenAPI 服务间通信使用指南链接
+> - 修正文档结尾版本号
 >
 > **定位**：框架使用指南（怎么用）
 > **目标读者**：使用 cartisan-boot 框架的业务项目开发者
@@ -404,30 +400,29 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **更多规则和详细说明**参见 PITFALLS.md。
 
-### 1.8 cartisan-ai 模块
+### 1.8 cartisan-openapi 模块
 
 | 能力 | 说明 |
 |------|------|
-| **统一对话模型** | `ChatMessage`、`ChatRequest`、`ChatResponse`、`TokenUsage`、`ChatStreamEvent` |
-| **Provider SPI** | `ModelProvider` 接口，支持同步调用和流式调用 |
-| **Provider Registry** | 按提供商 ID 或模型名称查找 Provider |
-| **OpenAI Provider** | 支持 OpenAI API（同步 + SSE 流式） |
-| **DeepSeek Provider** | 兼容 OpenAI 协议，支持 DeepSeek API |
-| **Anthropic Provider** | 支持 Anthropic Claude API（独立协议） |
-| **SSE 流式工具** | `SseHelper` 将 `Flux<ChatStreamEvent>` 转换为 `SseEmitter` |
-| **ModelUsageListener** | Token 使用量监听扩展点 |
+| **签名客户端** | `OpenApiClient` 自动签名 + 上下文传递 |
+| **验签 Filter** | `SignatureVerificationFilter` 验签 + 写入 caller 信息到 RequestContext |
+| **权限 Interceptor** | `SignatureVerificationInterceptor` 注解解析 + 权限检查 |
+| **API Key 管理** | `ApiKeyProvider` + Caffeine 缓存 |
+| **请求体缓存** | `CachingRequestBodyFilter` 缓存 body + 大小限制 |
+| **防重放** | nonce + timestamp 校验 |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 **注意事项**：
 
 | 规则 | 说明 |
 |------|------|
-| **AI-001** | `ChatRequest.withStream()` 创建副本，避免修改原请求 |
-| **AI-002** | `ModelProviderRegistry` 的 Listener 异常不中断流程 |
-| **AI-003** | `SseHelper` 的 `usageCallback` 仅在流完成且有 usage 时触发 |
-| **AI-004** | Provider 条件装配基于 `api-key` 配置，无 key 则不创建 Bean |
+| **OPENAPI-001** | `@NoSignature` 仅对有 `@RequireSignature` 的类或方法有意义 |
+| **OPENAPI-002** | `OpenApiClient` 使用同步阻塞调用，高并发场景考虑异步改造 |
+| **OPENAPI-003** | `NonceRepository` 需要业务项目提供 Redis 实现 |
+| **OPENAPI-004** | `RemoteApiKeyProvider` 缓存是本地 Caffeine，多实例有短暂不一致（30 分钟） |
+| **OPENAPI-005** | GET 请求签名包含 query 参数，URL 变更会影响签名验证 |
 
-> **更多规则和详细说明**参见 PITFALLS.md。
+> **📖 详细使用指南**：[OpenAPI服务间通信使用指南.md](./OpenAPI服务间通信使用指南.md)
 
 ---
 
@@ -826,42 +821,50 @@ public class PermissionInitService {
 
 **依赖说明**：需要 `cartisan-security` 模块（可选依赖）
 
-### 2.26 AI 对话模型（com.cartisan.ai.model）
+### 2.26 OpenApiClient（com.cartisan.openapi.client）
 
-| 类/Record | 字段/方法 | 说明 |
-|----------|----------|------|
-| `Role` | `SYSTEM / USER / ASSISTANT` | 消息角色枚举 |
-| `ChatMessage` | `role()`, `content()` | 单条对话消息 |
-| `ChatRequest` | `model`, `messages`, `temperature`, `maxTokens`, `stream` | 对话请求 |
-| | `withStream(boolean)` | 创建流式/非流式请求副本 |
-| `ChatResponse` | `content()`, `model()`, `usage()` | 对话响应 |
-| `TokenUsage` | `promptTokens()`, `completionTokens()`, `totalTokens()` | Token 使用统计 |
-| `ChatStreamEvent` | `delta()`, `finished()`, `usage()` | 流式事件 |
+| 类/方法 | 说明 |
+|---------|------|
+| `OpenApiClient` | 服务间 HTTP 客户端，自动签名 |
+| `post(url, body, responseType)` | 发送签名 POST 请求 |
+| `get(url, responseType)` | 发送签名 GET 请求（query 参数参与签名） |
+| `OpenApiClientException` | 非 2xx 响应异常，含 statusCode 和 body 字段 |
 
-### 2.27 ModelProvider SPI（com.cartisan.ai.provider）
+### 2.27 签名注解（com.cartisan.openapi.annotation）
+
+| 注解 | 目标 | 说明 |
+|------|------|------|
+| `@RequireSignature(permission)` | TYPE/METHOD | 需要验签，可选 permission 属性进行权限检查 |
+| `@NoSignature` | TYPE/METHOD | 跳过验签 |
+
+### 2.28 ApiKeyProvider（com.cartisan.openapi.provider）
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
-| `ModelProvider` | `id()` → `String` | 提供商标识（openai/anthropic/deepseek） |
-| | `supportedModels()` → `List<String>` | 支持的模型列表 |
-| | `chat(ChatRequest)` → `ChatResponse` | 同步调用 |
-| | `chatStream(ChatRequest)` → `Flux<ChatStreamEvent>` | 流式调用 |
-| `ModelProviderRegistry` | `getProvider(providerId)` → `ModelProvider` | 按 ID 查找 Provider |
-| | `getProviderByModel(modelName)` → `ModelProvider` | 按模型名查找 Provider |
-| | `listProviders()` → `List<ModelProvider>` | 列出所有 Provider |
-| | `chat(providerId, request)` → `ChatResponse` | 通过 Registry 调用 |
-| | `chatStream(providerId, request)` → `Flux<ChatStreamEvent>` | 通过 Registry 流式调用 |
-| `ModelUsageListener` | `onUsage(providerId, model, usage)` | Token 使用监听器（扩展点） |
+| `ApiKeyProvider` | `findByAppId(appId)` → `ApiKeyInfo` | API Key 查询接口 |
+| `RemoteApiKeyProvider` | - | 远程服务 + Caffeine 缓存实现 |
+| `ApiKeyInfo` | `appId()`, `appSecret()`, `appName()`, `permissions()`, `isActive()` | API Key 信息 Record |
 
-### 2.28 SSE 流式工具（com.cartisan.ai.sse）
+### 2.29 NonceRepository（com.cartisan.openapi.nonce）
 
-| 类 | 方法 | 说明 |
-|----|------|------|
-| `SseHelper` | `toSse(Flux<ChatStreamEvent>)` → `SseEmitter` | 转换为 SSE（无回调） |
-| | `toSse(Flux<ChatStreamEvent>, Consumer<TokenUsage>)` → `SseEmitter` | 转换为 SSE（usage 回调） |
-| `SseProperties` | `timeout`（默认 30 秒） | SSE 超时配置 |
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `NonceRepository` | `tryAcquire(nonce, ttl)` → `boolean` | Nonce 防重放接口 |
 
-### 2.29 RedisKey 工具（com.cartisan.core.util.RedisKey）
+### 2.30 OpenAPI 配置属性（com.cartisan.openapi.config）
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `cartisan.openapi.self.app-id` | String | "" | 本服务 appId |
+| `cartisan.openapi.self.app-secret` | String | "" | 本服务 appSecret |
+| `cartisan.openapi.apikey-service-url` | String | "" | API Key 查询地址 |
+| `cartisan.openapi.timestamp-tolerance` | int | 300 | 时间戳容差（秒） |
+| `cartisan.openapi.nonce-ttl` | int | 300 | nonce 有效期（秒） |
+| `cartisan.openapi.max-body-size` | DataSize | 1MB | 请求体大小限制 |
+| `cartisan.openapi.cache.expire-after-access` | Duration | 30m | 缓存过期时间 |
+| `cartisan.openapi.cache.maximum-size` | long | 1000 | 最大缓存条目数 |
+
+### 2.31 RedisKey 工具（com.cartisan.core.util.RedisKey）
 
 | 类/方法 | 说明 |
 |---------|------|
@@ -871,7 +874,7 @@ public class PermissionInitService {
 | `expireSeconds()` | 获取过期时间（秒），0 表示永不过期 |
 | `isPermanent()` | 判断是否为永久 Key |
 
-### 2.30 DomainMapper（com.cartisan.web.mapper）
+### 2.32 DomainMapper（com.cartisan.web.mapper）
 
 | 接口/方法 | 说明 |
 |----------|------|
@@ -882,7 +885,7 @@ public class PermissionInitService {
 
 **注意**：`convertList` 和 `convertSet` 在输入为 null 或空时返回空集合。
 
-### 2.31 TreeNode（com.cartisan.web.support）
+### 2.33 TreeNode（com.cartisan.web.support）
 
 | 类/方法 | 说明 |
 |---------|------|
@@ -891,7 +894,7 @@ public class PermissionInitService {
 | `TreeNode(id, name, parentId, children)` | 完整构造 |
 | `TreeNodeBuilder.build(nodes, idMapper, parentIdMapper, rootParentId)` | 构建树形结构 |
 
-### 2.32 @PreventResubmit（com.cartisan.web.resubmit）
+### 2.34 @PreventResubmit（com.cartisan.web.resubmit）
 
 | 注解/类 | 属性/方法 | 说明 |
 |---------|----------|------|
@@ -900,7 +903,7 @@ public class PermissionInitService {
 | `ResubmitLock` | `lock(key, delaySeconds)` | 基于 Redis 的分布式锁 |
 | `ResubmitAspect` | - | AOP 切面，拦截注解方法 |
 
-### 2.33 Jackson 全局配置（com.cartisan.web.config）
+### 2.35 Jackson 全局配置（com.cartisan.web.config）
 
 | 配置项 | 说明 |
 |--------|------|
@@ -910,7 +913,7 @@ public class PermissionInitService {
 | `Enum → 字符串` | 枚举值序列化为字符串 |
 | `忽略未知属性` | 反序列化时忽略未知字段 |
 
-### 2.34 RequestLogFilter（com.cartisan.web.filter）
+### 2.36 RequestLogFilter（com.cartisan.web.filter）
 
 | 类 | 说明 |
 |----|------|
@@ -918,7 +921,7 @@ public class PermissionInitService {
 
 **排除路径**：`/swagger-ui`、`/v3/api-docs`、`/swagger-resources`、`/druid`、`/actuator`
 
-### 2.35 @Condition 注解（com.cartisan.data.jpa.specification）
+### 2.37 @Condition 注解（com.cartisan.data.jpa.specification）
 
 | 注解/枚举 | 说明 |
 |----------|------|
@@ -928,7 +931,7 @@ public class PermissionInitService {
 
 **详细使用指南**：[condition-annotation.md](condition-annotation.md)
 
-### 2.36 枚举选项支持（com.cartisan.web.response）
+### 2.38 枚举选项支持（com.cartisan.web.response）
 
 | 类/方法 | 说明 |
 |--------|------|
@@ -1649,129 +1652,7 @@ List<UserRecord> users = dsl.selectFrom(USER)
     .fetch();
 ```
 
-### 3.18 使用 cartisan-ai 同步调用
-
-```java
-@Service
-public class AiService {
-    private final ModelProviderRegistry registry;
-
-    // 通过 Registry 调用（推荐，支持动态切换 Provider）
-    public String chat(String providerId, String userMessage) {
-        ChatRequest request = new ChatRequest(
-            "gpt-4o-mini",  // 或其他模型名
-            List.of(
-                new ChatMessage(Role.SYSTEM, "You are a helpful assistant."),
-                new ChatMessage(Role.USER, userMessage)
-            ),
-            0.7,    // temperature
-            null,   // maxTokens
-            false   // stream
-        );
-
-        ChatResponse response = registry.chat(providerId, request);
-        return response.content();
-    }
-
-    // 直接注入特定 Provider
-    public String chatWithOpenAi(String userMessage) {
-        // OpenAiProvider 会自动注入
-        ModelProvider provider = registry.getProvider("openai");
-        // ... 同上
-    }
-}
-```
-
-### 3.19 使用 cartisan-ai 流式调用（SSE）
-
-```java
-@RestController
-@RequestMapping("/api/ai")
-public class AiController {
-    private final ModelProviderRegistry registry;
-    private final SseHelper sseHelper;
-
-    // 返回 SSE 流
-    @GetMapping("/chat/stream")
-    public SseEmitter chatStream(
-            @RequestParam(defaultValue = "openai") String providerId,
-            @RequestParam String message) {
-
-        ChatRequest request = new ChatRequest(
-            "gpt-4o-mini",
-            List.of(new ChatMessage(Role.USER, message)),
-            null, null, true  // stream = true
-        );
-
-        Flux<ChatStreamEvent> events = registry.chatStream(providerId, request);
-
-        // 转换为 SSE，流结束时记录 Token 使用
-        return sseHelper.toSse(events, usage -> {
-            log.info("Token usage: prompt={}, completion={}",
-                usage.promptTokens(), usage.completionTokens());
-        });
-    }
-
-    // 或者返回 Flux（让客户端处理 Reactor 类型）
-    @GetMapping(value = "/chat/flux", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ChatStreamEvent> chatFlux(@RequestParam String message) {
-        ChatRequest request = new ChatRequest(
-            "gpt-4o-mini",
-            List.of(new ChatMessage(Role.USER, message)),
-            null, null, true
-        );
-
-        return registry.chatStream("openai", request);
-    }
-}
-```
-
-### 3.20 配置 cartisan-ai Provider
-
-```yaml
-# application.yml
-cartisan:
-  ai:
-    # OpenAI 配置
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      base-url: https://api.openai.com/v1  # 可选，支持代理/Azure
-    # DeepSeek 配置
-    deepseek:
-      api-key: ${DEEPSEEK_API_KEY}
-      base-url: https://api.deepseek.com/v1
-    # Anthropic 配置
-    anthropic:
-      api-key: ${ANTHROPIC_API_KEY}
-      base-url: https://api.anthropic.com
-    # SSE 超时配置
-    sse:
-      timeout: 30s  # 默认 30 秒
-```
-
-**条件装配规则**：
-- 只有配置了对应 `api-key` 的 Provider 才会被创建
-- 至少需要配置一个 Provider，`ModelProviderRegistry` 才会被创建
-
-### 3.21 实现 ModelUsageListener
-
-```java
-@Component
-public class TokenUsageLogger implements ModelUsageListener {
-
-    private static final Logger log = LoggerFactory.getLogger(TokenUsageLogger.class);
-
-    @Override
-    public void onUsage(String providerId, String model, TokenUsage usage) {
-        log.info("AI Usage - Provider: {}, Model: {}, Prompt: {}, Completion: {}, Total: {}",
-            providerId, model, usage.promptTokens(), usage.completionTokens(), usage.totalTokens());
-
-        // 可以写入数据库、发送监控告警等
-    }
-}
-```
-
-### 3.22 使用 RedisKey 工具
+### 3.18 使用 RedisKey 工具
 
 ```java
 @Service
@@ -1797,7 +1678,7 @@ public class UserService {
 }
 ```
 
-### 3.23 使用 DomainMapper 批量转换
+### 3.19 使用 DomainMapper 批量转换
 
 ```java
 @Mapper(componentModel = "spring")
@@ -1827,7 +1708,7 @@ public class UserService {
 }
 ```
 
-### 3.24 使用 TreeNode 构建树结构
+### 3.20 使用 TreeNode 构建树结构
 
 ```java
 @Service
@@ -1859,7 +1740,7 @@ public class DepartmentService {
 }
 ```
 
-### 3.25 使用 @PreventResubmit 防重提交
+### 3.21 使用 @PreventResubmit 防重提交
 
 ```java
 @RestController
@@ -1884,7 +1765,7 @@ public class UserController {
 }
 ```
 
-### 3.26 使用 @Condition 注解查询
+### 3.22 使用 @Condition 注解查询
 
 ```java
 // 定义查询 DTO
@@ -1903,7 +1784,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 
 > **详细说明**：参见 cartisan-web 模块章节中的 @Condition 注解详细说明
 
-### 3.27 使用枚举选项工具
+### 3.23 使用枚举选项工具
 
 ```java
 // 转换单个枚举
@@ -1930,7 +1811,7 @@ public interface UserMapper extends DomainMapper<User, UserResponse> {
 }
 ```
 
-### 3.29 使用默认枚举 Controller
+### 3.24 使用默认枚举 Controller
 
 ```yaml
 # application.yml（默认配置）
@@ -1960,7 +1841,7 @@ const fetchEnums = async () => {
 };
 ```
 
-### 3.30 自定义枚举 Controller
+### 3.25 自定义枚举 Controller
 
 ```yaml
 # 禁用默认实现
@@ -1989,6 +1870,104 @@ public class DictController extends EnumControllerBase {
             @RequestBody EnumBatchRequest request) {
         return ApiResponse.ok(batchEnums(request.enums()));
     }
+}
+```
+
+### 3.26 使用 OpenApiClient 调用远程服务
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserClient {
+    private final OpenApiClient openApiClient;
+
+    // GET 请求
+    public UserInfo getUser(Long userId) {
+        return openApiClient.get(
+            "http://user-service/api/users/" + userId,
+            UserInfo.class
+        );
+    }
+
+    // POST 请求
+    public OrderDTO createOrder(CreateOrderRequest request) {
+        return openApiClient.post(
+            "http://order-service/api/orders",
+            request,
+            OrderDTO.class
+        );
+    }
+}
+```
+
+**错误处理**：
+
+```java
+try {
+    return openApiClient.get(url, responseType);
+} catch (OpenApiClientException e) {
+    log.error("远程调用失败: status={}, body={}", e.getStatusCode(), e.getBody());
+    throw new ApplicationException("远程服务调用失败: " + e.getStatusCode());
+}
+```
+
+### 3.27 配置 OpenAPI 签名验签
+
+```yaml
+# application.yml
+cartisan:
+  openapi:
+    self:
+      app-id: "order-service"
+      app-secret: "${OPENAPI_SECRET}"
+    apikey-service-url: "http://auth-service/api/apikeys"
+    timestamp-tolerance: 300
+    nonce-ttl: 300
+    max-body-size: 1MB
+    cache:
+      expire-after-access: 30m
+      maximum-size: 1000
+```
+
+### 3.28 服务端验签 + 权限控制
+
+```java
+// 类级别：所有方法需验签
+@RestController
+@RequireSignature
+@RequestMapping("/api/internal/orders")
+public class InternalOrderController {
+
+    @GetMapping("/{id}")
+    public ApiResponse<OrderDTO> getOrder(@PathVariable Long id) {
+        return ApiResponse.ok(orderService.getOrder(id));
+    }
+
+    // 需要特定权限
+    @RequireSignature(permission = "order:write")
+    @PostMapping
+    public ApiResponse<OrderDTO> create(@RequestBody CreateOrderRequest request) {
+        return ApiResponse.ok(orderService.create(request));
+    }
+
+    // 跳过验签
+    @NoSignature
+    @GetMapping("/health")
+    public ApiResponse<String> health() {
+        return ApiResponse.ok("ok");
+    }
+}
+```
+
+### 3.29 获取调用方信息
+
+```java
+@GetMapping("/info")
+public ApiResponse<Map<String, String>> getCallerInfo() {
+    return ApiResponse.ok(Map.of(
+        "callerAppId", String.valueOf(RequestContext.getCallerAppId()),
+        "callerAppName", String.valueOf(RequestContext.getCallerAppName())
+    ));
 }
 ```
 
@@ -2208,19 +2187,19 @@ compileOnly 依赖：
 - cartisan-security（可选，用于 JooqTenantSupport）
 ```
 
-### 6.8 cartisan-ai
+### 6.8 cartisan-openapi
 
 ```
 api 依赖：
-- cartisan-core
-- spring-webflux（Flux 类型出现在公开 SPI 中）
+- cartisan-core（RequestContext）
 
 implementation 依赖：
-- spring-boot-starter
+- spring-boot-starter-web
+- caffeine（API Key 缓存）
+- jackson
 
 可选依赖（由使用方提供）：
-- spring-boot-starter-web（SseEmitter 需要）
-- spring-boot-starter-webflux（WebClient 需要）
+- spring-boot-starter-data-redis（NonceRepository Redis 实现）
 ```
 
 ---
@@ -2235,6 +2214,7 @@ implementation 依赖：
 
 - [AI协作开发SOP.md](../sop/AI协作开发SOP.md)
 - [团队踩坑经验库 (PITFALLS.md)](../PITFALLS.md)
+- [OpenAPI服务间通信使用指南.md](./OpenAPI服务间通信使用指南.md)
 
 > **说明**：@Condition、枚举增强等模块详细使用说明已整合到对应模块章节中。
 
@@ -2361,7 +2341,7 @@ mvn test -Dtest=ArchitectureTest
 
 ### 10.2 如何配置 jOOQ 代码生成？
 
-参见使用手册 3.18 节 jOOQ 代码生成配置和 cartisan-data-query 模块章节的 QUERY-001 规则。
+参见使用手册 3.17 节 jOOQ 代码生成配置和 cartisan-data-query 模块章节的 QUERY-001 规则。
 
 ### 10.3 如何枚举实现 BaseEnum？
 
@@ -2373,4 +2353,4 @@ mvn test -Dtest=ArchitectureTest
 
 ---
 
-**文档结束** | **版本**：v1.0 | **更新日期**：2026-04-05
+**文档结束** | **版本**：v2.1 | **更新日期**：2026-04-12

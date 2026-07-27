@@ -38,6 +38,12 @@
             <artifactId>sa-token-spring-boot3-starter</artifactId>
         </dependency>
 
+        <!-- Sa-Token Redis (Jackson 序列化，生产环境必需) -->
+        <dependency>
+            <groupId>cn.dev33</groupId>
+            <artifactId>sa-token-redis-jackson</artifactId>
+        </dependency>
+
         <!-- Spring Web (HandlerInterceptor, HandlerMethod) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

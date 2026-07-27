@@ -28,7 +28,6 @@ import org.springframework.context.annotation.Configuration;
  *   <li>忽略未知属性：反序列化时忽略未知字段</li>
  * </ul>
  */
-@Configuration
 public class JacksonConfiguration {
 
     /**

@@ -45,8 +45,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  * @since 0.2.0
  */
-@AutoConfiguration
+@AutoConfiguration(after = RedisAutoConfiguration.class)
 @ConditionalOnWebApplication
+@org.springframework.context.annotation.Import(JacksonConfiguration.class)
 public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
 
     /**

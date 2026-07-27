@@ -121,6 +121,13 @@
                 <version>${sa-token.version}</version>
             </dependency>
 
+            <!-- Sa-Token Redis (Jackson 序列化) -->
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-redis-jackson</artifactId>
+                <version>${sa-token.version}</version>
+            </dependency>
+
             <!-- Lombok -->
             <dependency>
                 <groupId>org.projectlombok</groupId>

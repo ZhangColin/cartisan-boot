@@ -2276,3 +2276,66 @@ assertThat(duplicateCount)
 **记忆口诀**：TSID 碰撞算概率，预期 n²/2m，阈值放宽 0.3%。
 
 ---
+
+## 服务间通信（cartisan-openapi）
+
+### 规则 OPENAPI-001：ScopedValue 不可 rebind，RequestContext 写入必须在 Filter 层
+
+**问题**：在 Spring MVC Interceptor 中尝试通过 `RequestContext.run(enriched, ...)` 写入 caller 信息，发现无法生效——`RequestContext.getCallerAppId()` 返回 null。
+
+**原因**：ScopedValue 一旦绑定就不能在当前作用域重新绑定。RequestContextFilter 已经绑定了 RequestContext，后续 Interceptor 运行在同一作用域中，无法创建新绑定。
+
+**错误做法**：
+```java
+// ❌ Interceptor 中无法 rebind RequestContext
+public class SignatureVerificationInterceptor implements HandlerInterceptor {
+    @Override
+    public boolean preHandle(HttpServletRequest request, ...) {
+        RequestContext enriched = current.withCaller(appId, appName);
+        // 以下代码不会生效——ScopedValue 不可 rebind
+        RequestContext.CONTEXT = enriched;  // 编译错误！ScopedValue 是 final
+        request.setAttribute("callerAppId", appId);  // 只能退而求其次
+    }
+}
+```
+
+**正确做法**：将 RequestContext 写入逻辑移到 Filter 层，使用 `ScopedValue.where().run()` 创建新绑定：
+```java
+// ✅ Filter 层可以用 RequestContext.run() 创建新绑定
+public class SignatureVerificationFilter extends OncePerRequestFilter {
+    @Override
+    protected void doFilterInternal(...) {
+        // 验签成功后
+        RequestContext enriched = current.withCaller(appId, appName);
+        RequestContext.run(enriched, () -> chain.doFilter(request, response));
+    }
+}
+```
+
+**记忆口诀**：ScopedValue 不可 rebind，写 RequestContext 要在 Filter。
+
+---
+
+### 规则 OPENAPI-002：HTTP 客户端不检查状态码导致难以诊断的错误
+
+**问题**：`OpenApiClient` 的 `post()` 和 `get()` 方法不检查 `response.statusCode()`，4xx/5xx 响应直接尝试 JSON 反序列化，导致难以理解的 Jackson 解析错误。
+
+**错误表现**：
+```
+com.fasterxml.jackson.databind.exc.MismatchedInputException: Cannot deserialize value of type ...
+```
+（实际原因是服务端返回了 HTML 错误页面，不是 JSON）
+
+**正确做法**：
+```java
+// ✅ 先检查状态码，再反序列化
+HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+if (response.statusCode() >= 400) {
+    throw new OpenApiClientException(response.statusCode(), response.body());
+}
+return objectMapper.readValue(response.body(), responseType);
+```
+
+**记忆口诀**：HTTP 客户端先查状态码，再反序列化。
+
+---

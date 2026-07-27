@@ -91,6 +91,15 @@ if [ -z "$project_name" ]; then
   exit 1
 fi
 
+# 目标目录
+DEFAULT_TARGET_DIR="/Users/zhangcolin/workspace"
+read -p "请输入目标目录 [默认: $DEFAULT_TARGET_DIR]: " target_dir
+target_dir="${target_dir:-$DEFAULT_TARGET_DIR}"
+if [ ! -d "$target_dir" ]; then
+  echo "错误: 目录 '$target_dir' 不存在"
+  exit 1
+fi
+
 # 默认端口号
 case "$PROJECT_TYPE" in
   service|gateway) DEFAULT_PORT="8081" ;;
@@ -149,8 +158,8 @@ echo ""
 # ----------------------------------------------------------------------------
 # 目录检查
 # ----------------------------------------------------------------------------
-if [ -d "$project_name" ]; then
-  echo "错误: 目录 '$project_name' 已存在，请选择其他项目名"
+if [ -d "$target_dir/$project_name" ]; then
+  echo "错误: 目录 '$target_dir/$project_name' 已存在，请选择其他项目名"
   exit 1
 fi
 
@@ -159,10 +168,11 @@ fi
 # ----------------------------------------------------------------------------
 
 generate_java_common() {
-  mkdir -p "$project_name"
+  local project_dir="$target_dir/$project_name"
+  mkdir -p "$project_dir"
 
   # --- Dockerfile ---
-  cat << EOF > "$project_name/Dockerfile"
+  cat << EOF > "$project_dir/Dockerfile"
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 RUN apk add --no-cache tzdata curl && \\
@@ -175,7 +185,7 @@ ENTRYPOINT ["java", "--enable-preview", "-Duser.timezone=Asia/Shanghai", "-jar",
 EOF
 
   # --- docker-compose.prod.yml ---
-  cat << EOF > "$project_name/docker-compose.prod.yml"
+  cat << EOF > "$project_dir/docker-compose.prod.yml"
 services:
   app:
     build: .
@@ -205,7 +215,7 @@ networks:
 EOF
 
   # --- deploy.sh ---
-  cat << 'DEPLOY_EOF' > "$project_name/deploy.sh"
+  cat << 'DEPLOY_EOF' > "$project_dir/deploy.sh"
 #!/bin/bash
 set -e
 
@@ -229,7 +239,7 @@ info "环境配置文件检查通过"
 # 步骤 2：检查 JAR 文件
 DEPLOY_EOF
 
-  cat << EOF >> "$project_name/deploy.sh"
+  cat << EOF >> "$project_dir/deploy.sh"
 if [ ! -f "target/${jarName}" ]; then
   error "找不到 JAR 文件: target/${jarName}"
   exit 1
@@ -238,7 +248,7 @@ info "JAR 文件检查通过"
 
 EOF
 
-  cat << 'DEPLOY_EOF2' >> "$project_name/deploy.sh"
+  cat << 'DEPLOY_EOF2' >> "$project_dir/deploy.sh"
 # 步骤 3：停止旧容器
 docker compose -f docker-compose.prod.yml down 2>/dev/null || true
 info "旧容器已停止"
@@ -279,7 +289,7 @@ docker image prune -f >/dev/null 2>&1 || true
 DEPLOY_EOF2
 
   # --- publish.sh ---
-  cat << 'PUBLISH_HEAD' > "$project_name/publish.sh"
+  cat << 'PUBLISH_HEAD' > "$project_dir/publish.sh"
 #!/bin/bash
 set -e
 
@@ -289,13 +299,13 @@ SERVER_HOST="43.140.211.9"
 PUBLISH_HEAD
 
   # SERVER_PATH needs variable substitution, SERVER_PASSWORD needs escaping
-  cat << EOF >> "$project_name/publish.sh"
+  cat << EOF >> "$project_dir/publish.sh"
 SERVER_PATH="${deployDir}"
 SERVER_PASSWORD="Hcy@20260327"
 
 EOF
 
-  cat << 'PUBLISH_EOF2' >> "$project_name/publish.sh"
+  cat << 'PUBLISH_EOF2' >> "$project_dir/publish.sh"
 # ========== 逻辑区 ==========
 
 # 颜色定义
@@ -318,7 +328,7 @@ mvn package -DskipTests -q
 # 2. 检查 JAR 文件
 PUBLISH_EOF2
 
-  cat << EOF >> "$project_name/publish.sh"
+  cat << EOF >> "$project_dir/publish.sh"
 if [ ! -f "target/${jarName}" ]; then
   error "构建失败：找不到 target/${jarName}"
   exit 1
@@ -327,7 +337,7 @@ info "构建完成"
 
 EOF
 
-  cat << 'PUBLISH_EOF3A' >> "$project_name/publish.sh"
+  cat << 'PUBLISH_EOF3A' >> "$project_dir/publish.sh"
 # 3. 检查 sshpass
 if ! command -v sshpass &>/dev/null; then
   error "sshpass 未安装"
@@ -341,12 +351,12 @@ info "准备部署文件..."
 PUBLISH_EOF3A
 
   # JAR file copy needs variable substitution
-  cat << EOF >> "$project_name/publish.sh"
+  cat << EOF >> "$project_dir/publish.sh"
 mkdir -p "\$TMP_DIR/target"
 cp "target/${jarName}" "\$TMP_DIR/target/"
 EOF
 
-  cat << 'PUBLISH_EOF3B' >> "$project_name/publish.sh"
+  cat << 'PUBLISH_EOF3B' >> "$project_dir/publish.sh"
 cp Dockerfile "$TMP_DIR/"
 cp docker-compose.prod.yml "$TMP_DIR/"
 cp deploy.sh "$TMP_DIR/"
@@ -367,7 +377,7 @@ info "部署完成！临时文件已清理"
 PUBLISH_EOF3B
 
   # --- .gitignore ---
-  cat << 'EOF' > "$project_name/.gitignore"
+  cat << 'EOF' > "$project_dir/.gitignore"
 target/
 *.class
 *.jar
@@ -388,7 +398,7 @@ Thumbs.db
 EOF
 
   # --- .env.production.example ---
-  cat << EOF > "$project_name/.env.production.example"
+  cat << EOF > "$project_dir/.env.production.example"
 # Spring Profile
 SPRING_PROFILES_ACTIVE=prod
 
@@ -410,51 +420,11 @@ SERVER_PASSWORD=Hcy@20260327
 EOF
 
   # 同时生成 .env.production（填入实际值）
-  cp "$project_name/.env.production.example" "$project_name/.env.production"
-
-  # --- CLAUDE.md ---
-  cat << EOF > "$project_name/CLAUDE.md"
-# ${project_name}
-
-${PROJECT_TYPE} 服务，基于 cartisan-boot 框架。
-
-## 技术栈
-
-- Java 21 / Spring Boot 3.4.x / Maven
-- 持久化：Spring Data JPA + PostgreSQL / Redis
-- 测试：JUnit 5 + AssertJ + Mockito
-
-## 架构约束
-
-- DDD 分层架构：controller / application / domain / infrastructure
-- 构造函数注入，禁止 @Autowired 字段注入
-- 金额使用 BigDecimal，禁止浮点数
-
-## 编码规范
-
-- DTO 使用 Java Record，构造函数校验不变量
-- 测试使用 AssertJ，测试命名：shouldX 或 shouldX_whenY
-- 主类：${packageName}.${mainClass}
-
-## 常用命令
-
-- 编译：\`mvn compile\`
-- 单元测试：\`mvn test\`
-- 打包：\`mvn package -DskipTests\`
-- 变异测试：\`mvn org.pitest:pitest-maven:mutationCoverage\`
-
-## 开发流程
-
-使用 Superpowers 技能驱动开发，按需求规模分层：
-
-- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
-- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
-- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
-EOF
+  cp "$project_dir/.env.production.example" "$project_dir/.env.production"
 
   # --- .claude/settings.local.json ---
-  mkdir -p "$project_name/.claude"
-  cat << 'SETTINGS_EOF' > "$project_name/.claude/settings.local.json"
+  mkdir -p "$project_dir/.claude"
+  cat << 'SETTINGS_EOF' > "$project_dir/.claude/settings.local.json"
 {
   "permissions": {
     "allow": [
@@ -478,7 +448,7 @@ EOF
 SETTINGS_EOF
 
   # 设置可执行权限
-  chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
+  chmod +x "$project_dir/deploy.sh" "$project_dir/publish.sh"
 }
 
 # ----------------------------------------------------------------------------
@@ -486,15 +456,16 @@ SETTINGS_EOF
 # ----------------------------------------------------------------------------
 
 generate_service() {
+  local project_dir="$target_dir/$project_name"
   generate_java_common
 
   # --- 目录结构 ---
-  mkdir -p "$project_name/src/main/java/$packagePath"
-  mkdir -p "$project_name/src/main/resources/db/migration"
-  mkdir -p "$project_name/src/test/java/$packagePath"
+  mkdir -p "$project_dir/src/main/java/$packagePath"
+  mkdir -p "$project_dir/src/main/resources/db/migration"
+  mkdir -p "$project_dir/src/test/java/$packagePath"
 
   # --- pom.xml ---
-  cat << EOF > "$project_name/pom.xml"
+  cat << EOF > "$project_dir/pom.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -691,7 +662,7 @@ generate_service() {
 EOF
 
   # --- application.yml ---
-  cat << EOF > "$project_name/src/main/resources/application.yml"
+  cat << EOF > "$project_dir/src/main/resources/application.yml"
 server:
   port: ${port}
 
@@ -733,7 +704,7 @@ management:
 EOF
 
   # --- application-local.yml ---
-  cat << EOF > "$project_name/src/main/resources/application-local.yml"
+  cat << EOF > "$project_dir/src/main/resources/application-local.yml"
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aieducenter
@@ -748,7 +719,7 @@ spring.jpa.show-sql: true
 EOF
 
   # --- application-prod.yml ---
-  cat << EOF > "$project_name/src/main/resources/application-prod.yml"
+  cat << EOF > "$project_dir/src/main/resources/application-prod.yml"
 spring:
   datasource:
     url: \${SPRING_DATASOURCE_URL}
@@ -764,7 +735,7 @@ logging.level.root: INFO
 EOF
 
   # --- logback-spring.xml ---
-  cat << 'EOF' > "$project_name/src/main/resources/logback-spring.xml"
+  cat << 'EOF' > "$project_dir/src/main/resources/logback-spring.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
@@ -780,7 +751,7 @@ EOF
 EOF
 
   # --- MainApplication.java ---
-  cat << EOF > "$project_name/src/main/java/$packagePath/${mainClass}.java"
+  cat << EOF > "$project_dir/src/main/java/$packagePath/${mainClass}.java"
 package ${packageName};
 
 import org.springframework.boot.SpringApplication;
@@ -795,7 +766,7 @@ public class ${mainClass} {
 EOF
 
   # --- ApplicationTest.java ---
-  cat << EOF > "$project_name/src/test/java/$packagePath/${mainClass}Test.java"
+  cat << EOF > "$project_dir/src/test/java/$packagePath/${mainClass}Test.java"
 package ${packageName};
 
 import org.junit.jupiter.api.Test;
@@ -810,19 +781,56 @@ class ${mainClass}Test {
 EOF
 
   # --- db/migration/.gitkeep ---
-  touch "$project_name/src/main/resources/db/migration/.gitkeep"
+  touch "$project_dir/src/main/resources/db/migration/.gitkeep"
+
+  # --- docs/guide ---
+  mkdir -p "$project_dir/docs/guide"
+  cp "$REPO_ROOT/docs/guide/cartisan-boot-使用手册.md" "$project_dir/docs/guide/"
+  cp "$REPO_ROOT/docs/guide/限界上下文代码编写规范.md" "$project_dir/docs/guide/"
+
+  # --- CLAUDE.md ---
+  cat << EOF > "$project_dir/CLAUDE.md"
+# ${project_name}
+
+Service 服务，基于 cartisan-boot 框架。
+
+## 核心文档
+
+- [cartisan-boot 使用手册](docs/guide/cartisan-boot-使用手册.md) — 框架能力清单、API 文档和使用示例
+- [限界上下文代码编写规范](docs/guide/限界上下文代码编写规范.md) — DDD 六边形架构落地指南
+
+## 引用的 cartisan-boot 模块
+
+- \`cartisan-core\` — DDD 基础类型、异常体系、架构注解、RequestContext
+- \`cartisan-web\` — 统一响应体、全局异常处理、请求上下文、防重提交
+- \`cartisan-data-jpa\` — BaseRepository、事件发布、审计、软删除、@Condition
+- \`cartisan-openapi\` — 服务间签名验证、API Key 管理
+- \`cartisan-test\` — ArchUnit 规则、测试基类
+
+## 常用命令
+
+- 编译：\`mvn compile\`
+- 单元测试：\`mvn test\`
+- 打包：\`mvn package -DskipTests\`
+- 变异测试：\`mvn org.pitest:pitest-maven:mutationCoverage\`
+
+## 开发流程
+
+严格按 Superpowers 技能流程执行：brainstorming → writing-plans → TDD → verification
+EOF
 }
 
 generate_gateway() {
+  local project_dir="$target_dir/$project_name"
   generate_java_common
 
   # --- 目录结构 ---
-  mkdir -p "$project_name/src/main/java/$packagePath"
-  mkdir -p "$project_name/src/main/resources/db/migration"
-  mkdir -p "$project_name/src/test/java/$packagePath"
+  mkdir -p "$project_dir/src/main/java/$packagePath"
+  mkdir -p "$project_dir/src/main/resources/db/migration"
+  mkdir -p "$project_dir/src/test/java/$packagePath"
 
   # --- pom.xml ---
-  cat << EOF > "$project_name/pom.xml"
+  cat << EOF > "$project_dir/pom.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -1024,7 +1032,7 @@ generate_gateway() {
 EOF
 
   # --- application.yml ---
-  cat << EOF > "$project_name/src/main/resources/application.yml"
+  cat << EOF > "$project_dir/src/main/resources/application.yml"
 server:
   port: ${port}
 
@@ -1087,7 +1095,7 @@ management:
 EOF
 
   # --- application-local.yml ---
-  cat << EOF > "$project_name/src/main/resources/application-local.yml"
+  cat << EOF > "$project_dir/src/main/resources/application-local.yml"
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/aieducenter
@@ -1102,7 +1110,7 @@ spring.jpa.show-sql: true
 EOF
 
   # --- application-prod.yml ---
-  cat << EOF > "$project_name/src/main/resources/application-prod.yml"
+  cat << EOF > "$project_dir/src/main/resources/application-prod.yml"
 spring:
   datasource:
     url: \${SPRING_DATASOURCE_URL}
@@ -1118,7 +1126,7 @@ logging.level.root: INFO
 EOF
 
   # --- logback-spring.xml ---
-  cat << 'EOF' > "$project_name/src/main/resources/logback-spring.xml"
+  cat << 'EOF' > "$project_dir/src/main/resources/logback-spring.xml"
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
@@ -1134,7 +1142,7 @@ EOF
 EOF
 
   # --- MainApplication.java ---
-  cat << EOF > "$project_name/src/main/java/$packagePath/${mainClass}.java"
+  cat << EOF > "$project_dir/src/main/java/$packagePath/${mainClass}.java"
 package ${packageName};
 
 import org.springframework.boot.SpringApplication;
@@ -1149,7 +1157,7 @@ public class ${mainClass} {
 EOF
 
   # --- ApplicationTest.java ---
-  cat << EOF > "$project_name/src/test/java/$packagePath/${mainClass}Test.java"
+  cat << EOF > "$project_dir/src/test/java/$packagePath/${mainClass}Test.java"
 package ${packageName};
 
 import org.junit.jupiter.api.Test;
@@ -1164,17 +1172,56 @@ class ${mainClass}Test {
 EOF
 
   # --- db/migration/.gitkeep ---
-  touch "$project_name/src/main/resources/db/migration/.gitkeep"
+  touch "$project_dir/src/main/resources/db/migration/.gitkeep"
+
+  # --- docs/guide ---
+  mkdir -p "$project_dir/docs/guide"
+  cp "$REPO_ROOT/docs/guide/cartisan-boot-使用手册.md" "$project_dir/docs/guide/"
+  cp "$REPO_ROOT/docs/guide/限界上下文代码编写规范.md" "$project_dir/docs/guide/"
+
+  # --- CLAUDE.md ---
+  cat << EOF > "$project_dir/CLAUDE.md"
+# ${project_name}
+
+Gateway 网关服务，基于 cartisan-boot 框架。
+
+## 核心文档
+
+- [cartisan-boot 使用手册](docs/guide/cartisan-boot-使用手册.md) — 框架能力清单、API 文档和使用示例
+- [限界上下文代码编写规范](docs/guide/限界上下文代码编写规范.md) — DDD 六边形架构落地指南
+
+## 引用的 cartisan-boot 模块
+
+- \`cartisan-core\` — DDD 基础类型、异常体系、架构注解、RequestContext
+- \`cartisan-web\` — 统一响应体、全局异常处理、请求上下文、防重提交
+- \`cartisan-data-jpa\` — BaseRepository、事件发布、审计、软删除
+- \`cartisan-openapi\` — 服务间签名验证、API Key 管理
+- \`cartisan-security\` — Sa-Token 认证集成、权限注解
+- \`cartisan-test\` — ArchUnit 规则、测试基类
+
+## 常用命令
+
+- 编译：\`mvn compile\`
+- 单元测试：\`mvn test\`
+- 打包：\`mvn package -DskipTests\`
+- 变异测试：\`mvn org.pitest:pitest-maven:mutationCoverage\`
+
+## 开发流程
+
+严格按 Superpowers 技能流程执行：brainstorming → writing-plans → TDD → verification
+EOF
 }
 
 generate_frontend() {
+  local project_dir="$target_dir/$project_name"
+
   # --- 目录结构 ---
-  mkdir -p "$project_name/src/app"
-  mkdir -p "$project_name/src/lib"
-  mkdir -p "$project_name/src/public"
+  mkdir -p "$project_dir/src/app"
+  mkdir -p "$project_dir/src/lib"
+  mkdir -p "$project_dir/src/public"
 
   # --- package.json ---
-  cat << EOF > "$project_name/package.json"
+  cat << EOF > "$project_dir/package.json"
 {
   "name": "${project_name}",
   "version": "1.0.0",
@@ -1213,7 +1260,7 @@ generate_frontend() {
 EOF
 
   # --- next.config.mjs ---
-  cat << 'EOF' > "$project_name/next.config.mjs"
+  cat << 'EOF' > "$project_dir/next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -1233,7 +1280,7 @@ export default nextConfig
 EOF
 
   # --- tsconfig.json ---
-  cat << 'EOF' > "$project_name/tsconfig.json"
+  cat << 'EOF' > "$project_dir/tsconfig.json"
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -1263,7 +1310,7 @@ EOF
 EOF
 
   # --- tailwind.config.ts ---
-  cat << 'EOF' > "$project_name/tailwind.config.ts"
+  cat << 'EOF' > "$project_dir/tailwind.config.ts"
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
@@ -1326,7 +1373,7 @@ export default config
 EOF
 
   # --- postcss.config.mjs ---
-  cat << 'EOF' > "$project_name/postcss.config.mjs"
+  cat << 'EOF' > "$project_dir/postcss.config.mjs"
 /** @type {import('postcss-load-config').Config} */
 const config = {
   plugins: {
@@ -1339,14 +1386,14 @@ export default config
 EOF
 
   # --- .eslintrc.json ---
-  cat << 'EOF' > "$project_name/.eslintrc.json"
+  cat << 'EOF' > "$project_dir/.eslintrc.json"
 {
   "extends": "next/core-web-vitals"
 }
 EOF
 
   # --- Dockerfile (3-stage multi-stage build) ---
-  cat << EOF > "$project_name/Dockerfile"
+  cat << EOF > "$project_dir/Dockerfile"
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
@@ -1375,7 +1422,7 @@ CMD ["node", "server.js"]
 EOF
 
   # --- docker-compose.prod.yml ---
-  cat << EOF > "$project_name/docker-compose.prod.yml"
+  cat << EOF > "$project_dir/docker-compose.prod.yml"
 services:
   app:
     build: .
@@ -1405,7 +1452,7 @@ networks:
 EOF
 
   # --- deploy.sh ---
-  cat << 'DEPLOY_EOF' > "$project_name/deploy.sh"
+  cat << 'DEPLOY_EOF' > "$project_dir/deploy.sh"
 #!/bin/bash
 set -e
 
@@ -1466,7 +1513,7 @@ docker image prune -f >/dev/null 2>&1 || true
 DEPLOY_EOF
 
   # --- publish.sh ---
-  cat << 'PUBLISH_HEAD' > "$project_name/publish.sh"
+  cat << 'PUBLISH_HEAD' > "$project_dir/publish.sh"
 #!/bin/bash
 set -e
 
@@ -1475,13 +1522,13 @@ SERVER_USER="root"
 SERVER_HOST="43.140.211.9"
 PUBLISH_HEAD
 
-  cat << EOF >> "$project_name/publish.sh"
+  cat << EOF >> "$project_dir/publish.sh"
 SERVER_PATH="${deployDir}"
 SERVER_PASSWORD="Hcy@20260327"
 
 EOF
 
-  cat << 'PUBLISH_BODY' >> "$project_name/publish.sh"
+  cat << 'PUBLISH_BODY' >> "$project_dir/publish.sh"
 # ========== 逻辑区 ==========
 
 # 颜色定义
@@ -1522,7 +1569,7 @@ info "部署完成！"
 PUBLISH_BODY
 
   # --- .env.production.example ---
-  cat << EOF > "$project_name/.env.production.example"
+  cat << EOF > "$project_dir/.env.production.example"
 # 后端 API 地址
 BACKEND_URL=http://${BACKEND_SERVICE}:8081
 
@@ -1531,10 +1578,10 @@ SERVER_PASSWORD=Hcy@20260327
 EOF
 
   # 同时生成 .env.production（填入实际值）
-  cp "$project_name/.env.production.example" "$project_name/.env.production"
+  cp "$project_dir/.env.production.example" "$project_dir/.env.production"
 
   # --- .gitignore ---
-  cat << 'EOF' > "$project_name/.gitignore"
+  cat << 'EOF' > "$project_dir/.gitignore"
 node_modules/
 .next/
 out/
@@ -1552,7 +1599,7 @@ Thumbs.db
 EOF
 
   # --- src/app/layout.tsx ---
-  cat << 'EOF' > "$project_name/src/app/layout.tsx"
+  cat << 'EOF' > "$project_dir/src/app/layout.tsx"
 import './globals.css'
 
 export default function RootLayout({
@@ -1569,7 +1616,7 @@ export default function RootLayout({
 EOF
 
   # --- src/app/page.tsx ---
-  cat << 'EOF' > "$project_name/src/app/page.tsx"
+  cat << 'EOF' > "$project_dir/src/app/page.tsx"
 export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center">
@@ -1580,7 +1627,7 @@ export default function Home() {
 EOF
 
   # --- src/app/globals.css ---
-  cat << 'EOF' > "$project_name/src/app/globals.css"
+  cat << 'EOF' > "$project_dir/src/app/globals.css"
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -1644,7 +1691,7 @@ EOF
 EOF
 
   # --- src/lib/utils.ts ---
-  cat << 'EOF' > "$project_name/src/lib/utils.ts"
+  cat << 'EOF' > "$project_dir/src/lib/utils.ts"
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -1654,46 +1701,42 @@ export function cn(...inputs: ClassValue[]) {
 EOF
 
   # --- src/public/.gitkeep ---
-  touch "$project_name/src/public/.gitkeep"
+  touch "$project_dir/src/public/.gitkeep"
 
   # --- CLAUDE.md ---
-  cat << EOF > "$project_name/CLAUDE.md"
+  cat << EOF > "$project_dir/CLAUDE.md"
 # ${project_name}
 
 前端项目，基于 Next.js。
 
 ## 技术栈
 
-- Next.js 15 / React 19 / TypeScript
-- Tailwind CSS / Zustand
-- pnpm 包管理
-
-## 编码规范
-
-- 函数组件 + hooks，禁止 class 组件
-- TypeScript strict 模式
-- 路径别名：\`@/*\` 映射 \`./src/*\`
-- 端口：${port}
+- Next.js 15（App Router）/ React 19 / TypeScript（strict）
+- Tailwind CSS / Zustand / pnpm
+- 路径别名：\`@/*\` → \`./src/*\`，工具函数：\`@/lib/utils\`（cn）
 
 ## 常用命令
 
-- 开发：\`pnpm dev\`
+- 开发：\`pnpm dev\`（端口 ${port}）
 - 构建：\`pnpm build\`
 - 代码检查：\`pnpm lint\`
 - 类型检查：\`pnpm typecheck\`
 
+## 编码规范
+
+- 函数组件 + hooks，禁止 class 组件
+- 状态管理：Zustand store，放 \`src/lib/store/\`
+- 样式：Tailwind CSS，用 \`cn()\` 合并类名
+- API 调用：通过 Next.js rewrite 代理 \`/api/*\` → 后端，前端直接 fetch
+
 ## 开发流程
 
-使用 Superpowers 技能驱动开发，按需求规模分层：
-
-- **大需求**：先充分讨论，产出需求设计文档（含 Epic 拆解），再逐个 Epic 推进
-- **Epic / 中需求**：讨论后产出 Backlog 文档（含 Feature 拆解），再逐个 Feature 推进
-- **Feature / 小需求 / Bug**：直接用 Superpowers 技能（brainstorming -> writing-plans -> TDD -> verification）
+严格按 Superpowers 技能流程执行：brainstorming → writing-plans → TDD → verification
 EOF
 
   # --- .claude/settings.local.json ---
-  mkdir -p "$project_name/.claude"
-  cat << 'SETTINGS_EOF' > "$project_name/.claude/settings.local.json"
+  mkdir -p "$project_dir/.claude"
+  cat << 'SETTINGS_EOF' > "$project_dir/.claude/settings.local.json"
 {
   "permissions": {
     "allow": [
@@ -1717,7 +1760,7 @@ EOF
 SETTINGS_EOF
 
   # 设置可执行权限
-  chmod +x "$project_name/deploy.sh" "$project_name/publish.sh"
+  chmod +x "$project_dir/deploy.sh" "$project_dir/publish.sh"
 }
 
 # ----------------------------------------------------------------------------
@@ -1739,12 +1782,12 @@ echo "========================================="
 
 case "$PROJECT_TYPE" in
   service|gateway)
-    echo "  cd $project_name"
+    echo "  cd $target_dir/$project_name"
     echo "  # 编辑 .env.production 中的 OPENAPI_APP_ID / SERVER_PASSWORD"
     echo "  mvn install"
     ;;
   frontend)
-    echo "  cd $project_name"
+    echo "  cd $target_dir/$project_name"
     echo "  # 编辑 .env.production 中的 SERVER_PASSWORD"
     echo "  pnpm install"
     ;;

@@ -52,7 +52,7 @@ public class CartisanDataJpaAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public AuditorAware<Long> auditorAware() {
-        return () -> Optional.empty();
+        return Optional::empty;
     }
 
     /**
