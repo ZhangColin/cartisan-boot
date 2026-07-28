@@ -19,11 +19,17 @@ unit（`MockedStatic<StpUtil>` 风格）随签名连带更新、保留 `timeoutS
 
 **Blocked by:** None — 可立即开始
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 两个新重载（默认超时 / 自定义超时）登录传入非空 `userName` 后，后续请求 `RequestContext.userName` 等于所传值
-- [ ] `userName == null` 时 `RequestContext.userName` 为 `null`（等价旧行为）
-- [ ] 旧的无 `userName` 重载已移除（漏迁移在编译期暴露，而非运行期潜伏成 `null`）
-- [ ] 业务层满足 userName 落 session 不再需要直接依赖 `StpUtil`（抽象不泄漏）
-- [ ] `login` 的 javadoc 不再指引业务层调 `StpUtil.getSession().set(...)`
-- [ ] 既有 `timeoutSeconds <= 0` / `loginId == null` 等边界测试保持有效
+- [x] 两个新重载（默认超时 / 自定义超时）登录传入非空 `userName` 后，后续请求 `RequestContext.userName` 等于所传值
+- [x] `userName == null` 时 `RequestContext.userName` 为 `null`（等价旧行为）
+- [x] 旧的无 `userName` 重载已移除（漏迁移在编译期暴露，而非运行期潜伏成 `null`）
+- [x] 业务层满足 userName 落 session 不再需要直接依赖 `StpUtil`（抽象不泄漏）
+- [x] `login` 的 javadoc 不再指引业务层调 `StpUtil.getSession().set(...)`
+- [x] 既有 `timeoutSeconds <= 0` / `loginId == null` 等边界测试保持有效
+
+## Resolution
+
+**框架侧已完成并提交（`efcb1e7`，2026-07-28）**：两个 `login` 重载已补全 `String userName` 参数、javadoc 已更新（删除指引业务层调 `StpUtil` 的措辞）、单元 + integration 测试通过。本 issue 关闭。
+
+应用侧（admin 等）的签名迁移由各消费应用自行处理，不在框架 scope。

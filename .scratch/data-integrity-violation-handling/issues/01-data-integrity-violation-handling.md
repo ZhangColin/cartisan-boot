@@ -1,7 +1,7 @@
 # 01 — GlobalExceptionHandler 处理数据库完整性冲突（重复键等 → 4xx 而非 500）
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Raised by: aieducenter-app-registry（app_code 全局唯一撞名场景）
 
 ## 背景
@@ -75,3 +75,5 @@ aieducenter-app-registry 在设计 `app_code`（全局唯一、不可复用的�
 - **改动**：`GlobalExceptionHandler` +2 `@ExceptionHandler`；`cartisan-web/pom.xml` 显式声明 `spring-tx`（`org.springframework.dao.*` 所在 jar，原本仅经 redis 传递性可见）；`GlobalExceptionHandlerTest` +2 用例（AC10/AC11）；`TestController` +2 端点。
 - **验证**：`mvn test -pl cartisan-web` → **136 tests, 0 failures**。
 - **消费方落地**：app-registry 等无需改动；DB 唯一约束兜底路径从 500 自动变 409，"先查再存"主路径（具体字段消息）不受影响。
+
+**Resolved（2026-07-28）**：框架侧实现已提交（`c560625`），本 issue 关闭。应用侧（app-registry）仅需升级 `cartisan-web` 版本，DB 兜底自动从 500 变 409、无代码改动——由各消费应用自行处理。

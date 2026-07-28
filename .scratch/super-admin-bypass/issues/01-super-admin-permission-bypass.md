@@ -1,7 +1,7 @@
 # 01 — cartisan-security 超管（super-admin）权限 bypass 机制
 
 Type: task
-Status: ready-for-agent
+Status: resolved
 Raised by: aieducenter-admin（Phase 0 RBAC 修复）
 
 ## 背景
@@ -77,3 +77,5 @@ aieducenter-admin 已踩坑：
 - **否决 F3 / F2**：见 CONTEXT.md。
 
 Status → `ready-for-agent`，等框架侧实施 SPI + 拦截器改动 + 测试。
+
+**Resolved（2026-07-28）**：框架侧实现已提交（`b497fd3`）——中性 SPI `AuthorizationBypassResolver` 已提供、`SecurityInterceptor` 已接入（`ObjectProvider` 注入，bean 不存在时行为不变）、测试通过。本 issue 关闭。应用侧（admin）声明 resolver bean 把"超管 → bypass"接上，由消费应用自行处理，不在框架 scope。
