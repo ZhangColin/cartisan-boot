@@ -1,5 +1,6 @@
 package com.cartisan.security.authentication;
 
+import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -52,16 +54,19 @@ class SaTokenAuthenticationServiceTest {
             try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
                 // Given
                 Long loginId = 123L;
+                String userName = "alice";
                 String token = "test-token-abc";
                 long timeoutSeconds = 7200L;
 
-                // Mock StpUtil
+                // Mock StpUtil（getSession 供写入 userName，仅作 setup，不断言内部调用序列）
                 stpUtilMock.when(() -> StpUtil.login(loginId)).then(invocation -> null);
+                SaSession session = mock(SaSession.class);
+                stpUtilMock.when(StpUtil::getSession).thenReturn(session);
                 stpUtilMock.when(StpUtil::getTokenValue).thenReturn(token);
                 stpUtilMock.when(StpUtil::getTokenTimeout).thenReturn(timeoutSeconds);
 
                 // When
-                TokenInfo result = authService.login(loginId);
+                TokenInfo result = authService.login(loginId, userName);
 
                 // Then
                 assertThat(result).isNotNull();
@@ -77,8 +82,8 @@ class SaTokenAuthenticationServiceTest {
         @Test
         @DisplayName("loginId 为 null 时抛出 NullPointerException")
         void given_nullLoginId_when_login_then_throwNullPointerException() {
-            // When & Then
-            assertThatThrownBy(() -> authService.login(null))
+            // When & Then（loginId 校验在写 userName 之前，无需 mock session）
+            assertThatThrownBy(() -> authService.login(null, "alice"))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("loginId");
         }
@@ -89,21 +94,24 @@ class SaTokenAuthenticationServiceTest {
     class LoginWithTimeoutTests {
 
         @Test
-        @DisplayName("login(loginId, timeout) 创建会话并返回 TokenInfo")
+        @DisplayName("login(loginId, timeout, userName) 创建会话并返回 TokenInfo")
         void given_validLoginIdAndTimeout_when_loginWithTimeout_then_returnTokenInfo() {
             try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
                 // Given
                 Long loginId = 123L;
+                String userName = "bob";
                 String token = "test-token-custom-timeout";
                 long timeoutSeconds = 86400L; // 1天
 
-                // Mock StpUtil
+                // Mock StpUtil（getSession 供写入 userName，仅作 setup）
                 stpUtilMock.when(() -> StpUtil.login(loginId, timeoutSeconds)).then(invocation -> null);
+                SaSession session = mock(SaSession.class);
+                stpUtilMock.when(StpUtil::getSession).thenReturn(session);
                 stpUtilMock.when(StpUtil::getTokenValue).thenReturn(token);
                 stpUtilMock.when(StpUtil::getTokenTimeout).thenReturn(timeoutSeconds);
 
                 // When
-                TokenInfo result = authService.login(loginId, timeoutSeconds);
+                TokenInfo result = authService.login(loginId, timeoutSeconds, userName);
 
                 // Then
                 assertThat(result).isNotNull();
@@ -121,8 +129,8 @@ class SaTokenAuthenticationServiceTest {
         @DisplayName("loginId 为 null 时抛出 NullPointerException")
         void given_nullLoginId_when_loginWithTimeout_then_throwNullPointerException() {
             try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
-                // When & Then
-                assertThatThrownBy(() -> authService.login(null, 3600))
+                // When & Then（loginId 校验在写 userName 之前，无需 mock session）
+                assertThatThrownBy(() -> authService.login(null, 3600, "bob"))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("loginId");
             }
@@ -132,13 +140,13 @@ class SaTokenAuthenticationServiceTest {
         @DisplayName("timeoutSeconds <= 0 时抛出 IllegalArgumentException")
         void given_zeroOrNegativeTimeout_when_loginWithTimeout_then_throwIllegalArgumentException() {
             try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
-                // When & Then - zero
-                assertThatThrownBy(() -> authService.login(123L, 0))
+                // When & Then - zero（超时校验在写 userName 之前，无需 mock session）
+                assertThatThrownBy(() -> authService.login(123L, 0, "bob"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("timeoutSeconds must be positive");
 
                 // When & Then - negative
-                assertThatThrownBy(() -> authService.login(123L, -100))
+                assertThatThrownBy(() -> authService.login(123L, -100, "bob"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("timeoutSeconds must be positive");
             }
@@ -150,15 +158,18 @@ class SaTokenAuthenticationServiceTest {
             try (MockedStatic<StpUtil> stpUtilMock = mockStatic(StpUtil.class)) {
                 // Given
                 Long loginId = 123L;
+                String userName = "carol";
                 String token = "test-token";
                 long timeoutSeconds = 86400L; // 1天
                 Instant beforeLogin = Instant.now();
 
                 stpUtilMock.when(() -> StpUtil.login(loginId, timeoutSeconds)).then(invocation -> null);
+                SaSession session = mock(SaSession.class);
+                stpUtilMock.when(StpUtil::getSession).thenReturn(session);
                 stpUtilMock.when(StpUtil::getTokenValue).thenReturn(token);
 
                 // When
-                TokenInfo result = authService.login(loginId, timeoutSeconds);
+                TokenInfo result = authService.login(loginId, timeoutSeconds, userName);
 
                 // Then
                 Instant afterLogin = Instant.now();

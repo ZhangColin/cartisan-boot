@@ -5,10 +5,13 @@ import com.cartisan.core.context.RequestContext;
 import com.cartisan.security.annotation.RequireAuth;
 import com.cartisan.security.annotation.RequirePermission;
 import com.cartisan.security.annotation.RequireRole;
+import com.cartisan.security.authentication.AuthenticationService;
+import com.cartisan.security.authentication.TokenInfo;
 import com.cartisan.web.response.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
@@ -21,12 +24,46 @@ import java.util.Map;
 @RequestMapping("/test/auth")
 public class TestAuthController {
 
+    private final AuthenticationService authenticationService;
+
+    public TestAuthController(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
+    }
+
     @GetMapping("/login/{userId}")
     public ApiResponse<Map<String, String>> login(@PathVariable Long userId) {
         StpUtil.login(userId);
         String token = StpUtil.getTokenValue();
         Map<String, String> result = new HashMap<>();
         result.put("token", token);
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 经 AuthenticationService 登录（默认超时），用于端到端验证 login 写入 userName。
+     * userName 为可选参数：不传时为 null（验证等价旧行为），传入时写入会话。
+     */
+    @GetMapping("/login-svc/{userId}")
+    public ApiResponse<Map<String, String>> loginViaService(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String userName) {
+        TokenInfo tokenInfo = authenticationService.login(userId, userName);
+        Map<String, String> result = new HashMap<>();
+        result.put("token", tokenInfo.token());
+        return ApiResponse.ok(result);
+    }
+
+    /**
+     * 经 AuthenticationService 登录（自定义超时），用于端到端验证自定义超时重载写入 userName。
+     */
+    @GetMapping("/login-svc/{userId}/timeout/{timeoutSeconds}")
+    public ApiResponse<Map<String, String>> loginViaServiceWithTimeout(
+            @PathVariable Long userId,
+            @PathVariable long timeoutSeconds,
+            @RequestParam(required = false) String userName) {
+        TokenInfo tokenInfo = authenticationService.login(userId, timeoutSeconds, userName);
+        Map<String, String> result = new HashMap<>();
+        result.put("token", tokenInfo.token());
         return ApiResponse.ok(result);
     }
 

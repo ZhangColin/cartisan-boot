@@ -67,3 +67,56 @@ String/UUID"的臆想留口子（标准 4）。`SecurityInterceptor` 注入 `Opt
 
 **消费方落地**：admin 实现 resolver 委托 `adminUserPermissionAppService.isSuperAdmin(loginId)`；
 删除 `AdminUserPermissionAppService.getPermissions()` 注释里"由 SaToken 拦截器直接放行"的误导性说明。
+
+### Issue 02 — cartisan-security 登录写入 userName（消除 StpUtil 泄漏 + 补全 login 契约）（2026-07-28）
+
+**来源**：aieducenter-admin Phase 0 RBAC 修复 Bug ④
+（`.scratch/login-user-name/issues/01-populate-user-name-on-login.md`）
+
+**判定**：✅ **是框架问题**。`SecurityFilter` 在框架内从 Sa-Token Session 的 `"userName"` key
+读 userName 写入 `RequestContext`（**读端已在框架内**），但 `AuthenticationService.login(...)`
+**不写**这个 key，把"userName 落 session"甩给业务层、且要求业务层越过抽象直接调
+`StpUtil.getSession().set("userName", ...)`——与接口自身 javadoc"业务代码通过此接口管理会话，
+**不直接依赖 Sa-Token**"自相矛盾。读写不对称 + 抽象泄漏，且任何消费应用（审计 / 日志 / "谁干的"）
+都需要 `RequestContext.userName` 非空，都会踩同一坑。属通用关注点。
+
+**根因 reframe**：不是"缺一个方便的重载"，而是 **`login` 契约残缺**——userName 是登录身份的一部分
+（`RequestContext` 一等字段、`SecurityFilter` 必读），却没进 `login` 签名。补全契约，泄漏与漏写一并消除。
+
+**采纳方案**：**破坏性补全 `login` 签名**——直接改现有两个重载、不保留无 userName 的旧版本：
+
+```java
+TokenInfo login(Long loginId, String userName);                     // 默认 timeout
+TokenInfo login(Long loginId, long timeoutSeconds, String userName); // 自定义 timeout
+```
+
+实现内 `StpUtil.login(...)` 之后 `getSession().set("userName", userName)`。
+`userName == null` 时不写 session（等价旧行为），为机器账号等无 displayName 的边缘场景留口子；javadoc 鼓励非空。
+符合标准"不特化业务概念"（userName 作 opaque 字符串由调用方传入，框架不解析"用户名取什么字段"）。
+
+**否决方案**：
+- ❌ spec 原 F1（加重载 + 旧重载保留不变 / 向后兼容）：留下"残缺契约的遗物"，且 (B) 防漏写非强保证。
+- ❌ `@Deprecated` 旧重载 + 加新重载：调用点已知且少（admin / identity），不值得维护两套；**直接改更干净**。
+- ❌ F2（`recordUserName` 两步法）：仍可漏第二步，未消除根因。
+- ❌ F3（`UserNameResolver` SPI 自动解析）：防漏最强，但把"如何按 loginId 查用户名"耦合进框架——
+  "用户名取 nickname 还是 realName"是业务策略，违背标准"不特化业务概念"；且引入登录时一次 user 存储回调。
+- ❌ `LoginRequest` record 入参：违背标准"窄 / YAGNI / 反胖 context"，且与现有重载风格不一致。
+
+**实施备注**：
+- **破坏性变更**：现有 `login(Long)` / `login(Long, long)` 签名移除。所有消费方登录调用点必须改传 userName；
+  自行实现 `AuthenticationService` 的应用须同步改签名。spec 验收第 3 条"向后兼容"**作废**。
+- **stale name**：用户改名后 session 内 userName 过期，直到重新登录刷新。可接受（Sa-Token session 本就是临时态；
+  强一致需应用在改名时主动重写 session 或踢出重登，不在框架 scope）。
+- **scope 只锁路径 A 写入端**：`cartisan-web/RequestContextFilter` 从 `X-User-Name` header 读 userName 属
+  **路径 B（网关→下游）**，是路径 A 的下游消费者——上游 `SecurityFilter` 从 session 读 userName 填进
+  `RequestContext`，网关转发时取该值注入 header，下游即读到。login 写 session 修好后，B 的输入源自动有值；
+  本次不动 header 转发链路。若网关侧 ctx→header 转发机制缺失，另立 issue（不阻塞本次）。
+
+**验收**：
+- 消费方经新 `login(loginId, userName)` 登录后（传非空 userName），后续请求 `RequestContext.userName` 非空、为所登录用户名。
+- 业务层不再直接依赖 `StpUtil` 来满足 userName 落 session（抽象不泄漏）。
+- 破坏性：旧的无 userName 重载移除，调用点一次性迁移。
+
+**消费方落地**：admin 的 `AdminUserAuthAppService.login()` 改为
+`authenticationService.login(adminUser.getId(), timeout, adminUser.getNickname())`，
+并移除应用层手补 `StpUtil.getSession().set(...)` 的临时修复（Bug ④ admin 侧落地后回收）。

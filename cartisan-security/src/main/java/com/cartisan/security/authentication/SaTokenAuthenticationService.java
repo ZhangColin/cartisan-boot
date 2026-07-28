@@ -16,11 +16,12 @@ import java.util.Objects;
 public class SaTokenAuthenticationService implements AuthenticationService {
 
     @Override
-    public TokenInfo login(Long loginId) {
+    public TokenInfo login(Long loginId, String userName) {
         Objects.requireNonNull(loginId, "loginId");
 
         // 创建会话
         StpUtil.login(loginId);
+        recordUserName(userName);
 
         // 获取 Token 信息
         String token = StpUtil.getTokenValue();
@@ -31,7 +32,7 @@ public class SaTokenAuthenticationService implements AuthenticationService {
     }
 
     @Override
-    public TokenInfo login(Long loginId, long timeoutSeconds) {
+    public TokenInfo login(Long loginId, long timeoutSeconds, String userName) {
         Objects.requireNonNull(loginId, "loginId");
 
         if (timeoutSeconds <= 0) {
@@ -39,11 +40,24 @@ public class SaTokenAuthenticationService implements AuthenticationService {
         }
 
         StpUtil.login(loginId, timeoutSeconds);
+        recordUserName(userName);
 
         String token = StpUtil.getTokenValue();
         Instant expireTime = Instant.now().plusSeconds(timeoutSeconds);
 
         return new TokenInfo(token, loginId, expireTime);
+    }
+
+    /**
+     * 将 userName 写入 Sa-Token Session 的 "userName" key（SecurityFilter 从此 key 读取）。
+     * <p>
+     * userName 为 null 时不写入，等价于不设置，为机器账号等无显示名场景留口子。
+     * </p>
+     */
+    private void recordUserName(String userName) {
+        if (userName != null) {
+            StpUtil.getSession().set("userName", userName);
+        }
     }
 
     @Override

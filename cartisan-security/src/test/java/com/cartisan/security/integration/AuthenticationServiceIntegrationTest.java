@@ -1,5 +1,6 @@
 package com.cartisan.security.integration;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -101,5 +102,61 @@ class AuthenticationServiceIntegrationTest extends AbstractSecurityIntegrationTe
                         .header("satoken", token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.userId").value(999));
+    }
+
+    @Test
+    @DisplayName("login(loginId, userName) 登录后，后续请求 RequestContext.userName 为所传用户名")
+    void shouldPopulateRequestContextUserName_whenLoginWithUserName() throws Exception {
+        // Given: 经 AuthenticationService 登录，传入非空 userName（默认超时）
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login-svc/555")
+                        .param("userName", "Alice"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        // When: 带 token 访问回显端点
+        // Then: RequestContext.userName 为所传用户名（写端 login → Session → 读端 SecurityFilter → RequestContext 全链路）
+        mvc.perform(MockMvcRequestBuilders.get("/test/auth/current-user")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(555))
+                .andExpect(jsonPath("$.data.username").value("Alice"));
+    }
+
+    @Test
+    @DisplayName("login(loginId, timeout, userName) 自定义超时登录后，后续请求 RequestContext.userName 为所传用户名")
+    void shouldPopulateRequestContextUserName_whenLoginWithTimeoutAndUserName() throws Exception {
+        // Given: 经 AuthenticationService 自定义超时登录，传入非空 userName
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login-svc/666/timeout/3600")
+                        .param("userName", "Bob"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        // When: 带 token 访问回显端点
+        // Then: 两个重载行为一致，RequestContext.userName 为所传用户名
+        mvc.perform(MockMvcRequestBuilders.get("/test/auth/current-user")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(666))
+                .andExpect(jsonPath("$.data.username").value("Bob"));
+    }
+
+    @Test
+    @DisplayName("login 传入 null userName 时，后续请求 RequestContext.userName 为 null（等价旧行为）")
+    void shouldLeaveRequestContextUserNameNull_whenLoginWithoutUserName() throws Exception {
+        // Given: 经 AuthenticationService 登录，不传 userName（null，机器账号等无显示名场景）
+        String token = extractToken(mvc.perform(MockMvcRequestBuilders.get("/test/auth/login-svc/777"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        // When: 带 token 访问回显端点
+        // Then: RequestContext.userName 为 null（框架不写 session，等价旧行为）
+        mvc.perform(MockMvcRequestBuilders.get("/test/auth/current-user")
+                        .header("satoken", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(777))
+                .andExpect(jsonPath("$.data.username").value(Matchers.nullValue()));
     }
 }

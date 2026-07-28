@@ -32,7 +32,8 @@ import java.util.Optional;
  *
  * // 使用示例
  * Long loginId = authService.authenticate("admin", "123");
- * TokenInfo tokenInfo = authService.login(loginId);
+ * String userName = user.getNickname();
+ * TokenInfo tokenInfo = authService.login(loginId, userName);
  * }</pre>
  *
  * @since 0.3.0
@@ -60,32 +61,39 @@ public interface AuthenticationService {
     /**
      * 创建登录会话。
      * <p>
-     * 调用此方法前，业务层应已完成身份验证并获得 loginId。
+     * 调用此方法前，业务层应已完成身份验证并获得 loginId；登录时本就持有用户名，随之一并传入即可，
+     * 无需（也不应）直接依赖 Sa-Token。
      * </p>
      * <p>
-     * 调用此方法后，业务层应通过 {@code StpUtil.getSession().set("userName", ...)}
-     * 将用户名存入 Session，以便 {@code SecurityFilter} 在后续请求中自动读取并写入 RequestContext。
+     * 框架在建立会话后，将 {@code userName} 写入 Sa-Token Session 的 {@code "userName"} key，
+     * {@code SecurityFilter} 在后续请求中自动读取并写入 {@code RequestContext}。
+     * {@code userName} 为 {@code null} 时不写入（等价于不设置），为机器账号等无显示名的边缘场景留口子；
+     * 非空值使后续请求的 {@code RequestContext.userName} 自动为所登录用户名。
+     * {@code userName} 是不透明字符串，框架不解析其字段来源（nickname / realName / 账号均可）。
      * </p>
      *
-     * @param loginId 用户标识（由业务层认证后提供）
+     * @param loginId  用户标识（由业务层认证后提供）
+     * @param userName 用户名（写入会话供 SecurityFilter 读取；为 null 则不写入）
      * @return Token 信息
      * @throws NullPointerException loginId 为 null
      */
-    TokenInfo login(Long loginId);
+    TokenInfo login(Long loginId, String userName);
 
     /**
      * 创建登录会话（自定义超时）。
      * <p>
-     * 用于"记住我"等场景，如 7 天免登录。
+     * 用于"记住我"等场景，如 7 天免登录。{@code userName} 的处理与
+     * {@link #login(Long, String)} 一致。
      * </p>
      *
      * @param loginId        用户标识
      * @param timeoutSeconds 超时秒数（> 0）
+     * @param userName       用户名（写入会话供 SecurityFilter 读取；为 null 则不写入）
      * @return Token 信息
      * @throws NullPointerException     loginId 为 null
      * @throws IllegalArgumentException timeoutSeconds <= 0
      */
-    TokenInfo login(Long loginId, long timeoutSeconds);
+    TokenInfo login(Long loginId, long timeoutSeconds, String userName);
 
     /**
      * 销毁当前登录会话。
