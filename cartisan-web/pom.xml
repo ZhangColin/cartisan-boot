@@ -43,6 +43,13 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
 
+        <!-- Spring TX：提供 org.springframework.dao.* 异常体系（DataIntegrityViolationException / DuplicateKeyException），
+             GlobalExceptionHandler 据此把 DB 完整性冲突映射成 4xx。版本由 Spring Boot BOM 管理。 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
         <!-- Spring Data Redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

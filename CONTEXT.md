@@ -120,3 +120,63 @@ TokenInfo login(Long loginId, long timeoutSeconds, String userName); // 自定�
 **消费方落地**：admin 的 `AdminUserAuthAppService.login()` 改为
 `authenticationService.login(adminUser.getId(), timeout, adminUser.getNickname())`，
 并移除应用层手补 `StpUtil.getSession().set(...)` 的临时修复（Bug ④ admin 侧落地后回收）。
+
+### Issue 03 — GlobalExceptionHandler 处理 DB 完整性冲突（重复键→409，其余→400）（2026-07-28）
+
+**来源**：aieducenter-app-registry 设计 `app_code` 全局唯一撞名时浮现
+（`.scratch/data-integrity-violation-handling/issues/01-data-integrity-violation-handling.md`）
+
+**判定**：✅ **是框架问题**。`GlobalExceptionHandler` 没接 `DataIntegrityViolationException`
+体系，任何 DB 唯一/外键/check/not-null 约束冲突都冒泡到兜底 `handleException(Exception)` →
+**HTTP 500**。500 是**语义错误**：约束冲突是**客户端冲突（4xx）**，不是服务故障；500 触发监控告警噪音、
+误导调用方、丢失"是哪类约束"的信息。这是**通用缺口**——任何用唯一约束/外键的消费应用，
+并发 race 或漏查重时都会撞到（"先查再存"关不掉并发 race，DB 唯一约束才是真保证）。
+
+**采纳方案**：C1 精确分级，复用 Spring 已做的异常分类，新增两个 `@ExceptionHandler`：
+
+```java
+@ExceptionHandler(DuplicateKeyException.class)            // 最具体，优先匹配
+public ResponseEntity<ApiResponse<Void>> handleDuplicateKey(DuplicateKeyException ex) {
+    log.warn("Duplicate key violation: {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ApiResponse.error(BaseCodeMessage.CONFLICT).withRequestId(currentRequestId()));
+}
+
+@ExceptionHandler(DataIntegrityViolationException.class)   // 父类：外键/check/not-null 等
+public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    log.warn("Data integrity violation: {}", ex.getMessage());
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error(BaseCodeMessage.BAD_REQUEST).withRequestId(currentRequestId()));
+}
+```
+
+Spring MVC 按"最具体匹配"——`DuplicateKeyException` handler 优先于父类，二者共存不冲突。
+**响应体只给通用文案**（`CONFLICT`="Resource conflict" / `BAD_REQUEST`="Invalid request"），
+DB 原始消息（含 constraint / 列名等 schema 细节）**只 WARN 入日志**供运维排查，不进响应体
+（避免信息泄漏）。与现有"4xx→WARN、5xx→ERROR"日志策略一致。
+
+**否决方案**：
+- ❌ C3（仅文档化"消费方先查再存"）：关不掉并发 race，治标不治本。
+- ❌ C2（只接父类 `DataIntegrityViolationException` 统一一个码）：丢失"重复 vs 外键/check"的区分，
+  而 Spring 已免费做了分类——没必要降级。
+- ❌ 复用 `BaseCodeMessage.DUPLICATE`（"Duplicate resource: {0}"）：框架层接 `DuplicateKeyException`
+  时**填不出 `{0}`**（不知是哪个业务字段），`ApiResponse.error(DUPLICATE)` 会渲染出字面 `{0}`。
+- ❌ 透出 `ex.getMessage()` 到响应体：泄漏 DB schema 细节（表/列/constraint 名）到 API 响应，
+  对业务无关框架是信息泄漏 smell；细节 WARN 入日志即可。
+- ❌ 新增 `BaseCodeMessage.DATA_INTEGRITY_VIOLATION` 专用码：`CONFLICT` / `BAD_REQUEST` 已是
+  无占位符的通用文案，复用即可，YAGNI。
+
+**实施备注**：
+- **依赖**：`DataIntegrityViolationException` / `DuplicateKeyException` 位于 `spring-tx` jar
+  （不在 spring-context / spring-jdbc）。cartisan-web 原本经 `spring-boot-starter-data-redis`
+  传递性拿到 spring-tx；本模块现直接引用这些类型，**显式声明 `spring-tx` 依赖**（版本由 Spring Boot BOM 管理）。
+- **范围**：仅 `cartisan-web` 的 `GlobalExceptionHandler`；不动消费方"先查再存"主路径（仍返具体字段消息）。
+- **向后兼容**：纯新增 handler，无签名变更；非完整性异常仍走原 500 兜底，行为不变。
+
+**验收**：
+- 唯一/重复键冲突 → HTTP **409**（非 500），`code=409`、`message="Resource conflict"`。
+- 其余完整性冲突（外键/check/not-null）→ HTTP **400**（非 500），`code=400`、`message="Invalid request"`。
+- DB 细节不进响应体；消费方"先查再存"主路径不受影响（仍返具体字段消息）。
+- `GlobalExceptionHandlerTest` 覆盖 `DuplicateKeyException → 409` 与 `DataIntegrityViolationException → 400`。
+
+**消费方落地**：app-registry 等无需改动；DB 唯一约束兜底路径从 500 自动变 409。

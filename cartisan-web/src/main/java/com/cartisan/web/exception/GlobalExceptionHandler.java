@@ -10,6 +10,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -63,6 +65,25 @@ public class GlobalExceptionHandler {
         log.warn("Resubmit blocked: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(400, ex.getMessage()).withRequestId(currentRequestId()));
+    }
+
+    // ========== 数据库完整性冲突 ==========
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateKey(DuplicateKeyException ex) {
+        // 唯一/重复键冲突是客户端冲突（4xx），非服务故障。DB 原始消息含 constraint/列名等 schema 细节，只入日志、不进响应体。
+        log.warn("Duplicate key violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(BaseCodeMessage.CONFLICT).withRequestId(currentRequestId()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        // 其余完整性冲突（外键 / check / not-null）：客户端提交的数据违反 DB 约束 → 400。
+        // DuplicateKeyException 是本异常的子类，Spring MVC 按"最具体匹配"优先走上面的 409 handler，故二者共存不冲突。
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(BaseCodeMessage.BAD_REQUEST).withRequestId(currentRequestId()));
     }
 
     // ========== 校验异常 ==========

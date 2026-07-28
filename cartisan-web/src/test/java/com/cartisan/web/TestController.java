@@ -9,6 +9,8 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -69,6 +71,18 @@ public class TestController {
     @GetMapping("/exception")
     public void throwException() {
         throw new RuntimeException("Unexpected error");
+    }
+
+    @GetMapping("/duplicate-key")
+    public void throwDuplicateKeyException() {
+        // 模拟唯一约束冲突（并发 race 下 DB 兜底触发）
+        throw new DuplicateKeyException("Duplicate entry 'app-001' for key 'uk_app_code'");
+    }
+
+    @GetMapping("/data-integrity-violation")
+    public void throwDataIntegrityViolationException() {
+        // 模拟其余完整性冲突（外键 / check / not-null）
+        throw new DataIntegrityViolationException("Cannot delete parent row: a foreign key constraint fails");
     }
 
     /**

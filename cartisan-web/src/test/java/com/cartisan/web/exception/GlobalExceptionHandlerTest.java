@@ -28,7 +28,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 CartisanException(400) - 验证返回 400 和正确响应格式")
-    void given_cartisanException400_when_handle_then_return_400_with_correct_format() throws Exception {
+    void shouldReturn400WithCorrectFormat_whenCartisanException400() throws Exception {
         mockMvc.perform(get("/test/cartisan-exception"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
@@ -40,7 +40,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 CartisanException(500) - 验证返回 500 和正确响应格式")
-    void given_cartisanException500_when_handle_then_return_500_with_correct_format() throws Exception {
+    void shouldReturn500WithCorrectFormat_whenCartisanException500() throws Exception {
         mockMvc.perform(get("/test/cartisan-exception-500"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
@@ -51,7 +51,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 MethodArgumentNotValidException - 验证返回 400 和 errors 数组")
-    void given_methodArgumentNotValid_when_handle_then_return_400_with_errors_array() throws Exception {
+    void shouldReturn400WithErrorsArray_whenMethodArgumentNotValid() throws Exception {
         String invalidJson = "{\"email\":\"invalid\",\"password\":\"123\"}";
 
         mockMvc.perform(post("/test/validate-request-body")
@@ -68,7 +68,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 ConstraintViolationException - 验证返回 400 和 errors 数组")
-    void given_constraintViolation_when_handle_then_return_400_with_errors_array() throws Exception {
+    void shouldReturn400WithErrorsArray_whenConstraintViolation() throws Exception {
         mockMvc.perform(get("/test/validate-request-param")
                         .param("email", "invalid-email"))
                 .andExpect(status().isBadRequest())
@@ -81,7 +81,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 HttpRequestMethodNotSupportedException - 验证返回 405")
-    void given_httpMethodNotSupported_when_handle_then_return_405() throws Exception {
+    void shouldReturn405_whenHttpMethodNotSupported() throws Exception {
         mockMvc.perform(post("/test/method-not-allowed"))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.code").value(405));
@@ -91,7 +91,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 HttpMediaTypeNotSupportedException - 验证返回 415")
-    void given_httpMediaTypeNotSupported_when_handle_then_return_415() throws Exception {
+    void shouldReturn415_whenHttpMediaTypeNotSupported() throws Exception {
         mockMvc.perform(post("/test/media-type-not-supported")
                         .contentType("application/json"))
                 .andExpect(status().isUnsupportedMediaType())
@@ -102,7 +102,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 HttpMessageNotReadableException - 验证返回 400")
-    void given_httpMessageNotReadable_when_handle_then_return_400() throws Exception {
+    void shouldReturn400_whenHttpMessageNotReadable() throws Exception {
         String malformedJson = "{\"email\": invalid";
 
         mockMvc.perform(post("/test/malformed-json")
@@ -117,7 +117,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 MissingServletRequestParameterException - 验证返回 400 和参数名")
-    void given_missingParameter_when_handle_then_return_400_with_parameter_name() throws Exception {
+    void shouldReturn400WithParameterName_whenMissingParameter() throws Exception {
         mockMvc.perform(get("/test/missing-parameter"))  // 缺少 required 参数
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
@@ -128,7 +128,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定 MissingRequestHeaderException - 验证返回 400 和请求头名")
-    void given_missingHeader_when_handle_then_return_400_with_header_name() throws Exception {
+    void shouldReturn400WithHeaderName_whenMissingHeader() throws Exception {
         mockMvc.perform(get("/test/missing-header"))  // 缺少 required 请求头
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
@@ -139,10 +139,34 @@ class GlobalExceptionHandlerTest {
 
     @Test
     @DisplayName("给定未捕获 Exception - 验证返回 500")
-    void given_unexpectedException_when_handle_then_return_500() throws Exception {
+    void shouldReturn500_whenUnexpectedException() throws Exception {
         mockMvc.perform(get("/test/exception"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.message").value("Internal server error"));
+    }
+
+    // ========== AC10: DuplicateKeyException 返回 409（非 500）==========
+
+    @Test
+    @DisplayName("DuplicateKeyException - 验证返回 409 和 Resource conflict")
+    void shouldReturn409_whenDuplicateKeyException() throws Exception {
+        mockMvc.perform(get("/test/duplicate-key"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("Resource conflict"))
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    // ========== AC11: DataIntegrityViolationException 返回 400（非 500）==========
+
+    @Test
+    @DisplayName("DataIntegrityViolationException - 验证返回 400 和 Invalid request")
+    void shouldReturn400_whenDataIntegrityViolationException() throws Exception {
+        mockMvc.perform(get("/test/data-integrity-violation"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("Invalid request"))
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 }
