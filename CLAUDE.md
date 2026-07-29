@@ -36,7 +36,7 @@
 
 ### Issue tracker
 
-Issues 与 specs 以本地 markdown 文件存放在 `.scratch/` 下。详见 `docs/agents/issue-tracker.md`。
+Issues 与 specs 以 GitHub Issues 跟踪（用 `gh` CLI）。详见 `docs/agents/issue-tracker.md`。
 
 ### Triage labels
 
