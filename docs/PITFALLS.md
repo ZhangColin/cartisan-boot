@@ -1243,55 +1243,45 @@ public abstract class Auditable {
 
 ---
 
-### 规则 DATA-004：@SQLRestriction 在 @MappedSuperclass 上可能无法正确继承
+### 规则 DATA-004：软删除读过滤由框架自动注册（继承/接口实现均生效）
 
-**问题**：在 `@MappedSuperclass` 上添加 `@SQLRestriction` 后，查询时自动过滤可能不生效。
+**问题**：`@SQLRestriction` 声明在 `@MappedSuperclass`（如 `AuditableSoftDeletable`）上时，Hibernate **不会**把它继承到具体实体子类——子类的所有读路径都会返回已软删记录。这是 Hibernate 的已知行为（restriction 不跨 `@MappedSuperclass` 继承）。
 
-**原因**：Hibernate 的 `@SQLRestriction` 注解在某些配置下可能无法正确继承到子类。
+**解决方案（框架已内置）**：`cartisan-data-jpa` 通过 Hibernate `AdditionalMappingContributor`（`SoftDeleteRestrictionContributor`，经 Java ServiceLoader SPI 自动发现）在元模型构建期为「实现 `SoftDeletable` 且未显式声明 restriction」的实体统一注册等价于 `@SQLRestriction("deleted = false")` 的过滤。
 
-**解决方案**：在具体实体类上重复声明 `@SQLRestriction`
-```java
-// 基类
-@MappedSuperclass
-@SQLRestriction("deleted = false")
-public abstract class SoftDeletable extends Auditable {
-    @Column(name = "deleted", nullable = false)
-    private boolean deleted = false;
-}
+- 继承 `AuditableSoftDeletable`（自身不声明任何注解）→ 自动过滤 ✓
+- 直接实现 `SoftDeletable` 接口（不经 `AuditableSoftDeletable`）→ 自动过滤 ✓
+- 实体自身显式声明 `@SQLRestriction` → 按其表达式过滤，框架**不覆盖、不叠加**
 
-// 具体实体类（重复声明确保生效）
-@Entity(name = "test_soft_deletable_entity")
-@SQLRestriction("deleted = false")  // ✅ 重复声明
-public class TestSoftDeletableEntity extends SoftDeletable {
-    // ...
-}
-```
+> 历史上的"子类重复声明 `@SQLRestriction`"变通方案现已无需使用（重复声明不会出错，Contributor 会跳过已声明的实体）。
 
-**记忆口诀**：@SQLRestriction 继承不保证，子类重复声明才保险。
+**约定**：实现 `SoftDeletable` 的实体须将软删标记映射为列 `deleted`。
+
+**记忆口诀**：实现 SoftDeletable 即自动读过滤，无需子类重复声明。
 
 ---
 
-### 规则 DATA-005：JPQL @Query 查询不受 @SQLRestriction 影响
+### 规则 DATA-005：@SQLRestriction 作用于 find/派生查询/JPQL，但不作用于原生 SQL 与批量 DML
 
-**问题**：使用 `@Query` 注解编写 JPQL 查询时，`@SQLRestriction` 自动过滤不生效。
+**澄清**（更正早期错误结论）：`@SQLRestriction` 是 SQL 级片段，Hibernate 在生成 SQL 时追加，因此对**所有走 Hibernate SQL 生成的读路径**都生效——包括 `findById`/`findAll`/派生查询（方法名查询）/Specification/**显式 JPQL/HQL**。早期"JPQL 不受影响"的结论是错的（已被 `SoftDeleteRestrictionSemanticsTest` 覆盖验证）。
 
-**错误代码**：
-```java
-// ❌ JPQL 查询缺少软删除条件，会返回已删除记录
-@Query("SELECT e FROM Product e WHERE e.name = :name")
-List<Product> findByName(@Param("name") String name);
-```
+**不受作用的路径**：
+
+- **原生 SQL 查询**（`nativeQuery = true`）：直接执行原始 SQL，Hibernate 不追加 restriction。
+- **批量 UPDATE/DELETE**（`@Query` 的 `UPDATE`/`DELETE`，或 `BaseRepositoryImpl.deleteAll()` 的批量更新）：不走实体加载，restriction 不作用。
 
 **正确做法**：
 ```java
-// ✅ JPQL 查询手动添加软删除条件
-@Query("SELECT e FROM Product e WHERE e.deleted = false AND e.name = :name")
-List<Product> findActiveByName(@Param("name") String name);
+// ✅ JPQL 查询自动应用 deleted = false（无需手动加条件）
+@Query("SELECT e FROM Product e WHERE e.name = :name")
+List<Product> findByName(@Param("name") String name);
+
+// ⚠️ 原生 SQL 不会自动过滤，需手动加条件
+@Query(value = "SELECT * FROM product WHERE deleted = false AND name = :name", nativeQuery = true)
+List<Product> findActiveByNameNative(@Param("name") String name);
 ```
 
-**原因**：`@SQLRestriction` 只对 Hibernate 自动生成的 SQL 查询生效（如 `findAll()`、`findById()`、方法名查询等）。JPQL 查询由开发者编写，Hibernate 不会自动添加 `@SQLRestriction` 条件。
-
-**记忆口诀**：JPQL 查询手动加条件，@SQLRestriction 只管自动生成的 SQL。
+**记忆口诀**：JPQL 自动过滤，原生 SQL 与批量 DML 需手动。
 
 ---
 
