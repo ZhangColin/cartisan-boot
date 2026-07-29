@@ -180,3 +180,74 @@ DB 原始消息（含 constraint / 列名等 schema 细节）**只 WARN 入日�
 - `GlobalExceptionHandlerTest` 覆盖 `DuplicateKeyException → 409` 与 `DataIntegrityViolationException → 400`。
 
 **消费方落地**：app-registry 等无需改动；DB 唯一约束兜底路径从 500 自动变 409。
+
+### Issue 04 — cartisan-openapi 去 signature permissions（机机 ACL 是臆想需求）（2026-07-28）
+
+**来源**：aieducenter-app-registry 签名 facet 设计审视
+（`.scratch/apikey-info-permissions/issues/01-apikey-info-permissions-necessity.md`）
+
+**判定**：✅ **是框架问题，且应"简化去掉"**。`ApiKeyInfo.permissions` + `@RequireSignature(permission)`
+的 per-key 机机 ACL **零消费方使用**：
+- `hcy_payment`（参考实现）：全部裸用 `@RequireSignature`（无一处传 `permission=`）；其 `ApiKey` 聚合自存
+  permissions 字段，但从未接到框架的 ACL 检查上。
+- `aieducenter-platform`：grep 到的 `permissions` 全是 admin RBAC（`@RequirePermission` 那套），与 openapi 签名无关。
+- `aieducenter-app-registry`（提 issue 方）：尚未落地，明确表示不要 per-key ACL。
+
+属**臆想需求（speculative）**，违背标准 4（SPI 职责要窄，YAGNI）。per-key 权限码的增删改/分配/校验
+让 apiKey 管理复杂化；这种粒度的机机 ACL 更像腾讯/AWS 量级多租户不可信接入才需要——对内部
+first-party 平台，"已登记应用可调"（签名 = 认证）已足够。
+
+**根因 reframe**：不是"缺一个文档化的空集默认值"，而是 **框架为不存在的需求预留了一等概念**。
+permissions 字段、注解属性、拦截器 403 分支、provider JSON 解析——整条 ACL 链路都在维护一个
+没人用的能力。删字段不如删概念：signature 回归纯**认证**，ACL 留给应用层（若未来真要）。
+
+**采纳方案**：**硬删，不留 hook**（纯 YAGNI，对齐 Issue 02 破坏性补全先例）。signature = 认证一等用法：
+
+```java
+// ApiKeyInfo：5 字段 → 4 字段，删 hasPermission
+public record ApiKeyInfo(String appId, String appName, String apiSecret, String status) {
+    public boolean isActive() { return "ACTIVE".equalsIgnoreCase(status); }
+}
+
+// @RequireSignature：去 permission 属性，变裸标记注解
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RequireSignature {}
+```
+
+`SignatureVerificationInterceptor` 删 403 权限块，瘦身为"**必须验签**闸"：标了 `@RequireSignature`
+的端点，若 request attribute 无验签成功写入的 `ApiKeyInfo` → 401。该闸不可去——否则 `@RequireSignature`
+变空操作（`SignatureVerificationFilter` 仅在带 `X-App-Id` 时验签、不带则放行，需拦截器把"标注即强制"补上）。
+`RemoteApiKeyProvider` 不再解析远端 JSON 的 `permissions`（远端若仍返回，直接忽略，wire 兼容）。
+
+**否决方案**：
+- ❌ 保留 + 文档化"空集为默认"（issue 疑问 3）：留下臆想概念的一等地位，框架表面积不变、维护负担不减，
+  违背标准 4。"传 `Set.of()`"是消费方绕开框架赘肉的 workaround，不是该长期依赖的契约。
+- ❌ 硬删但留窄 SPI（如 `SignatureAclResolver`）备用：预留未使用的扩展点本身就是 speculative，与 YAGNI
+  取舍直接冲突；未来真有需求时按 `AuthorizationBypassResolver` 模式新增窄 SPI 即可，不必现在留口子。
+- ❌ `@Deprecated` 软退场：对一个零消费方的臆想字段，软退场是仪式大于实质（无人在用、无 graceful 期可过渡），
+  反而让赘肉多活一个版本。不如一次性删干净。
+
+**实施备注**：
+- **破坏性变更**：`ApiKeyInfo` record ctor 签名变更（去 permissions 参数）；`@RequireSignature`
+  去 `permission()` 属性；`ApiKeyInfo.hasPermission(...)` 移除。自行构造 `ApiKeyInfo` 或实现
+  `ApiKeyProvider` 的消费方须同步去 permissions 参数；用了 `@RequireSignature(permission=...)` 的
+  消费方须改为裸 `@RequireSignature`（实测当前无此调用点）。
+- **范围**：仅 `cartisan-openapi`。`SignatureVerificationFilter`（认证主路径）不动；`@NoSignature`
+  排除注解不动；nonce/timestamp/HMAC 验签链路不动。
+- **wire 兼容**：`RemoteApiKeyProvider` 不再读远端响应的 `permissions` 字段，但远端（如 hcy_payment
+  的 api-key 管理服务）继续返回也无妨——框架忽略，不报错。hcy_payment 自身 `ApiKey` 聚合的 permissions
+  是它**自己的**领域概念，不属框架 scope，不在本次改动内。
+
+**验收**：
+- `ApiKeyInfo` 为 4 字段 record，无 `permissions` / `hasPermission`。
+- `@RequireSignature` 为无属性裸标记注解。
+- 标 `@RequireSignature` 的端点：带有效签名 → 放行；无有效签名（无 `ApiKeyInfo` attribute）→ **401**。
+- 不再有 403 "Permission denied" 路径。
+- `RemoteApiKeyProvider` 对远端响应含/不含 `permissions` 字段均正常构造 `ApiKeyInfo`（忽略该字段）。
+- `cartisan-openapi` 模块测试全绿。
+
+**消费方落地**：
+- app-registry：`ApiKeyInfo` 构造少传一字段（本就打算传 `Set.of()`），无需建 permissions 列/管理 UI。
+- hcy_payment：controller 处裸 `@RequireSignature` 无需改；若迁到框架 `ApiKeyInfo`，去 permissions 参数。
+  其自身 `ApiKey` 聚合的 permissions 字段保留与否由 hcy_payment 自行决定（非框架约束）。

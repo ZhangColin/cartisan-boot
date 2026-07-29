@@ -15,7 +15,6 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.method.HandlerMethod;
 
 import java.lang.reflect.Method;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,7 +29,7 @@ class SignatureVerificationInterceptorTest {
     private SignatureVerificationInterceptor interceptor;
 
     private static final ApiKeyInfo API_KEY_INFO = new ApiKeyInfo(
-            "app-1", "App One", "secret", Set.of("read", "write"), "ACTIVE");
+            "app-1", "App One", "secret", "ACTIVE");
 
     @BeforeEach
     void setUp() {
@@ -46,13 +45,7 @@ class SignatureVerificationInterceptorTest {
         public void excludedMethod() {}
 
         @RequireSignature
-        public void requireSignatureDefault() {}
-
-        @RequireSignature(permission = "admin")
-        public void requireSignatureAdmin() {}
-
-        @RequireSignature(permission = "read")
-        public void requireSignatureRead() {}
+        public void requireSignature() {}
     }
 
     @Test
@@ -82,7 +75,7 @@ class SignatureVerificationInterceptorTest {
 
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"code\":401,\"message\":\"Signature required\"}");
 
-        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignatureDefault"));
+        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignature"));
 
         assertThat(result).isFalse();
         assertThat(response.getStatus()).isEqualTo(401);
@@ -94,32 +87,7 @@ class SignatureVerificationInterceptorTest {
         request.setAttribute(SignatureVerificationFilter.API_KEY_INFO_ATTR, API_KEY_INFO);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
-        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignatureDefault"));
-
-        assertThat(result).isTrue();
-    }
-
-    @Test
-    void shouldReject_whenPermissionDenied() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute(SignatureVerificationFilter.API_KEY_INFO_ATTR, API_KEY_INFO);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        when(objectMapper.writeValueAsString(any())).thenReturn("{\"code\":403,\"message\":\"Permission denied\"}");
-
-        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignatureAdmin"));
-
-        assertThat(result).isFalse();
-        assertThat(response.getStatus()).isEqualTo(403);
-    }
-
-    @Test
-    void shouldAllow_whenPermissionMatched() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute(SignatureVerificationFilter.API_KEY_INFO_ATTR, API_KEY_INFO);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-
-        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignatureRead"));
+        boolean result = interceptor.preHandle(request, response, handlerMethod("requireSignature"));
 
         assertThat(result).isTrue();
     }

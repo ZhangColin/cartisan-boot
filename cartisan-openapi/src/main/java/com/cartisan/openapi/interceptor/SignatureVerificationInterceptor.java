@@ -17,13 +17,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * 验签权限拦截器（精简版）。
+ * 验签拦截器（精简版）。
  *
  * <p>签名验证已迁移到 {@link com.cartisan.openapi.filter.SignatureVerificationFilter}，
- * 本拦截器仅负责注解驱动的权限检查。</p>
+ * 本拦截器仅负责注解驱动的"必须验签"闸：标了 @RequireSignature 的端点，
+ * 若 request attribute 中无验签成功写入的 {@link ApiKeyInfo}，则 401。</p>
  *
- * <p>从 request attribute 中读取 {@link ApiKeyInfo}（由 Filter 在验签成功后写入），
- * 根据 @RequireSignature 和 @NoSignature 注解决定是否放行。</p>
+ * <p>签名 = 认证，不做 per-key 权限 ACL（已移除 permissions）。</p>
  */
 public class SignatureVerificationInterceptor implements HandlerInterceptor {
 
@@ -53,19 +53,10 @@ public class SignatureVerificationInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        RequireSignature effectiveAnnotation = methodAnnotation != null ? methodAnnotation : classAnnotation;
-
-        // Read ApiKeyInfo from request attribute (set by SignatureVerificationFilter)
+        // Read ApiKeyInfo from request attribute (set by SignatureVerificationFilter on verify success)
         ApiKeyInfo apiKeyInfo = (ApiKeyInfo) request.getAttribute(SignatureVerificationFilter.API_KEY_INFO_ATTR);
         if (apiKeyInfo == null) {
             writeError(response, 401, "Signature required");
-            return false;
-        }
-
-        // Check permission
-        String requiredPermission = effectiveAnnotation.permission();
-        if (!requiredPermission.isEmpty() && !apiKeyInfo.hasPermission(requiredPermission)) {
-            writeError(response, 403, "Permission denied");
             return false;
         }
 

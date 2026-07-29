@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Set;
 import java.util.function.BiConsumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,7 +52,7 @@ class SignatureVerificationFilterTest {
     private static final String APP_SECRET = "test-secret";
     private static final String APP_NAME = "Test App";
     private static final ApiKeyInfo API_KEY_INFO = new ApiKeyInfo(
-            APP_ID, APP_NAME, APP_SECRET, Set.of("read", "write"), "ACTIVE");
+            APP_ID, APP_NAME, APP_SECRET, "ACTIVE");
 
     @BeforeEach
     void setUp() {

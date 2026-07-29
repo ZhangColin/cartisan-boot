@@ -13,8 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * 远程 API Key 查询实现，带 Caffeine 缓存。
@@ -69,19 +67,12 @@ public class RemoteApiKeyProvider implements ApiKeyProvider {
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode data = root.has("data") ? root.get("data") : root;
 
-            Set<String> permissions = new HashSet<>();
-            JsonNode permsNode = data.get("permissions");
-            if (permsNode != null && permsNode.isArray()) {
-                for (JsonNode perm : permsNode) {
-                    permissions.add(perm.asText());
-                }
-            }
-
+            // permissions 字段已从 ApiKeyInfo 移除（机机 ACL 属业务策略，框架不做）；
+            // 远端响应若仍返回 permissions，此处直接忽略，不影响验签。
             return new ApiKeyInfo(
                     data.get("appId").asText(),
                     data.get("appName").asText(),
                     data.get("apiSecret").asText(),
-                    permissions,
                     data.has("status") ? data.get("status").asText() : "ACTIVE"
             );
         } catch (Exception e) {
