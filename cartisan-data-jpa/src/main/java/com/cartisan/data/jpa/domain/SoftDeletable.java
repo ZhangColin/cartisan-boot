@@ -20,7 +20,10 @@ package com.cartisan.data.jpa.domain;
  * 注册等价 {@code @SQLRestriction("deleted = false")} 的过滤。</p>
  *
  * <p><b>约定</b>：实现此接口的实体须将软删标记映射为列 {@code deleted}
- * （{@link AuditableSoftDeletable} 已遵循此约定；自定义实现须保持一致，否则自动过滤的 SQL 会找不到列）。</p>
+ * （{@link AuditableSoftDeletable} 已遵循此约定；自定义实现须保持一致）。该约定由
+ * {@code SoftDeletableRestrictionContributor} 在元模型构建期校验——缺失 {@code deleted}
+ * 持久化列时直接抛 {@code MappingException}，应用<b>启动期</b>即失败（错误消息指明违约的实体类），
+ * 而非运行期才因自动过滤的 SQL 找不到列而抛异常。</p>
  *
  * @see AuditableSoftDeletable
  * @since 0.3.0

@@ -1255,9 +1255,9 @@ public abstract class Auditable {
 
 > 历史上的"子类重复声明 `@SQLRestriction`"变通方案现已无需使用（重复声明不会出错，Contributor 会跳过已声明的实体）。
 
-**约定**：实现 `SoftDeletable` 的实体须将软删标记映射为列 `deleted`。
+**约定**：实现 `SoftDeletable` 的实体须将软删标记映射为列 `deleted`。该约定由 `SoftDeletableRestrictionContributor` 在元模型构建期**启动期 fail-fast** 校验——缺失 `deleted` 持久化列时直接抛 `MappingException`（错误消息指明违约的实体类），应用启动即失败，而非运行期才因列不存在抛 SQL 异常。继承 `AuditableSoftDeletable` 即自动满足此约定。
 
-**记忆口诀**：实现 SoftDeletable 即自动读过滤，无需子类重复声明。
+**记忆口诀**：实现 SoftDeletable 即自动读过滤，无需子类重复声明；缺 `deleted` 列则启动期失败。
 
 ---
 
