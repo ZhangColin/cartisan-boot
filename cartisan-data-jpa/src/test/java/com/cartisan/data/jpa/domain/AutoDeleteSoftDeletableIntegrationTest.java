@@ -1,6 +1,7 @@
 package com.cartisan.data.jpa.domain;
 
 import com.cartisan.data.jpa.repository.impl.BaseRepositoryImpl;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>验证 repository.delete() 和 repository.deleteById() 自动触发软删除。</p>
  *
+ * <p><b>L1 纪律</b>：读过滤的断言前先 {@code flush + clear} 持久化上下文，避免命中 L1 缓存导致
+ * 「假通过」（同一事务内已加载的实体 findById 直接返回缓存对象，绕过 SQL 读过滤）。</p>
+ *
  * <p>使用 TestAggregateRootWithSoftDelete 和 TestAggregateRootWithSoftDeleteRepository，
  * 因为 BaseRepositoryImpl 只对实现 AggregateRoot 接口的实体生效。</p>
  *
@@ -34,6 +38,9 @@ class AutoDeleteSoftDeletableIntegrationTest {
 
     @Autowired
     private TestAggregateRootWithSoftDeleteRepository repository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -127,10 +134,9 @@ class AutoDeleteSoftDeletableIntegrationTest {
         assertThat(repository.findAll()).isEmpty();
     }
 
-    // ==================== 通过 ID 仍可找到已删除实体 ====================
+    // ==================== 已删记录对 findById 不可见（清 L1 后） ====================
     @Test
-    @Transactional
-    void should_findById_when_entityDeleted() {
+    void should_returnEmpty_when_findByIdAfterDelete() {
         // Given: 创建并删除实体
         TestAggregateRootWithSoftDelete entity = new TestAggregateRootWithSoftDelete();
         entity.setName("Deleted");
@@ -138,12 +144,14 @@ class AutoDeleteSoftDeletableIntegrationTest {
 
         repository.delete(saved);
 
-        // When: 通过 ID 查询
-        TestAggregateRootWithSoftDelete found = repository.findById(saved.getId()).orElse(null);
+        // 清 L1：避免持久化上下文缓存命中导致 findById「假通过」，强制走 SQL 触发读过滤
+        entityManager.flush();
+        entityManager.clear();
 
-        // Then: 仍能找到（但 findAll() 过滤）
-        assertThat(found).isNotNull();
-        assertThat(found.isDeleted()).isTrue();
+        // When & Then: findById 被读过滤排除，对已删记录返回空
+        assertThat(repository.findById(saved.getId()))
+                .as("findById（清 L1 后）应被读过滤排除，对已删记录返回空")
+                .isEmpty();
     }
 
     /**

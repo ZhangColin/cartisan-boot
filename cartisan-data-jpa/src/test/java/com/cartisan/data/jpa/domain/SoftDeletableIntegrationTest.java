@@ -1,12 +1,12 @@
 package com.cartisan.data.jpa.domain;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -17,10 +17,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>测试命名遵循 TEST-002 规则：given_{条件}_when_{操作}_then_{预期结果}</p>
  *
+ * <p><b>L1 纪律</b>：读过滤的断言前先 {@code flush + clear} 持久化上下文，避免命中 L1 缓存导致
+ * 「假通过」（同一事务内已加载的实体 findById 直接返回缓存对象，绕过 SQL 读过滤）。</p>
+ *
  * <p>验证软删除 AC3-AC4：</p>
  * <ul>
  *   <li>AC3: 删除时设置 deleted=true，查询时自动过滤</li>
- *   <li>AC4: 软删除实体不能通过常规查询找到，但可通过 ID 直接查询</li>
+ *   <li>AC4: 已软删记录对所有仓储读方法（含 findById）不可见</li>
  * </ul>
  */
 @DataJpaTest
@@ -29,6 +32,9 @@ class SoftDeletableIntegrationTest {
 
     @Autowired
     private TestSoftDeletableEntityRepository repository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -69,10 +75,9 @@ class SoftDeletableIntegrationTest {
                 .containsExactly("Entity 1", "Entity 3");
     }
 
-    // ==================== AC4: 通过 ID 仍可找到已删除实体 ====================
+    // ==================== AC4: 已删记录对 findById 不可见（清 L1 后） ====================
     @Test
-    @Transactional
-    void given_softDeletedEntity_when_findById_then_stillFound() {
+    void given_softDeletedEntity_when_findById_then_notFound() {
         // Given: 创建并软删除一个实体
         TestSoftDeletableEntity entity = new TestSoftDeletableEntity();
         entity.setName("To Be Deleted");
@@ -81,13 +86,14 @@ class SoftDeletableIntegrationTest {
         saved.setDeleted(true);
         repository.saveAndFlush(saved);
 
-        // When: 通过 ID 查询
-        TestSoftDeletableEntity found = repository.findById(saved.getId()).orElse(null);
+        // 清 L1：避免持久化上下文缓存命中导致 findById「假通过」，强制走 SQL 触发读过滤
+        entityManager.flush();
+        entityManager.clear();
 
-        // Then: 仍能找到该实体
-        assertThat(found).isNotNull();
-        assertThat(found.isDeleted()).isTrue();
-        assertThat(found.getName()).isEqualTo("To Be Deleted");
+        // When & Then: findById 被读过滤排除，对已删记录返回空
+        assertThat(repository.findById(saved.getId()))
+                .as("findById（清 L1 后）应被读过滤排除，对已删记录返回空")
+                .isEmpty();
     }
 
     // ==================== AC4: 通过常规查询找不到已删除实体 ====================
@@ -108,7 +114,7 @@ class SoftDeletableIntegrationTest {
         assertThat(allEntities).isEmpty();
     }
 
-    // ==================== 边界场景：多次删除 ====================
+    // ==================== 边界场景：多次删除（幂等） ====================
     @Test
     void given_deletedEntity_when_setDeletedAgain_then_remainsDeleted() {
         // Given: 已删除的实体
@@ -119,14 +125,24 @@ class SoftDeletableIntegrationTest {
         saved.setDeleted(true);
         repository.saveAndFlush(saved);
 
-        // When: 再次设置为已删除
+        // When: 再次标记为已删除
         saved.setDeleted(true);
         repository.saveAndFlush(saved);
 
-        // When & Then: 仍已删除，幂等性
-        assertThat(repository.findById(saved.getId())).isPresent()
-                .hasValueSatisfying(e -> assertThat(e.isDeleted()).isTrue());
+        // 清 L1：读过滤断言前先 flush + clear，避免缓存命中「假通过」
+        entityManager.flush();
+        entityManager.clear();
+
+        // Then: 幂等——仍被读过滤排除（findById / findAll 均不可见）
+        assertThat(repository.findById(saved.getId())).isEmpty();
         assertThat(repository.findAll()).isEmpty();
+
+        // 且记录仍在、deleted=true（原生 SQL 绕过读过滤，是查询已删数据的逃生通道）
+        Long survivingDeleted = ((Number) entityManager.createNativeQuery(
+                        "SELECT COUNT(*) FROM test_soft_deletable_entity WHERE id = :id AND deleted = TRUE")
+                .setParameter("id", saved.getId())
+                .getSingleResult()).longValue();
+        assertThat(survivingDeleted).as("幂等：再次标记后记录仍在且 deleted=true").isEqualTo(1L);
     }
 
     // ==================== 边界场景：删除后查询条件 ====================
