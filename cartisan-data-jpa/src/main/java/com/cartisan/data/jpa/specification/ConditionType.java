@@ -13,7 +13,7 @@ package com.cartisan.data.jpa.specification;
  *   <li>集合与区间查询：IN, BETWEEN</li>
  * </ul>
  *
- * @since 0.3.0
+ * @since 0.1.0
  */
 public enum ConditionType {
 

@@ -57,7 +57,7 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * @see ConditionType
- * @since 0.3.0
+ * @since 0.1.0
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

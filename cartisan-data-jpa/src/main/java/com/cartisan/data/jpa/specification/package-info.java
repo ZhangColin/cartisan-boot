@@ -25,6 +25,6 @@
  * List<User> users = repository.findAll(spec);
  * }</pre>
  *
- * @since 0.3.0
+ * @since 0.1.0
  */
 package com.cartisan.data.jpa.specification;

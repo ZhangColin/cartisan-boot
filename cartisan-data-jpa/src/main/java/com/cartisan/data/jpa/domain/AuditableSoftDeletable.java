@@ -52,7 +52,7 @@ import lombok.Getter;
  * productRepository.findAll();        // 不包含已删除记录（Contributor 自动过滤）
  * }</pre>
  *
- * @since 0.3.0
+ * @since 0.1.0
  */
 @Getter
 @MappedSuperclass
@@ -77,7 +77,7 @@ public abstract class AuditableSoftDeletable extends Auditable implements SoftDe
      *
      * <p>供 Repository.delete() 调用，业务端通常不需要直接调用。</p>
      *
-     * @since 0.3.0
+     * @since 0.1.0
      */
     @Override
     public void markAsDeleted() {

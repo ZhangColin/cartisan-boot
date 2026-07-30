@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * {@code deleted} 持久化列。缺失时在元模型构建期抛 {@link MappingException}，应用上下文启动即失败，
  * 错误消息指明违约的实体类——而不是等到运行期才因 SQL 找不到列而抛异常。</p>
  *
- * @since 0.3.0
+ * @since 0.1.0
  */
 public class SoftDeletableRestrictionContributor implements AdditionalMappingContributor {
 

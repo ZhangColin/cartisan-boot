@@ -36,7 +36,7 @@ package com.cartisan.data.jpa.domain;
  * 而非仅凭 {@code markAsDeleted()} 方法名鸭子类型。</p>
  *
  * @see AuditableSoftDeletable
- * @since 0.3.0
+ * @since 0.1.0
  */
 public interface SoftDeletable {
 
@@ -45,7 +45,7 @@ public interface SoftDeletable {
      *
      * <p>供 Repository.delete() 调用，业务端通常不需要直接调用。</p>
      *
-     * @since 0.3.0
+     * @since 0.1.0
      */
     void markAsDeleted();
 

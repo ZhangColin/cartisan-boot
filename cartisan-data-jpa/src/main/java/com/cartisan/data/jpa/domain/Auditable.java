@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
  * }
  * }</pre>
  *
- * @since 0.2.0
+ * @since 0.1.0
  */
 @Getter
 @MappedSuperclass

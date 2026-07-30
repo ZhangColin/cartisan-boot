@@ -27,7 +27,7 @@ import java.util.List;
  *   <li>多字段模糊搜索：blurry（多字段 OR 连接的 INNER_LIKE）</li>
  * </ul>
  *
- * @since 0.3.0
+ * @since 0.1.0
  */
 public final class ConditionSpecifications {
 
