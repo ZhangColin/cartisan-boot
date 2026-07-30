@@ -251,3 +251,94 @@ public @interface RequireSignature {}
 - app-registry：`ApiKeyInfo` 构造少传一字段（本就打算传 `Set.of()`），无需建 permissions 列/管理 UI。
 - hcy_payment：controller 处裸 `@RequireSignature` 无需改；若迁到框架 `ApiKeyInfo`，去 permissions 参数。
   其自身 `ApiKey` 聚合的 permissions 字段保留与否由 hcy_payment 自行决定（非框架约束）。
+
+### Issue 05 — cartisan-data-jpa 软删读过滤修复：编程式注册 restriction（2026-07-30）
+
+**来源**：#2（软删读过滤整体失效——`@SQLRestriction` 在 `@MappedSuperclass` 上不被实体继承），
+下游 `aieducenter-admin` 前端 E2E 发现（admin#7，含 curl 复现脚本）。完整 spec 见 #3，拆分为 #4–#7 落地。
+
+**判定**：✅ **是框架问题**。`AuditableSoftDeletable`（`@MappedSuperclass`）上声明的
+`@SQLRestriction("deleted = false")` 从不生效——该注解的元注解无 `@Inherited`，Hibernate 也不从
+`@MappedSuperclass` 拾取类级注解到具体实体子类（javap 与生成 SQL 双重实证）。直接实现 `SoftDeletable`
+但未自声明注解的实体同样无读过滤。读路径除该注解外无任何兜底（全模块 grep 确认无 Filter /
+Specification 包装）。结果：`findById` / `findAll` / Specification / 派生查询 / JPQL 全部泄漏
+`deleted = true` 记录——框架文档承诺的「所有查询自动排除已删记录」整体不成立。属通用关注点，
+一处框架修复全愈（所有继承该基类的下游聚合零改动获益）。
+
+**根因 reframe**：不是「注解写错了位置」这一处笔误，而是**读过滤缺少一处真正生效的注册点**。
+`@SQLRestriction` 贴在 MappedSuperclass 上是死代码——既不生效，又误导维护者以为读侧有保护。
+要补的不是注解，是「在元模型构建期为每个 `SoftDeletable` 实体真正注入 where 片段」的注册机制。
+
+**采纳方案 A——编程式注册 restriction**：新增 Hibernate `AdditionalMappingContributor`
+（`SoftDeletableRestrictionContributor`），在元模型构建期（所有实体绑定完成之后、SessionFactory
+构建之前）遍历根实体，对**实现 `SoftDeletable` 且未显式声明 restriction** 的实体设置等价于
+`@SQLRestriction("deleted = false")` 的 where 片段（`RootClass.setWhere(...)`）：
+
+```java
+if (SoftDeletable.class.isAssignableFrom(mappedClass)) {
+    requireDeletedColumn(rootClass, mappedClass);    // 启动期 fail-fast（见下）
+    if (isNotBlank(rootClass.getWhere())) continue;  // 显式优先：不覆盖、不叠加
+    rootClass.setWhere("deleted = false");
+}
+```
+
+**注册方式（对 spec 的简化）**：spec 设想经 `HibernatePropertiesCustomizer`
+（`hibernate.additional_mapping_contributors`）装配；实现采用更底层的 **Java ServiceLoader**
+（`META-INF/services/org.hibernate.boot.spi.AdditionalMappingContributor`）——无需 Spring 自动配置、
+无需 Hibernate 属性，**只要 cartisan-data-jpa 在 classpath 即全局生效**，并覆盖纯 Hibernate（非 Spring）
+场景。restriction 片段固定 `deleted = false`；`SoftDeletable` 接口契约同步收紧：实现者必须映射
+`deleted` boolean 列（写入接口 javadoc）。
+
+**否决方案**：
+- ❌ B（Hibernate `@Filter` + 自动启用）：`@Filter` **不作用于按 id 加载**——`find` / `getReference`
+  走 `EntityPersister` 主键路径、绕过 Filter，堵不住 `findById`，而 id 查询正是详情接口的主路径；
+  且 Filter 需每次 session 手动 `enableFilter(...)`、易漏。
+- ❌ C（`BaseRepositoryImpl` 读路径对 `SoftDeletable` 统一补 `deleted = false` 谓词）：只覆盖基类
+  重写的方法，**拦不住应用自定义的派生查询（`findByName`）与显式 `@Query` JPQL**——这些走
+  `SimpleJpaRepository` 之外的查询路径，基类插不进谓词，会留下「框架方法安全、自定义查询泄漏」的
+  不一致半成品。与写侧覆盖同风格的诱惑大，但覆盖面先天不全。
+- ❌ 修注解继承（让 `@SQLRestriction` 从 MappedSuperclass 生效）：需改 Hibernate 核心，或退回逐实体
+  重复声明注解——后者正是本次 bug 的遮挡源（见下），随新聚合接入而漂移，违背「全局生效、零逐实体配置」。
+
+**实施备注**：
+- **显式优先**：实体已自行声明 `@SQLRestriction`（`RootClass.getWhere()` 非空）时跳过自动注册，
+  不覆盖、不叠加——保留自定义限制表达式的逃生空间。
+- **启动期 fail-fast**：contributor 校验**每个** `SoftDeletable` 实体存在 `deleted` 持久化列（含已显式
+  声明 restriction 的实体），缺失即在元模型构建期抛 `MappingException`（→ 上下文启动失败，错误消息
+  指明实体类），而非运行期才因自动过滤的 SQL 找不到列而抛异常。
+- **破坏性语义修正**：`findById` 对已删记录返回空。旧文档 AC4「findById 是已删数据的逃生通道」
+  作废——该「行为」当年只是 restriction 失效的副产品。查已删数据改走 jOOQ 读侧（cartisan-data-query，
+  天然不受 JPA restriction 约束）或原生 SQL。
+- **鸭子类型**：仅有 `markAsDeleted()` 方法但未实现 `SoftDeletable` 接口的实体，`BaseRepositoryImpl`
+  反射软删保留（写侧），但**不**获得读过滤；javadoc 注明并推荐实现接口。
+- **范围**：仅 `cartisan-data-jpa`。写侧软删（`delete` / `deleteById` / `deleteAll` 置 `deleted=true`）
+  不变；`cartisan-data-query`（jOOQ 读侧）不动。
+
+**探针实证**（Hibernate 6.6.x，对照实体上 restriction 生效时的真实 SQL）：
+- `findById`：`where id=? and (deleted = false)`——按 id 加载**被**过滤（方案 B 的致命缺口正是这里）；
+- 派生查询 / 显式 JPQL：`where (deleted = false) and name=?`——均被过滤；
+- 原生 SQL：无 `deleted` 片段——不受限（Hibernate 设计如此，也是查已删数据的逃生通道）。
+
+**测试遮挡根因（为何此 bug 长期隐形）**：
+1. **注解遮挡**：框架所有测试实体（`TestSoftDeletableEntity` 等）都在**自身类**上重复声明了
+   `@SQLRestriction`，恰好让测试走实体自声明而非框架机制——待验证的机制反而从未被验证。
+2. **L1 缓存假通过**：两个 findById-still-found 测试在 `@Transactional` 内，persistence context
+   直接返回了刚软删的实体（同一事务、未触达 DB），断言「findById 仍返回」居然绿——把失效当成正确语义固化。
+
+摘遮挡（#7）：`TestSoftDeletableEntity` 移除自身重复注解，基线从此验证框架机制；两个 findById 测试改为
+flush + clear persistence context 后断言返回空的新语义；L1 纪律（读过滤断言前先 flush + clear）写入测试类
+注释。`TestAggregateRootWithSoftDelete` 保持自声明注解——它未实现 `SoftDeletable` 接口，恰好作
+「显式优先 / 鸭子类型不获读过滤」的对照。死注解清理与 javadoc 重写见 #6。
+
+**验收**：
+- 继承 `AuditableSoftDeletable`、自身无注解（下游真实用法）：`findById` / `findAll` / Specification /
+  派生查询 / 显式 JPQL 均过滤已删记录；`count` 不含已删。
+- 直接实现 `SoftDeletable` 接口的实体：同样过滤（`DirectSoftDeletableReadFilterTest`）。
+- 自身显式声明 `@SQLRestriction` 的实体：按显式表达式过滤、不被覆盖（`SoftDeletableCustomRestrictionTest`）。
+- 非 `SoftDeletable` 实体：读写行为完全不变。
+- 写侧 `delete` 族软删行为不变；fail-fast：`SoftDeletable` 实体缺 `deleted` 列时上下文启动失败（`SoftDeletableFailFastTest`）。
+- triage 复现/探针文件转正并入基线（`SoftDeleteRestrictionInheritanceTest`、`SoftDeleteRestrictionSemanticsTest`），全绿。
+- `mvn test -pl cartisan-data-jpa` 全绿（153 tests）。
+
+**消费方落地**：所有继承 `AuditableSoftDeletable` 的下游聚合零改动获益——升级到新 SNAPSHOT 后，
+admin 的 AdminUser / Role / Menu 等列表与详情接口即不再泄漏已删数据。下游升级验证后回归关闭 admin#7 与 #2。
