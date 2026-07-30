@@ -342,3 +342,8 @@ flush + clear persistence context 后断言返回空的新语义；L1 纪律（�
 
 **消费方落地**：所有继承 `AuditableSoftDeletable` 的下游聚合零改动获益——升级到新 SNAPSHOT 后，
 admin 的 AdminUser / Role / Menu 等列表与详情接口即不再泄漏已删数据。下游升级验证后回归关闭 admin#7 与 #2。
+
+**Out of scope**：关联加载读过滤（懒加载 to-one 关联指向已删记录的解析行为）非框架保证——读过滤经
+Hibernate `@SQLRestriction` 等价机制（`RootClass.setWhere`）实现，关联级是否过滤由 Hibernate 自身语义
+决定，框架不为关联加载额外兜底或固化其行为（不写探针、不钉死回归结果）。已移入 Out of Scope，见
+`.out-of-scope/association-loading-soft-delete.md`（收口来源 #9 / spec #3 的 US12）。
