@@ -56,7 +56,14 @@ public class BaseRepositoryImpl<T extends AggregateRoot<T, ID>, ID extends Seria
      *
      * <p>也支持通过反射调用 {@code markAsDeleted()} 方法，以支持未实现
      * {@link com.cartisan.data.jpa.domain.SoftDeletable} 接口但提供了
-     * {@code markAsDeleted()} 方法的软删除实体。</p>
+     * {@code markAsDeleted()} 方法的软删除实体（鸭子类型）。</p>
+     *
+     * <p><b>注意（鸭子类型的局限）</b>：仅提供 {@code markAsDeleted()} 而未实现
+     * {@link com.cartisan.data.jpa.domain.SoftDeletable} 的实体，只在此<b>写侧</b>被软删除；其读路径
+     * 不会被 {@code SoftDeletableRestrictionContributor} 自动过滤，{@code findById}/{@code findAll}
+     * 仍会返回已删记录。需要完整的「写软删 + 读过滤」语义时，请让实体实现
+     * {@link com.cartisan.data.jpa.domain.SoftDeletable}（或继承
+     * {@link com.cartisan.data.jpa.domain.AuditableSoftDeletable}）。</p>
      *
      * @param entity 要删除的实体，不能为 null
      */
@@ -184,6 +191,10 @@ public class BaseRepositoryImpl<T extends AggregateRoot<T, ID>, ID extends Seria
 
     /**
      * 通过反射调用实体的 markAsDeleted() 方法。
+     *
+     * <p>仅作用于<b>写侧</b>软删除；此类鸭子类型实体（未实现
+     * {@link com.cartisan.data.jpa.domain.SoftDeletable}）的读路径不会被自动过滤。
+     * 新实体建议直接实现 {@link com.cartisan.data.jpa.domain.SoftDeletable}。</p>
      *
      * @param entity 要标记为删除的实体
      */

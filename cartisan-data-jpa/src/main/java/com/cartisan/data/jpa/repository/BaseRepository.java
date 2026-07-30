@@ -17,6 +17,10 @@ import java.io.Serializable;
  * 或带有 {@code markAsDeleted()} 方法的实体，调用 {@code delete()} 或
  * {@code deleteById()} 会自动执行软删除。</p>
  *
+ * <p>读过滤（{@code findById}/{@code findAll} 等自动排除已删记录）由
+ * {@link com.cartisan.data.jpa.domain.SoftDeletable} 接口契约保证：仅实现该接口的实体享受读过滤；
+ * 仅凭 {@code markAsDeleted()} 方法名的鸭子类型实体只在写侧软删除、读侧不过滤（详见接口文档）。</p>
+ *
  * <p>示例：</p>
  * <pre>{@code
  * public interface OrderRepository extends BaseRepository<Order, Long> {}

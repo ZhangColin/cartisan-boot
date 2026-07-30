@@ -334,8 +334,8 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **DATA-001** | JPA `save()` 后必须用原始 entity 发布事件，而非返回值 |
 | **DATA-002** | Repository 不是 Spring Bean，依赖注入用静态持有者模式 |
 | **DATA-003** | `@MappedSuperclass` 需要添加 `@EntityListeners(AuditingEntityListener.class)` |
-| **DATA-004** | `@SQLRestriction` 在 `@MappedSuperclass` 上可能无法正确继承，子类重复声明才保险 |
-| **DATA-005** | JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件 |
+| **DATA-004** | 读过滤由 `SoftDeletableRestrictionContributor` 在元模型期自动注册，子类**无需**声明 `@SQLRestriction` |
+| **DATA-005** | JPQL/HQL、派生查询、`findById` 等均自动应用读过滤；仅原生 SQL（`nativeQuery=true`）与批量 DML 需手动加 `deleted` 条件 |
 | **DATA-006** | 自动软删除通过 `instanceof` 判断类型 |
 | **DATA-007** | 枚举持久化使用内部 `JpaConverter`，实体字段零注解 |
 | **DATA-008** | BaseEnum Jackson 序列化为 code，反序列化通过 `ContextualDeserializer` |
@@ -650,7 +650,7 @@ public class UserController {
 | | `@LastModifiedBy lastModifiedBy` | 修改人ID（Long，需 AuditorAware） |
 | `AuditableSoftDeletable` | 继承 `Auditable`，实现 `SoftDeletable` | 可审计且可软删除实体基类 |
 | | `boolean deleted` | 软删除标记 |
-| | `@SQLRestriction("deleted = false")` | 查询自动过滤 |
+| | 读过滤（自动） | 元模型期注册 `deleted = false`，查询自动排除已删记录（无需子类声明 `@SQLRestriction`） |
 | | `markAsDeleted()` | 标记为已删除（领域方法），供 Repository.delete() 调用 |
 | `SoftDeletable` | `markAsDeleted()` | 软删除接口方法 |
 | | `getDeleted()` | 获取软删除标记值 |
@@ -668,7 +668,7 @@ public class UserController {
 **重要设计取舍**：
 - 软删除复用 `save()` 的事件发布逻辑
 - 通过 `JpaRepositoryFactoryEntryCustomizer` 全局配置，业务端无需手动指定 `repositoryBaseClass`
-- JPQL `@Query` 查询不受 `@SQLRestriction` 影响，需手动添加软删除条件（见 DATA-005）
+- JPQL/HQL、派生查询等自动应用读过滤；仅原生 SQL 与批量 DML 需手动加软删除条件（见 DATA-005）
 
 ### 2.13 TSID 生成器（com.cartisan.data.jpa.id）
 

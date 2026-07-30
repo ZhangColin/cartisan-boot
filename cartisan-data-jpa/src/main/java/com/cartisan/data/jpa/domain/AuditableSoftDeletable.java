@@ -14,17 +14,22 @@ import lombok.Getter;
  * </ul>
  *
  * <h3>软删除读过滤（自动）</h3>
- * <p>所有读路径自动排除 {@code deleted = true} 的记录：{@code findById}、{@code findAll}、
- * Specification、派生查询、显式 JPQL、{@code count} 等。该过滤由
- * {@code com.cartisan.data.jpa.hibernate.SoftDeleteRestrictionContributor} 在 Hibernate
- * 元模型构建期自动注册（实现 {@link SoftDeletable} 的实体统一注册等价
- * {@code @SQLRestriction("deleted = false")}），无需子类声明任何注解。</p>
+ * <p>所有走 Hibernate SQL 生成的读路径都自动排除 {@code deleted = true} 的记录：
+ * {@code findById}、{@code findAll}、Specification、派生查询（方法名查询）、显式 JPQL/HQL、
+ * {@code count} 等。该过滤由 {@link com.cartisan.data.jpa.hibernate.SoftDeletableRestrictionContributor}
+ * 在 Hibernate 元模型构建期自动注册——为实现 {@link SoftDeletable} 的具体实体统一注入等价于
+ * {@code @SQLRestriction("deleted = false")} 的 where 片段，子类<b>无需</b>声明任何注解。</p>
  *
- * <p><b>注意</b>：{@code @SQLRestriction} 声明在 {@code @MappedSuperclass} 上不会被 Hibernate
- * 继承到子类，因此本基类不再声明该注解——过滤完全由 Contributor 保证。</p>
+ * <p>{@code @SQLRestriction} 声明在 {@code @MappedSuperclass} 上不会被 Hibernate 继承到子类，
+ * 因此本基类不声明该注解——读过滤完全由上述 Contributor 在具体实体上注册保证。</p>
  *
- * <p><b>不受过滤的路径</b>：原生 SQL 查询（{@code nativeQuery = true}）与批量
- * UPDATE/DELETE 不走实体加载，{@code restriction} 不作用，需手动加条件。</p>
+ * <p><b>{@code findById} 语义</b>：已软删记录对所有仓储读方法不可见，{@code findById(id)} 对已删记录
+ * 返回 {@link java.util.Optional#empty()}。早期文档所述的「{@code findById} 逃生通道」已作废——不存在
+ * 能绕过读过滤的仓储读入口。</p>
+ *
+ * <p><b>不受过滤的路径（查询已删数据的逃生通道）</b>：原生 SQL 查询（{@code nativeQuery = true}）与批量
+ * UPDATE/DELETE 不走实体加载、不经 Hibernate SQL 生成，读过滤不作用，<b>会</b>读到已软删记录。需要查询
+ * 已软删数据时走读侧：cartisan-data-query 模块的 jOOQ 查询，或显式带 {@code deleted} 条件的原生 SQL。</p>
  *
  * <h3>软删除行为（写侧）</h3>
  * <ul>
@@ -57,7 +62,7 @@ public abstract class AuditableSoftDeletable extends Auditable implements SoftDe
      * 软删除标记。
      *
      * <p>{@code false} = 未删除（默认），{@code true} = 已删除。</p>
-     * <p>读过滤由 {@code SoftDeleteRestrictionContributor} 自动注册，查询时排除 {@code deleted = true} 的记录。</p>
+     * <p>读过滤由 {@link com.cartisan.data.jpa.hibernate.SoftDeletableRestrictionContributor} 自动注册，查询时排除 {@code deleted = true} 的记录。</p>
      * -- GETTER --
      *  判断是否已软删除。
      *
