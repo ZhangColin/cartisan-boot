@@ -38,14 +38,14 @@ public class CartisanOpenapiProperties {
     public void setMaxBodySize(DataSize maxBodySize) { this.maxBodySize = maxBodySize; }
 
     public static class Self {
-        private String appKey;
-        private String appSecret;
+        private String apiKey;
+        private String apiSecret;
 
-        public String getAppKey() { return appKey; }
-        public void setAppKey(String appKey) { this.appKey = appKey; }
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
 
-        public String getAppSecret() { return appSecret; }
-        public void setAppSecret(String appSecret) { this.appSecret = appSecret; }
+        public String getApiSecret() { return apiSecret; }
+        public void setApiSecret(String apiSecret) { this.apiSecret = apiSecret; }
     }
 
     public static class Cache {

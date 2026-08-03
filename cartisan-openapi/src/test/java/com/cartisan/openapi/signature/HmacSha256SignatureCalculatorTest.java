@@ -10,7 +10,7 @@ class HmacSha256SignatureCalculatorTest {
 
     @Test
     void shouldCalculateCorrectSignature() {
-        String result = calculator.calculate("appKey=test&nonce=abc&timestamp=123", "my-secret");
+        String result = calculator.calculate("apiKey=test&nonce=abc&timestamp=123", "my-secret");
 
         // Result should be a hex string
         assertThat(result).isNotEmpty();
@@ -19,7 +19,7 @@ class HmacSha256SignatureCalculatorTest {
 
     @Test
     void shouldProduceSameResultForSameInput() {
-        String input = "appKey=test&nonce=abc&timestamp=123";
+        String input = "apiKey=test&nonce=abc&timestamp=123";
         String secret = "my-secret";
 
         String result1 = calculator.calculate(input, secret);
@@ -30,7 +30,7 @@ class HmacSha256SignatureCalculatorTest {
 
     @Test
     void shouldProduceDifferentResultForDifferentSecret() {
-        String input = "appKey=test&nonce=abc&timestamp=123";
+        String input = "apiKey=test&nonce=abc&timestamp=123";
 
         String result1 = calculator.calculate(input, "secret1");
         String result2 = calculator.calculate(input, "secret2");

@@ -29,7 +29,7 @@ class SignatureVerificationInterceptorTest {
     private SignatureVerificationInterceptor interceptor;
 
     private static final ApiKeyInfo API_KEY_INFO = new ApiKeyInfo(
-            "app-1", "App One", "secret", "ACTIVE");
+            "app-1", "App One", "secret");
 
     @BeforeEach
     void setUp() {

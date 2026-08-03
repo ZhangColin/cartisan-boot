@@ -15,8 +15,8 @@ class OpenApiClientHeaderTest {
     @Test
     void shouldIncludeSignatureHeaders() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());
@@ -24,26 +24,26 @@ class OpenApiClientHeaderTest {
         // Use reflection to call buildHeaders
         Map<String, String> headers = invokeBuildHeaders(client, new byte[0], null);
 
-        assertThat(headers).containsKey("X-App-Key");
+        assertThat(headers).containsKey("X-Api-Key");
         assertThat(headers).containsKey("X-Timestamp");
         assertThat(headers).containsKey("X-Nonce");
         assertThat(headers).containsKey("X-Body-Digest");
         assertThat(headers).containsKey("X-Sign");
-        assertThat(headers.get("X-App-Key")).isEqualTo("test-app");
+        assertThat(headers.get("X-Api-Key")).isEqualTo("test-app");
     }
 
     @Test
     void shouldIncludeContextHeaders_whenRequestContextBound() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());
 
         RequestContext ctx = new RequestContext(
                 "req-1", "10.0.0.1",
-                null, null,
+                "caller-key", "CallerApp",   // caller info present — must NOT leak
                 42L, "Alice",
                 100L, "TenantX");
 
@@ -56,16 +56,17 @@ class OpenApiClientHeaderTest {
             assertThat(headers.get("X-User-Name")).isEqualTo("Alice");
             assertThat(headers.get("X-Tenant-Id")).isEqualTo("100");
             assertThat(headers.get("X-Tenant-Name")).isEqualTo("TenantX");
-            // Should NOT include caller fields
-            assertThat(headers).doesNotContainKey("X-Caller-App-Key");
+            // Should NOT propagate caller identity — downstream must verify its own
+            assertThat(headers).doesNotContainValue("caller-key");
+            assertThat(headers).doesNotContainValue("CallerApp");
         });
     }
 
     @Test
     void shouldNotIncludeContextHeaders_whenNoRequestContext() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());
@@ -79,8 +80,8 @@ class OpenApiClientHeaderTest {
     @Test
     void shouldGenerateDifferentSign_whenUrlHasQueryParams() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());
@@ -94,8 +95,8 @@ class OpenApiClientHeaderTest {
     @Test
     void shouldHandleEmptyQueryString() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());
@@ -108,8 +109,8 @@ class OpenApiClientHeaderTest {
     @Test
     void shouldHandleNullQueryParams() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppKey("test-app");
-        props.getSelf().setAppSecret("test-secret");
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
 
         OpenApiClient client = new OpenApiClient(props,
                 new HmacSha256SignatureCalculator(), new ObjectMapper());

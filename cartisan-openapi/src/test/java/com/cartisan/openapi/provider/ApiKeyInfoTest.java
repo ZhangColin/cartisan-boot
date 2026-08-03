@@ -7,21 +7,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApiKeyInfoTest {
 
     @Test
-    void shouldReturnTrue_whenStatusIsActive() {
-        ApiKeyInfo info = new ApiKeyInfo("app1", "App1", "secret", "ACTIVE");
-        assertThat(info.isActive()).isTrue();
+    void shouldConstructWithThreeFields() {
+        ApiKeyInfo info = new ApiKeyInfo("app1", "App1", "secret");
+
+        assertThat(info.apiKey()).isEqualTo("app1");
+        assertThat(info.appName()).isEqualTo("App1");
+        assertThat(info.apiSecret()).isEqualTo("secret");
     }
 
     @Test
-    void shouldReturnFalse_whenStatusIsInactive() {
-        ApiKeyInfo info = new ApiKeyInfo("app1", "App1", "secret", "DISABLED");
-        assertThat(info.isActive()).isFalse();
+    void shouldBeEqual_whenSameFields() {
+        ApiKeyInfo info1 = new ApiKeyInfo("app1", "App1", "secret");
+        ApiKeyInfo info2 = new ApiKeyInfo("app1", "App1", "secret");
+
+        assertThat(info1).isEqualTo(info2);
     }
 
     @Test
-    void shouldIgnoreCase_whenCheckStatus() {
-        // status 校验对大小写不敏感（"ACTIVE" / "active" 均视为激活）
-        assertThat(new ApiKeyInfo("app1", "App1", "secret", "active").isActive()).isTrue();
-        assertThat(new ApiKeyInfo("app1", "App1", "secret", "Active").isActive()).isTrue();
+    void shouldNotBeEqual_whenDifferentFields() {
+        ApiKeyInfo info1 = new ApiKeyInfo("app1", "App1", "secret");
+        ApiKeyInfo info2 = new ApiKeyInfo("app2", "App2", "other");
+
+        assertThat(info1).isNotEqualTo(info2);
     }
 }

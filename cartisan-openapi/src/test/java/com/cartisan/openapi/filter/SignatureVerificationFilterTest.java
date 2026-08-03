@@ -52,7 +52,7 @@ class SignatureVerificationFilterTest {
     private static final String APP_SECRET = "test-secret";
     private static final String APP_NAME = "Test App";
     private static final ApiKeyInfo API_KEY_INFO = new ApiKeyInfo(
-            APP_KEY, APP_NAME, APP_SECRET, "ACTIVE");
+            APP_KEY, APP_NAME, APP_SECRET);
 
     @BeforeEach
     void setUp() {
@@ -118,7 +118,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(null);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(null);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
         runInContext(baseCtx, () -> filter.doFilterInternal(request, response, filterChain));
@@ -140,7 +140,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(API_KEY_INFO);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
         runInContext(baseCtx, () -> filter.doFilterInternal(request, response, filterChain));
@@ -162,7 +162,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn("correct-sign");
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -191,7 +191,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn(correctSign);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -222,7 +222,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn(correctSign);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -251,7 +251,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByApiKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn("different-sign");
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -288,7 +288,7 @@ class SignatureVerificationFilterTest {
     private MockHttpServletRequest createSignedRequest(String timestamp, String nonce,
                                                        String bodyDigest, String sign) {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-App-Key", APP_KEY);
+        request.addHeader("X-Api-Key", APP_KEY);
         request.addHeader("X-Timestamp", timestamp);
         request.addHeader("X-Nonce", nonce);
         request.addHeader("X-Body-Digest", bodyDigest);
