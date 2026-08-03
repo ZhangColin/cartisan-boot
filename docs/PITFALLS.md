@@ -1313,6 +1313,45 @@ public void delete(T entity) {
 
 ---
 
+### 规则 DATA-012：软删不清理关联残留——删除守卫和汇总查询会读到残留行
+
+**问题**：`repository.delete(entity)` 只置 `deleted = true` 标志位，**不触碰任何关联行**（如 many-to-many 中间表、one-to-many 子表）。残留行对所有按关联计数/回显的查询可见：
+
+- **汇总回显**：角色已软删，但 `sys_admin_user_roles` 中该角色的关联行仍在；汇总用户 roleCodes/permissions/menus 时仍会回显已删除角色
+- **删除守卫误判**：删除角色前查 `AdminUserRole` 表判断是否 in-use——如果残留行指向已软删用户，守卫永远认为"有用户在用"，角色无法删除
+
+**解决方案**：在聚合根 `markAsDeleted()` 中清理自有子关联：
+
+```java
+@Override
+public void markAsDeleted() {
+    super.markAsDeleted();
+    this.userRoles.clear();  // orphanRemoval 同事务物理删除关联行
+}
+```
+
+或使用 `orphanRemoval = true` 配合 `@OneToMany`——删除聚合根时关联实体自动物理删除。
+
+**记忆口诀**：软删只删自己，关联残留要手动清；markAsDeleted 里 clear 子集合。
+
+---
+
+### 规则 DATA-013：软删与唯一索引冲突——已删记录仍占唯一约束
+
+**问题**：软删记录仍占唯一约束。例如 username 唯一索引 + 软删：用户 A 被软删后，同 username 的新用户无法创建。
+
+**解决方案**：PostgreSQL 部分唯一索引——只对未删除记录做唯一约束：
+
+```sql
+CREATE UNIQUE INDEX uk_username_active ON sys_admin_users (username) WHERE deleted = false;
+```
+
+DDL 需自行声明（JPA `@Table.uniqueConstraints` 不支持条件索引）。
+
+**记忆口诀**：软删占坑不释放，部分唯一索引解冲突；DDL 手动声明，JPA 注解不行。
+
+---
+
 ### 规则 DATA-007：枚举持久化使用内部 JpaConverter
 
 **问题**：枚举默认使用 `ordinal()` 存储到数据库，增删枚举值会导致已有数据错乱。

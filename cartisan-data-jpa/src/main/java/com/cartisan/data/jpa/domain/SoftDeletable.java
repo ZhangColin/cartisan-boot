@@ -1,16 +1,19 @@
 package com.cartisan.data.jpa.domain;
 
 /**
- * 可软删除实体接口。
+ * 可软删除实体接口——<b>显式 opt-in</b>，非默认行为。
  *
- * <p>标记实体支持软删除功能。实现此接口的实体在被删除时，
+ * <p>实现此接口是主动选择软删除语义。聚合根默认建议继承 {@link Auditable}（纯审计），
+ * 仅当业务明确需要「删除但保留/可恢复」时才实现本接口（或继承 {@link AuditableSoftDeletable}）。</p>
+ *
+ * <p>实现此接口的实体在被删除时，
  * {@link com.cartisan.data.jpa.repository.BaseRepository#delete(Object)} 会调用
  * {@link #markAsDeleted()} 方法将 {@code deleted} 标记设为 {@code true}，而不是物理删除。</p>
  *
- * <p>此接口与 {@link AuditableSoftDeletable} 抽象类配合使用：</p>
+ * <p>两种使用方式：</p>
  * <ul>
- *   <li>实体可以直接继承 {@link AuditableSoftDeletable} 获得完整实现</li>
- *   <li>或者继承其他基类（如 {@link com.cartisan.core.domain.AggregateRoot}）并实现此接口</li>
+ *   <li>继承 {@link AuditableSoftDeletable} 获得完整实现（审计 + 软删）</li>
+ *   <li>直接实现本接口（适合继承其他基类的场景）</li>
  * </ul>
  *
  * <h3>读过滤（自动）</h3>

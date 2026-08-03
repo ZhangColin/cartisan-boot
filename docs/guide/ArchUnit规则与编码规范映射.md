@@ -460,7 +460,7 @@
    - 原因：ArchUnit 不验证 JavaDoc 注释
 
 3. **聚合根继承基类建议**（3.1 聚合根）
-   - **建议**继承 `AuditableSoftDeletable`
+   - **建议**继承 `Auditable`；仅业务需要软删除时继承 `AuditableSoftDeletable`
    - 原因：建议性规范，非强制约束
 
 4. **测试命名规范**（8.1 单元测试）

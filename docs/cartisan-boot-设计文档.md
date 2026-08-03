@@ -131,7 +131,7 @@ cartisan-boot/
 | **cartisan-core** | 短期实现 | DDD 战术设计基础积木：实体、值对象、聚合根、架构注解、错误码体系。stereotype 注解基于 Spring @Component（provided scope） |
 | **cartisan-web** | 短期实现 | Spring MVC 统一封装：强类型响应体、全局异常处理、请求上下文、参数校验格式化 |
 | **cartisan-security** | 短期实现 | 认证授权薄抽象层 + 多租户上下文基础设施。底层 Sa-Token 可替换 |
-| **cartisan-data-jpa** | 短期实现 | JPA 持久化封装：Repository 基类（含事件自动发布）、审计字段、软删除、分布式 ID |
+| **cartisan-data-jpa** | 短期实现 | JPA 持久化封装：Repository 基类（含事件自动发布）、审计字段、软删除（opt-in）、分布式 ID |
 | **cartisan-data-query** | 短期实现 | jOOQ 读侧封装：自动配置、分页工具、代码生成配置 |
 | **cartisan-event** | 短期实现 | 应用事件发布/订阅基础设施：Spring Events 桥接，预留消息队列扩展 |
 | **cartisan-test** | 短期实现 | 测试工具箱：ArchUnit 预置规则集、Testcontainers 基类、测试辅助工具 |
@@ -210,12 +210,13 @@ Auditable（JPA @MappedSuperclass）
   - updatedBy: String                   — 更新人（可选）
 ```
 
-**AuditableSoftDeletable 基类：**
+**AuditableSoftDeletable 基类（按需 opt-in，非默认推荐）：**
 
 ```
 AuditableSoftDeletable extends Auditable implements SoftDeletable
   - deleted: boolean = false            — 软删除标记
-  自动过滤：查询时自动排除 deleted=true 的记录（@SQLRestriction）
+  自动过滤：查询时自动排除 deleted=true 的记录（元模型期注册）
+  注意：仅当业务需要"删除但可恢复"时使用；默认建议继承 Auditable
 
 **SoftDeletable 接口：**
 ```

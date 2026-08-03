@@ -347,3 +347,7 @@ admin 的 AdminUser / Role / Menu 等列表与详情接口即不再泄漏已删�
 Hibernate `@SQLRestriction` 等价机制（`RootClass.setWhere`）实现，关联级是否过滤由 Hibernate 自身语义
 决定，框架不为关联加载额外兜底或固化其行为（不写探针、不钉死回归结果）。已移入 Out of Scope，见
 `.out-of-scope/association-loading-soft-delete.md`（收口来源 #9 / spec #3 的 US12）。
+
+**软删降级为 opt-in（#10, 2026-08-03）**：`Auditable` 成为聚合根默认推荐基类，
+`AuditableSoftDeletable` 降级为显式 opt-in（仅业务需要"删除但可恢复"时使用）。机制不变，
+文档与规范已同步更新。详见 spec #10。

@@ -645,10 +645,11 @@ public class UserController {
 | 类/接口 | 字段/注解/方法 | 说明 |
 |----|----------|------|
 | `Auditable` | `@CreatedDate createdAt` | 创建时间（LocalDateTime，自动填充） |
-| | `@LastModifiedDate lastModifiedDate` | 修改时间（LocalDateTime，自动更新） |
+| | `@LastModifiedDate updatedAt` | 修改时间（LocalDateTime，自动更新） |
 | | `@CreatedBy createdBy` | 创建人ID（Long，需 AuditorAware） |
-| | `@LastModifiedBy lastModifiedBy` | 修改人ID（Long，需 AuditorAware） |
-| `AuditableSoftDeletable` | 继承 `Auditable`，实现 `SoftDeletable` | 可审计且可软删除实体基类 |
+| | `@LastModifiedBy updatedBy` | 修改人ID（Long，需 AuditorAware） |
+| | | **默认推荐**基类——纯审计，不改变读写语义 |
+| `AuditableSoftDeletable` | 继承 `Auditable`，实现 `SoftDeletable` | 可审计且可软删除实体基类（**按需 opt-in**，非默认推荐） |
 | | `boolean deleted` | 软删除标记 |
 | | 读过滤（自动） | 元模型期注册 `deleted = false`，查询自动排除已删记录（无需子类声明 `@SQLRestriction`） |
 | | `markAsDeleted()` | 标记为已删除（领域方法），供 Repository.delete() 调用 |
@@ -1159,21 +1160,23 @@ public class ArchitectureTest {
 
 ### 3.5 使用审计和软删除基类
 
+聚合根**默认建议继承 `Auditable`**（纯审计，不改变读写语义）。仅当业务需要「删除但保留/可恢复」时，才使用 `AuditableSoftDeletable`。
+
 ```java
-// 仅审计
+// 【推荐】默认用法：仅审计
 @Entity
 public class Product extends Auditable {
     @Id private Long id;
     private String name;
-    // 自动拥有：createdAt, lastModifiedDate, createdBy, lastModifiedBy
+    // 自动拥有：createdAt, updatedAt, createdBy, updatedBy
 }
 
-// 审计 + 软删除
+// 【按需】审计 + 软删除——仅当业务需要"删除但可恢复"时使用
 @Entity
 public class Order extends AuditableSoftDeletable {
     @Id private Long id;
     private String status;
-    // 自动拥有：审计字段 + deleted（带 @SQLRestriction）
+    // 自动拥有：审计字段 + deleted（读写自动过滤）
 }
 
 // 软删除操作
