@@ -842,9 +842,9 @@ public class PermissionInitService {
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
-| `ApiKeyProvider` | `getByAppKey(appKey)` → `ApiKeyInfo` | API Key 查询接口 |
+| `ApiKeyProvider` | `getByApiKey(apiKey)` → `ApiKeyInfo` | API Key 查询接口 |
 | `RemoteApiKeyProvider` | - | 远程服务 + Caffeine 缓存实现 |
-| `ApiKeyInfo` | `appKey()`, `appSecret()`, `appName()`, `isActive()` | API Key 信息 Record |
+| `ApiKeyInfo` | `apiKey()`, `apiSecret()`, `appName()`, `isActive()` | API Key 信息 Record |
 
 ### 2.29 NonceRepository（com.cartisan.openapi.nonce）
 
@@ -856,8 +856,8 @@ public class PermissionInitService {
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `cartisan.openapi.self.app-key` | String | "" | 本服务 appKey |
-| `cartisan.openapi.self.app-secret` | String | "" | 本服务 appSecret |
+| `cartisan.openapi.self.api-key` | String | "" | 本服务 apiKey |
+| `cartisan.openapi.self.api-secret` | String | "" | 本服务 apiSecret |
 | `cartisan.openapi.apikey-service-url` | String | "" | API Key 查询地址 |
 | `cartisan.openapi.timestamp-tolerance` | int | 300 | 时间戳容差（秒） |
 | `cartisan.openapi.nonce-ttl` | int | 300 | nonce 有效期（秒） |

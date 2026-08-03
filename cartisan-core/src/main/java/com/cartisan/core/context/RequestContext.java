@@ -79,8 +79,8 @@ public record RequestContext(
     /**
      * 返回新的 RequestContext，设置调用方信息，其余字段不变。
      */
-    public RequestContext withCaller(String appId, String appName) {
-        return new RequestContext(requestId, clientIp, appId, appName, userId, userName, tenantId, tenantName);
+    public RequestContext withCaller(String apiKey, String appName) {
+        return new RequestContext(requestId, clientIp, apiKey, appName, userId, userName, tenantId, tenantName);
     }
 
     /**
