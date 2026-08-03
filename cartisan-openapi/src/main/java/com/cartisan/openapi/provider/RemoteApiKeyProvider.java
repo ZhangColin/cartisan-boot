@@ -39,18 +39,18 @@ public class RemoteApiKeyProvider implements ApiKeyProvider {
     }
 
     @Override
-    public ApiKeyInfo getByAppId(String appId) {
-        return cache.get(appId, this::fetchFromRemote);
+    public ApiKeyInfo getByAppKey(String appKey) {
+        return cache.get(appKey, this::fetchFromRemote);
     }
 
-    private ApiKeyInfo fetchFromRemote(String appId) {
+    private ApiKeyInfo fetchFromRemote(String appKey) {
         if (apikeyServiceUrl == null || apikeyServiceUrl.isBlank()) {
-            log.warn("apikey-service-url not configured, cannot fetch ApiKey for: {}", appId);
+            log.warn("apikey-service-url not configured, cannot fetch ApiKey for: {}", appKey);
             return null;
         }
 
         try {
-            String url = apikeyServiceUrl + "?appId=" + appId;
+            String url = apikeyServiceUrl + "?appKey=" + appKey;
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .GET()
@@ -60,7 +60,7 @@ public class RemoteApiKeyProvider implements ApiKeyProvider {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                log.warn("Failed to fetch ApiKey for {}: HTTP {}", appId, response.statusCode());
+                log.warn("Failed to fetch ApiKey for {}: HTTP {}", appKey, response.statusCode());
                 return null;
             }
 
@@ -70,13 +70,13 @@ public class RemoteApiKeyProvider implements ApiKeyProvider {
             // permissions 字段已从 ApiKeyInfo 移除（机机 ACL 属业务策略，框架不做）；
             // 远端响应若仍返回 permissions，此处直接忽略，不影响验签。
             return new ApiKeyInfo(
-                    data.get("appId").asText(),
+                    data.get("appKey").asText(),
                     data.get("appName").asText(),
                     data.get("apiSecret").asText(),
                     data.has("status") ? data.get("status").asText() : "ACTIVE"
             );
         } catch (Exception e) {
-            log.warn("Error fetching ApiKey for {}: {}", appId, e.getMessage());
+            log.warn("Error fetching ApiKey for {}: {}", appKey, e.getMessage());
             return null;
         }
     }

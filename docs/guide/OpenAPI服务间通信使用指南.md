@@ -9,7 +9,7 @@ cartisan-openapi 为微服务间的 HTTP 调用提供**签名验签 + 权限控�
 
 | 问题 | 解决方案 |
 |------|----------|
-| 服务间调用身份不明 | appId/appSecret 签名机制 |
+| 服务间调用身份不明 | appKey/appSecret 签名机制 |
 | 请求被篡改或重放 | HMAC-SHA256 签名 + nonce + timestamp |
 | 接口权限控制 | @RequireSignature 注解 + 权限检查 |
 | 上下文丢失 | OpenApiClient 自动传递 RequestContext headers |
@@ -60,7 +60,7 @@ cartisan:
   openapi:
     # 本服务作为客户端的身份
     self:
-      app-id: "order-service"
+      app-key: "order-service"
       app-secret: "${OPENAPI_SECRET}"
     # 远端 API Key 查询服务（可选，也可自定义 ApiKeyProvider）
     apikey-service-url: "http://auth-service/api/apikeys"
@@ -140,7 +140,7 @@ public class OrderController {
 
 **自动行为**：
 - 自动计算 HMAC-SHA256 签名
-- 自动添加签名 headers（X-App-Id, X-Timestamp, X-Nonce, X-Body-Digest, X-Sign）
+- 自动添加签名 headers（X-App-Key, X-Timestamp, X-Nonce, X-Body-Digest, X-Sign）
 - 自动传递 RequestContext headers（requestId, clientIp, userId 等，不含 caller 字段）
 - 非 2xx 响应抛出 `OpenApiClientException`（含 statusCode 和 body）
 
@@ -166,7 +166,7 @@ public class OpenApiClientException extends RuntimeException {
 
 | 字段 | 来源 | 获取方式 |
 |------|------|----------|
-| callerAppId | X-App-Id header | `RequestContext.getCallerAppId()` |
+| callerAppId | X-App-Key header | `RequestContext.getCallerAppId()` |
 | callerAppName | ApiKeyInfo.appName | `RequestContext.getCallerAppName()` |
 
 ### 3.5 ApiKeyProvider（接口）
@@ -174,7 +174,7 @@ public class OpenApiClientException extends RuntimeException {
 | 实现 | 说明 |
 |------|------|
 | `RemoteApiKeyProvider` | 从远程服务获取 API Key，Caffeine 缓存 |
-| 自定义 | 实现 `ApiKeyProvider.findByAppId(appId)` |
+| 自定义 | 实现 `ApiKeyProvider.getByAppKey(appKey)` |
 
 ### 3.6 NonceRepository（接口）
 
@@ -190,7 +190,7 @@ public class OpenApiClientException extends RuntimeException {
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `cartisan.openapi.self.app-id` | String | "" | 本服务 appId |
+| `cartisan.openapi.self.app-key` | String | "" | 本服务 appKey |
 | `cartisan.openapi.self.app-secret` | String | "" | 本服务 appSecret |
 | `cartisan.openapi.apikey-service-url` | String | "" | API Key 查询地址 |
 | `cartisan.openapi.timestamp-tolerance` | int | 300 | 时间戳容差（秒） |
@@ -239,7 +239,7 @@ ScopedValue 不可在已绑定的作用域中 rebind。Interceptor 运行在 Spr
 
 | Header | 说明 |
 |--------|------|
-| X-App-Id | 调用方 appId |
+| X-App-Key | 调用方 appKey |
 | X-Timestamp | 请求时间戳（秒） |
 | X-Nonce | 随机字符串（防重放） |
 | X-Body-Digest | 请求体 SHA-256 摘要 |

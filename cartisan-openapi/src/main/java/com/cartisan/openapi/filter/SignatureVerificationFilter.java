@@ -70,9 +70,9 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                      FilterChain filterChain) throws ServletException, IOException {
-        // 1. Check X-App-Id header — if absent, skip signature verification
-        String appId = request.getHeader("X-App-Id");
-        if (appId == null || appId.isBlank()) {
+        // 1. Check X-App-Key header — if absent, skip signature verification
+        String appKey = request.getHeader("X-App-Key");
+        if (appKey == null || appKey.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -99,7 +99,7 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
             }
 
             // 5. Get API Key
-            ApiKeyInfo apiKeyInfo = apiKeyProvider.getByAppId(appId.trim());
+            ApiKeyInfo apiKeyInfo = apiKeyProvider.getByAppKey(appKey.trim());
             if (apiKeyInfo == null || !apiKeyInfo.isActive()) {
                 writeError(response, 401, "Invalid app id");
                 return;
@@ -117,7 +117,7 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
 
             // 8. Build string to sign and verify HMAC-SHA256
             Map<String, String> queryParams = extractQueryParams(request);
-            String stringToSign = buildStringToSign(appId.trim(), clientBodyDigest, nonce, timestamp, queryParams);
+            String stringToSign = buildStringToSign(appKey.trim(), clientBodyDigest, nonce, timestamp, queryParams);
             String expectedSign = signatureCalculator.calculate(stringToSign, apiKeyInfo.apiSecret());
 
             if (!expectedSign.equals(sign)) {
@@ -131,7 +131,7 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
             // 10. Enrich RequestContext with caller info and continue filter chain
             RequestContext current = RequestContext.CONTEXT.orElse(null);
             if (current != null) {
-                RequestContext enriched = current.withCaller(appId.trim(), apiKeyInfo.appName());
+                RequestContext enriched = current.withCaller(appKey.trim(), apiKeyInfo.appName());
                 RequestContext.run(enriched, () -> {
                     try {
                         filterChain.doFilter(request, response);
@@ -195,10 +195,10 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
         return params;
     }
 
-    private String buildStringToSign(String appId, String bodyDigest, String nonce,
+    private String buildStringToSign(String appKey, String bodyDigest, String nonce,
                                       String timestamp, Map<String, String> queryParams) {
         TreeMap<String, String> sortedParams = new TreeMap<>();
-        sortedParams.put("appId", appId);
+        sortedParams.put("appKey", appKey);
         sortedParams.put("bodyDigest", bodyDigest);
         sortedParams.put("nonce", nonce);
         sortedParams.put("timestamp", timestamp);

@@ -103,7 +103,7 @@ public class OpenApiClient {
     private Map<String, String> buildHeaders(String method, byte[] body, Map<String, String> queryParams) {
         Map<String, String> headers = new TreeMap<>();
 
-        String appId = properties.getSelf().getAppId();
+        String appKey = properties.getSelf().getAppKey();
         String appSecret = properties.getSelf().getAppSecret();
 
         // Signature headers
@@ -113,7 +113,7 @@ public class OpenApiClient {
 
         // Build string to sign
         TreeMap<String, String> signParams = new TreeMap<>();
-        signParams.put("appId", appId);
+        signParams.put("appKey", appKey);
         signParams.put("bodyDigest", bodyDigest);
         signParams.put("nonce", nonce);
         signParams.put("timestamp", timestamp);
@@ -129,7 +129,7 @@ public class OpenApiClient {
 
         String sign = signatureCalculator.calculate(sb.toString(), appSecret);
 
-        headers.put("X-App-Id", appId);
+        headers.put("X-App-Key", appKey);
         headers.put("X-Timestamp", timestamp);
         headers.put("X-Nonce", nonce);
         headers.put("X-Body-Digest", bodyDigest);

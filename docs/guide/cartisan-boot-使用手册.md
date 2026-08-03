@@ -841,9 +841,9 @@ public class PermissionInitService {
 
 | 接口/类 | 方法 | 说明 |
 |---------|------|------|
-| `ApiKeyProvider` | `findByAppId(appId)` → `ApiKeyInfo` | API Key 查询接口 |
+| `ApiKeyProvider` | `getByAppKey(appKey)` → `ApiKeyInfo` | API Key 查询接口 |
 | `RemoteApiKeyProvider` | - | 远程服务 + Caffeine 缓存实现 |
-| `ApiKeyInfo` | `appId()`, `appSecret()`, `appName()`, `permissions()`, `isActive()` | API Key 信息 Record |
+| `ApiKeyInfo` | `appKey()`, `appSecret()`, `appName()`, `isActive()` | API Key 信息 Record |
 
 ### 2.29 NonceRepository（com.cartisan.openapi.nonce）
 
@@ -855,7 +855,7 @@ public class PermissionInitService {
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `cartisan.openapi.self.app-id` | String | "" | 本服务 appId |
+| `cartisan.openapi.self.app-key` | String | "" | 本服务 appKey |
 | `cartisan.openapi.self.app-secret` | String | "" | 本服务 appSecret |
 | `cartisan.openapi.apikey-service-url` | String | "" | API Key 查询地址 |
 | `cartisan.openapi.timestamp-tolerance` | int | 300 | 时间戳容差（秒） |
@@ -1918,7 +1918,7 @@ try {
 cartisan:
   openapi:
     self:
-      app-id: "order-service"
+      app-key: "order-service"
       app-secret: "${OPENAPI_SECRET}"
     apikey-service-url: "http://auth-service/api/apikeys"
     timestamp-tolerance: 300

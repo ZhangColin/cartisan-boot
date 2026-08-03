@@ -67,7 +67,7 @@ class OpenApiClientResponseTest {
 
     private OpenApiClient createClient() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
-        props.getSelf().setAppId("test-app");
+        props.getSelf().setAppKey("test-app");
         props.getSelf().setAppSecret("test-secret");
         return new OpenApiClient(props, new HmacSha256SignatureCalculator(), new ObjectMapper());
     }

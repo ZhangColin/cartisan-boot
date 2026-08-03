@@ -5,10 +5,10 @@ package com.cartisan.openapi.provider;
  */
 public interface ApiKeyProvider {
     /**
-     * 按 appId 查询 API Key 信息。
+     * 按 appKey 查询 API Key 信息。
      *
-     * @param appId 应用 ID
+     * @param appKey 应用 Key
      * @return API Key 信息，不存在返回 null
      */
-    ApiKeyInfo getByAppId(String appId);
+    ApiKeyInfo getByAppKey(String appKey);
 }
