@@ -189,7 +189,7 @@ HttpResponse<String> response = httpClient.send(request.build(), ...);
 
 `tryAcquire(nonce, ttl)` 接口无 rate limiting，恶意客户端可以 flood 大量 nonce，Redis 实现下可能导致内存膨胀。
 
-**建议**: 在 NonceRepository 或调用层添加基于 appId 的 rate limit。
+**建议**: 在 NonceRepository 或调用层添加基于 appKey 的 rate limit。
 
 ---
 

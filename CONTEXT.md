@@ -205,7 +205,7 @@ permissions 字段、注解属性、拦截器 403 分支、provider JSON 解析�
 
 ```java
 // ApiKeyInfo：5 字段 → 4 字段，删 hasPermission
-public record ApiKeyInfo(String appId, String appName, String apiSecret, String status) {
+public record ApiKeyInfo(String appKey, String appName, String apiSecret, String status) {
     public boolean isActive() { return "ACTIVE".equalsIgnoreCase(status); }
 }
 
@@ -217,7 +217,7 @@ public @interface RequireSignature {}
 
 `SignatureVerificationInterceptor` 删 403 权限块，瘦身为"**必须验签**闸"：标了 `@RequireSignature`
 的端点，若 request attribute 无验签成功写入的 `ApiKeyInfo` → 401。该闸不可去——否则 `@RequireSignature`
-变空操作（`SignatureVerificationFilter` 仅在带 `X-App-Id` 时验签、不带则放行，需拦截器把"标注即强制"补上）。
+变空操作（`SignatureVerificationFilter` 仅在带 `X-App-Key` 时验签、不带则放行，需拦截器把"标注即强制"补上）。
 `RemoteApiKeyProvider` 不再解析远端 JSON 的 `permissions`（远端若仍返回，直接忽略，wire 兼容）。
 
 **否决方案**：

@@ -101,7 +101,7 @@ public class SignatureVerificationFilter extends OncePerRequestFilter implements
             // 5. Get API Key
             ApiKeyInfo apiKeyInfo = apiKeyProvider.getByAppKey(appKey.trim());
             if (apiKeyInfo == null || !apiKeyInfo.isActive()) {
-                writeError(response, 401, "Invalid app id");
+                writeError(response, 401, "Invalid app key");
                 return;
             }
 

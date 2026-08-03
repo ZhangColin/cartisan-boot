@@ -48,11 +48,11 @@ class SignatureVerificationFilterTest {
 
     private SignatureVerificationFilter filter;
 
-    private static final String APP_ID = "test-app";
+    private static final String APP_KEY = "test-app";
     private static final String APP_SECRET = "test-secret";
     private static final String APP_NAME = "Test App";
     private static final ApiKeyInfo API_KEY_INFO = new ApiKeyInfo(
-            APP_ID, APP_NAME, APP_SECRET, "ACTIVE");
+            APP_KEY, APP_NAME, APP_SECRET, "ACTIVE");
 
     @BeforeEach
     void setUp() {
@@ -61,7 +61,7 @@ class SignatureVerificationFilterTest {
     }
 
     @Test
-    void shouldPassThrough_whenNoAppIdHeader() throws Exception {
+    void shouldPassThrough_whenNoAppKeyHeader() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
@@ -108,7 +108,7 @@ class SignatureVerificationFilterTest {
     }
 
     @Test
-    void shouldReject_whenInvalidAppId() throws Exception {
+    void shouldReject_whenInvalidAppKey() throws Exception {
         long currentTimestamp = System.currentTimeMillis() / 1000;
         MockHttpServletRequest request = createSignedRequest(
                 String.valueOf(currentTimestamp), "nonce-ok", "digest", "sign");
@@ -118,7 +118,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(null);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(null);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
         runInContext(baseCtx, () -> filter.doFilterInternal(request, response, filterChain));
@@ -140,7 +140,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
         runInContext(baseCtx, () -> filter.doFilterInternal(request, response, filterChain));
@@ -162,7 +162,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn("correct-sign");
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -191,7 +191,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn(correctSign);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -199,7 +199,7 @@ class SignatureVerificationFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(capturedCtx[0]).isNotNull();
-        assertThat(capturedCtx[0].callerAppId()).isEqualTo(APP_ID);
+        assertThat(capturedCtx[0].callerAppId()).isEqualTo(APP_KEY);
         assertThat(capturedCtx[0].callerAppName()).isEqualTo(APP_NAME);
     }
 
@@ -222,7 +222,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn(correctSign);
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -251,7 +251,7 @@ class SignatureVerificationFilterTest {
         when(properties.getTimestampTolerance()).thenReturn(300L);
         when(properties.getNonceTtl()).thenReturn(300L);
         when(nonceRepository.tryAcquire(eq("nonce-ok"), any(Duration.class))).thenReturn(true);
-        when(apiKeyProvider.getByAppKey(APP_ID)).thenReturn(API_KEY_INFO);
+        when(apiKeyProvider.getByAppKey(APP_KEY)).thenReturn(API_KEY_INFO);
         when(signatureCalculator.calculate(any(String.class), eq(APP_SECRET))).thenReturn("different-sign");
 
         RequestContext baseCtx = new RequestContext("req-1", "127.0.0.1", null, null, null, null, null, null);
@@ -288,7 +288,7 @@ class SignatureVerificationFilterTest {
     private MockHttpServletRequest createSignedRequest(String timestamp, String nonce,
                                                        String bodyDigest, String sign) {
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.addHeader("X-App-Key", APP_ID);
+        request.addHeader("X-App-Key", APP_KEY);
         request.addHeader("X-Timestamp", timestamp);
         request.addHeader("X-Nonce", nonce);
         request.addHeader("X-Body-Digest", bodyDigest);
