@@ -12,6 +12,8 @@ import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -57,9 +59,9 @@ public class RequestContextFilter extends OncePerRequestFilter implements Ordere
         String requestId = extractRequestId(request);
         String clientIp = extractClientIp(request);
         Long userId = parseLongHeader(request, HEADER_USER_ID);
-        String userName = request.getHeader(HEADER_USER_NAME);
+        String userName = decodeHeader(request.getHeader(HEADER_USER_NAME));
         Long tenantId = parseLongHeader(request, HEADER_TENANT_ID);
-        String tenantName = request.getHeader(HEADER_TENANT_NAME);
+        String tenantName = decodeHeader(request.getHeader(HEADER_TENANT_NAME));
 
         RequestContext ctx = new RequestContext(
                 requestId, clientIp,
@@ -123,5 +125,12 @@ public class RequestContextFilter extends OncePerRequestFilter implements Ordere
             }
         }
         return null;
+    }
+
+    private String decodeHeader(String value) {
+        if (value == null) {
+            return null;
+        }
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 }

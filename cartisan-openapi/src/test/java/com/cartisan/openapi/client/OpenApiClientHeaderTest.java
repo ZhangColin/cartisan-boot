@@ -63,6 +63,54 @@ class OpenApiClientHeaderTest {
     }
 
     @Test
+    void shouldUrlEncodeNonAsciiUserNameAndTenantName() {
+        CartisanOpenapiProperties props = new CartisanOpenapiProperties();
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
+
+        OpenApiClient client = new OpenApiClient(props,
+                new HmacSha256SignatureCalculator(), new ObjectMapper());
+
+        RequestContext ctx = new RequestContext(
+                "req-1", "10.0.0.1",
+                null, null,
+                42L, "超级管理员",
+                100L, "测试租户");
+
+        RequestContext.run(ctx, () -> {
+            Map<String, String> headers = invokeBuildHeaders(client, new byte[0], null);
+
+            // Non-ASCII values must be URL-encoded to be valid HTTP header values
+            assertThat(headers.get("X-User-Name")).isEqualTo("%E8%B6%85%E7%BA%A7%E7%AE%A1%E7%90%86%E5%91%98");
+            assertThat(headers.get("X-Tenant-Name")).isEqualTo("%E6%B5%8B%E8%AF%95%E7%A7%9F%E6%88%B7");
+        });
+    }
+
+    @Test
+    void shouldNotDoubleEncodeAsciiValues() {
+        CartisanOpenapiProperties props = new CartisanOpenapiProperties();
+        props.getSelf().setApiKey("test-app");
+        props.getSelf().setApiSecret("test-secret");
+
+        OpenApiClient client = new OpenApiClient(props,
+                new HmacSha256SignatureCalculator(), new ObjectMapper());
+
+        RequestContext ctx = new RequestContext(
+                "req-1", "10.0.0.1",
+                null, null,
+                42L, "Alice",
+                100L, "TenantX");
+
+        RequestContext.run(ctx, () -> {
+            Map<String, String> headers = invokeBuildHeaders(client, new byte[0], null);
+
+            // ASCII values should pass through URLEncoder unchanged
+            assertThat(headers.get("X-User-Name")).isEqualTo("Alice");
+            assertThat(headers.get("X-Tenant-Name")).isEqualTo("TenantX");
+        });
+    }
+
+    @Test
     void shouldNotIncludeContextHeaders_whenNoRequestContext() {
         CartisanOpenapiProperties props = new CartisanOpenapiProperties();
         props.getSelf().setApiKey("test-app");

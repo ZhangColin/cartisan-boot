@@ -7,9 +7,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
@@ -159,9 +161,9 @@ public class OpenApiClient {
             if (ctx.requestId() != null) headers.put("X-Request-Id", ctx.requestId());
             if (ctx.clientIp() != null) headers.put("X-Client-Ip", ctx.clientIp());
             if (ctx.userId() != null) headers.put("X-User-Id", String.valueOf(ctx.userId()));
-            if (ctx.userName() != null) headers.put("X-User-Name", ctx.userName());
+            if (ctx.userName() != null) headers.put("X-User-Name", URLEncoder.encode(ctx.userName(), StandardCharsets.UTF_8));
             if (ctx.tenantId() != null) headers.put("X-Tenant-Id", String.valueOf(ctx.tenantId()));
-            if (ctx.tenantName() != null) headers.put("X-Tenant-Name", ctx.tenantName());
+            if (ctx.tenantName() != null) headers.put("X-Tenant-Name", URLEncoder.encode(ctx.tenantName(), StandardCharsets.UTF_8));
         }
 
         return headers;

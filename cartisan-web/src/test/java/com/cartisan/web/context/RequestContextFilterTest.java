@@ -155,6 +155,48 @@ class RequestContextFilterTest {
     }
 
     @Test
+    void shouldDecodeUrlEncodedCrossServiceHeaders() throws Exception {
+        when(request.getHeader("X-Request-Id")).thenReturn("req-1");
+        when(request.getHeader("X-Forwarded-For")).thenReturn("10.0.0.1");
+        when(request.getHeader("X-User-Id")).thenReturn("42");
+        when(request.getHeader("X-User-Name")).thenReturn("%E8%B6%85%E7%BA%A7%E7%AE%A1%E7%90%86%E5%91%98");
+        when(request.getHeader("X-Tenant-Id")).thenReturn("100");
+        when(request.getHeader("X-Tenant-Name")).thenReturn("%E6%B5%8B%E8%AF%95%E7%A7%9F%E6%88%B7");
+
+        String[] capturedUserName = new String[1];
+        String[] capturedTenantName = new String[1];
+
+        org.mockito.Mockito.doAnswer(invocation -> {
+            capturedRequestId = RequestContext.getRequestId();
+            capturedClientIp = RequestContext.getClientIp();
+            capturedUserName[0] = RequestContext.getUserName();
+            capturedTenantName[0] = RequestContext.getTenantName();
+            return null;
+        }).when(filterChain).doFilter(any(), any());
+
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(capturedUserName[0]).isEqualTo("超级管理员");
+        assertThat(capturedTenantName[0]).isEqualTo("测试租户");
+    }
+
+    @Test
+    void shouldPassNullHeaderValuesThrough() throws Exception {
+        when(request.getHeader("X-Request-Id")).thenReturn("req-1");
+        when(request.getHeader("X-Forwarded-For")).thenReturn("10.0.0.1");
+        when(request.getHeader("X-User-Id")).thenReturn(null);
+        when(request.getHeader("X-User-Name")).thenReturn(null);
+        when(request.getHeader("X-Tenant-Id")).thenReturn(null);
+        when(request.getHeader("X-Tenant-Name")).thenReturn(null);
+
+        setupCaptureInChain();
+        filter.doFilterInternal(request, response, filterChain);
+
+        assertThat(capturedRequestId).isEqualTo("req-1");
+        assertThat(capturedClientIp).isEqualTo("10.0.0.1");
+    }
+
+    @Test
     void shouldCleanContextAfterChain() throws Exception {
         when(request.getHeader("X-Request-Id")).thenReturn("test-123");
         when(request.getHeader("X-Forwarded-For")).thenReturn("192.168.1.1");

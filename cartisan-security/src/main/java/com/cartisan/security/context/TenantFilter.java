@@ -12,6 +12,8 @@ import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 租户上下文 Filter，从 Header 或 Sa-Token Session 读取租户信息并写入 RequestContext。
@@ -40,7 +42,7 @@ public class TenantFilter extends OncePerRequestFilter implements Ordered {
             FilterChain filterChain) throws ServletException, IOException {
 
         Long tenantId = resolveTenantId(request);
-        String tenantName = request.getHeader(TENANT_NAME_HEADER);
+        String tenantName = decodeHeader(request.getHeader(TENANT_NAME_HEADER));
 
         if (tenantId != null) {
             RequestContext current = RequestContext.CONTEXT.orElse(null);
@@ -101,5 +103,12 @@ public class TenantFilter extends OncePerRequestFilter implements Ordered {
             log.warn("Unexpected error reading tenant from session: {}", e.getMessage());
             return null;
         }
+    }
+
+    private String decodeHeader(String value) {
+        if (value == null) {
+            return null;
+        }
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 }
