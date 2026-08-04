@@ -42,14 +42,32 @@ public class OpenApiClient {
      * 发送 POST 请求，自动签名和传递上下文。
      */
     public <T> T post(String url, Object body, TypeReference<T> responseType) {
+        return sendWithBody("POST", url, body, responseType);
+    }
+
+    /**
+     * 发送 PUT 请求，自动签名和传递上下文。
+     */
+    public <T> T put(String url, Object body, TypeReference<T> responseType) {
+        return sendWithBody("PUT", url, body, responseType);
+    }
+
+    private <T> T sendWithBody(String method, String url, Object body, TypeReference<T> responseType) {
         try {
             byte[] bodyBytes = body != null ? objectMapper.writeValueAsBytes(body) : new byte[0];
-            Map<String, String> headers = buildHeaders("POST", bodyBytes, null);
+            Map<String, String> headers = buildHeaders(method, bodyBytes, null);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(bodyBytes))
                     .timeout(Duration.ofSeconds(30));
+
+            if ("POST".equals(method)) {
+                requestBuilder.POST(HttpRequest.BodyPublishers.ofByteArray(bodyBytes));
+            } else if ("PUT".equals(method)) {
+                requestBuilder.PUT(HttpRequest.BodyPublishers.ofByteArray(bodyBytes));
+            } else {
+                throw new IllegalArgumentException("Unsupported HTTP method: " + method);
+            }
 
             headers.forEach(requestBuilder::header);
             requestBuilder.header("Content-Type", "application/json");
@@ -62,7 +80,7 @@ public class OpenApiClient {
         } catch (OpenApiClientException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("OpenApiClient POST failed: " + url, e);
+            throw new RuntimeException("OpenApiClient " + method + " failed: " + url, e);
         }
     }
 
