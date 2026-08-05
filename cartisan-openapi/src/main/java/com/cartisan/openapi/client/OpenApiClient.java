@@ -36,7 +36,7 @@ public class OpenApiClient {
         this.signatureCalculator = signatureCalculator;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(properties.getTimeout().getConnectSeconds()))
                 .build();
     }
 
@@ -61,7 +61,7 @@ public class OpenApiClient {
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .timeout(Duration.ofSeconds(30));
+                    .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
 
             if ("POST".equals(method)) {
                 requestBuilder.POST(HttpRequest.BodyPublishers.ofByteArray(bodyBytes));
@@ -98,7 +98,7 @@ public class OpenApiClient {
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .GET()
-                    .timeout(Duration.ofSeconds(30));
+                    .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
 
             headers.forEach(requestBuilder::header);
 

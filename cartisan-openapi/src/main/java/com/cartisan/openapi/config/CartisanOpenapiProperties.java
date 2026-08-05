@@ -18,9 +18,13 @@ public class CartisanOpenapiProperties {
     private long nonceTtl = 300;
     private Cache cache = new Cache();
     private DataSize maxBodySize = DataSize.ofMegabytes(1);
+    private Timeout timeout = new Timeout();
 
     public Self getSelf() { return self; }
     public void setSelf(Self self) { this.self = self; }
+
+    public Timeout getTimeout() { return timeout; }
+    public void setTimeout(Timeout timeout) { this.timeout = timeout; }
 
     public String getApikeyServiceUrl() { return apikeyServiceUrl; }
     public void setApikeyServiceUrl(String apikeyServiceUrl) { this.apikeyServiceUrl = apikeyServiceUrl; }
@@ -57,5 +61,23 @@ public class CartisanOpenapiProperties {
 
         public long getMaximumSize() { return maximumSize; }
         public void setMaximumSize(long maximumSize) { this.maximumSize = maximumSize; }
+    }
+
+    /**
+     * 出站 HTTP 超时（{@code OpenApiClient}）。默认沿用历史硬编码值（connect 10s / read 30s），
+     * 调用方按 {@code cartisan.openapi.timeout.connect-seconds / read-seconds} 收窄。
+     */
+    public static class Timeout {
+        /** 连接超时（秒），{@code HttpClient.connectTimeout}。 */
+        private long connectSeconds = 10;
+
+        /** 读超时（秒），单请求 {@code HttpRequest.timeout}。 */
+        private long readSeconds = 30;
+
+        public long getConnectSeconds() { return connectSeconds; }
+        public void setConnectSeconds(long connectSeconds) { this.connectSeconds = connectSeconds; }
+
+        public long getReadSeconds() { return readSeconds; }
+        public void setReadSeconds(long readSeconds) { this.readSeconds = readSeconds; }
     }
 }
