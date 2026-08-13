@@ -6,6 +6,7 @@ import com.cartisan.openapi.signature.SignatureCalculator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -78,7 +79,7 @@ public class OpenApiClient {
                     HttpResponse.BodyHandlers.ofString());
 
             validateResponse(response);
-            return objectMapper.readValue(response.body(), responseType);
+            return readBody(response, responseType);
         } catch (OpenApiClientException e) {
             throw e;
         } catch (Exception e) {
@@ -106,7 +107,7 @@ public class OpenApiClient {
                     HttpResponse.BodyHandlers.ofString());
 
             validateResponse(response);
-            return objectMapper.readValue(response.body(), responseType);
+            return readBody(response, responseType);
         } catch (OpenApiClientException e) {
             throw e;
         } catch (Exception e) {
@@ -118,6 +119,19 @@ public class OpenApiClient {
         if (response.statusCode() >= 400) {
             throw new OpenApiClientException(response.statusCode(), response.body());
         }
+    }
+
+    /**
+     * 读取并反序列化响应 body。容忍空 body（如 204 No Content、空 200）：
+     * body 为 null 或 blank 时跳过反序列化、返回 null。由 body 内容驱动，不特判状态码。
+     * 仍在调用方的 try 块内执行，非空 body 的真实反序列化异常沿用原有包装语义。
+     */
+    private <T> T readBody(HttpResponse<String> response, TypeReference<T> responseType) throws IOException {
+        String body = response.body();
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        return objectMapper.readValue(body, responseType);
     }
 
     private Map<String, String> buildHeaders(String method, byte[] body, Map<String, String> queryParams) {
