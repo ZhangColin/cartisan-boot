@@ -1686,24 +1686,24 @@ public static Long getCurrentTenantId() {
 
 ---
 
-### 规则 JV-003：业务项目使用 cartisan-security 需启用预览特性
+### 规则 JV-003：业务项目引入 cartisan-boot 需启用预览特性
 
-**问题**：业务项目引入 `cartisan-security` 依赖后，编译时使用 `TenantContext` 等类报错。
+**问题**：业务项目引入 cartisan-boot 模块后，编译时使用 `RequestContext` 等类报错。
 
 **错误表现**：
 ```
 [ERROR] /path/to/OrderService.java:[3,38] 找不到符号
   符号:   类 ScopedValue
-  位置: 类 com.cartisan.security.context.TenantContext
+  位置: 类 com.cartisan.core.context.RequestContext
 
 或者
 
-错误: TenantContext 是预览 API，默认情况下处于禁用状态。
+错误: RequestContext 是预览 API，默认情况下处于禁用状态。
 ```
 
 **原因**：编译时依赖传递
 ```
-业务代码编译 → 引用 TenantContext → TenantContext 使用 ScopedValue
+业务代码编译 → 引用 RequestContext → RequestContext 使用 ScopedValue
              ↓
         需要 --enable-preview
 ```
@@ -1739,12 +1739,10 @@ public static Long getCurrentTenantId() {
 ```
 
 **哪些模块需要此配置**：
-- ✅ `cartisan-security`：需要（使用 ScopedValue 实现多租户）
-- ❌ 其他 cartisan-boot 模块：不需要
+- ✅ `cartisan-core`：需要（RequestContext 使用 ScopedValue）
+- ✅ 其他所有 cartisan-boot 模块：需要（均依赖 cartisan-core）
 
-**替代方案**：如果不想启用预览特性，可以不使用 `cartisan-security`，自行实现简单的 ThreadLocal 方式租户上下文。
-
-**记忆口诀**：用 cartisan-security 记得开预览，编译测试都要加。
+**记忆口诀**：用 cartisan-boot 记得开预览，编译测试都要加。
 
 ---
 

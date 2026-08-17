@@ -29,8 +29,8 @@ import java.util.Optional;
  * @Bean
  * public AuditorAware<Long> auditorAware() {
  *     return () -> {
- *         // 从 SecurityContext 获取当前用户ID
- *         Long currentUserId = SecurityContext.getCurrentUserId();
+ *         // 从 RequestContext 获取当前用户ID
+ *         Long currentUserId = RequestContext.getUserId();
  *         return Optional.ofNullable(currentUserId);
  *     };
  * }

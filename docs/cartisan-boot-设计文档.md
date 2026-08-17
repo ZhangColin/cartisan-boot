@@ -367,14 +367,16 @@ RequestContextFilter
 ```
 com.cartisan.security/
 ├── annotation/           # 权限注解
-├── context/              # 安全/租户上下文
+├── context/              # 安全/租户过滤器（写入 RequestContext）
 ├── authentication/       # 认证抽象与实现
+├── authorization/        # 授权豁免（AuthorizationBypassResolver）
+├── permission/           # 权限扫描
 └── config/               # 自动配置
 ```
 
 #### 核心设计：薄抽象层
 
-**原则：** 业务代码使用框架提供的抽象（注解、Context），不直接调用 Sa-Token API。底层实现封装在 cartisan-security 内部，将来可整体替换为 Spring Security。
+**原则：** 业务代码使用框架提供的抽象（注解、RequestContext），不直接调用 Sa-Token API。底层实现封装在 cartisan-security 内部，将来可整体替换为 Spring Security。
 
 **权限注解：**
 
@@ -384,34 +386,28 @@ com.cartisan.security/
 @RequirePermission("user:create")       — 需要权限
 ```
 
-**SecurityContext — 当前用户上下文：**
+**RequestContext — 统一请求上下文（cartisan-core）：**
 
 ```
-SecurityContext
-  - getCurrentUserId() → Long
-  - getCurrentUsername() → String
-  - hasRole(String) → boolean
-  - hasPermission(String) → boolean
-  - isAuthenticated() → boolean
+RequestContext（record，ScopedValue 存储，兼容 Virtual Threads）
+  - getRequestId() → String
+  - getClientIp() → String
+  - getCallerAppId() / getCallerAppName() → String（服务间调用方）
+  - getUserId() / getUserName() → 当前用户
+  - getTenantId() / getTenantName() → 当前租户
+
+SecurityFilter（cartisan-security）
+  - 登录用户从 Sa-Token 读取 userId + Session 的 userName
+  - 写入 RequestContext
+
+TenantFilter（cartisan-security）
+  - 从请求 Header（X-Tenant-Id / X-Tenant-Name）或 Sa-Token Session 解析租户
+  - 写入 RequestContext
+
+  注意：兼容 Virtual Threads（ScopedValue），只能由 Filter/Interceptor 写入，业务代码只读
 ```
 
-**TenantContext — 多租户上下文基础设施：**
-
-```
-TenantContext
-  - getCurrentTenantId() → Long
-  - setCurrentTenantId(Long)
-  - clear()
-
-TenantContextFilter
-  - 从请求 Header（X-Tenant-Id）或 Token 中解析 tenantId
-  - 放入 TenantContext
-  - 请求结束时清理
-
-  注意：兼容 Virtual Threads（ScopedValue 或 ThreadLocal + 复制策略）
-```
-
-**TenantContext 只是基础设施**——它负责"在当前请求上下文中保持 tenantId"。至于"租户怎么创建、怎么审批、数据怎么隔离"——这些是业务项目的事。但业务项目的数据隔离拦截器可以读取 `TenantContext.getCurrentTenantId()` 来实现。
+**租户上下文只是基础设施**——它负责"在当前请求上下文中保持 tenantId"。至于"租户怎么创建、怎么审批、数据怎么隔离"——这些是业务项目的事。但业务项目的数据隔离拦截器可以读取 `RequestContext.getTenantId()` 来实现。
 
 **认证服务抽象：**
 
@@ -476,7 +472,7 @@ TsidGenerator
 自动配置 Spring Data JPA Auditing：
   - @CreatedDate / @LastModifiedDate 自动填充时间
   - @CreatedBy / @LastModifiedBy 自动填充操作人
-    （从 SecurityContext 获取当前用户）
+    （从 RequestContext 获取当前用户）
 ```
 
 ---

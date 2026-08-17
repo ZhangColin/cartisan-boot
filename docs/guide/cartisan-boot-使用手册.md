@@ -50,9 +50,10 @@
 
 ### 1.2 编译器配置（重要）
 
-#### ⚠️ 使用 cartisan-security 模块时需要启用预览特性
+#### ⚠️ 引入 cartisan-boot 需要启用预览特性
 
-如果业务项目引入了 `cartisan-security` 模块（使用 `TenantContext`、`TenantContextFilter`），必须在 `pom.xml` 中启用 Java 预览特性：
+cartisan-core 的 `RequestContext` 使用了 Java 21 的 `ScopedValue` 预览 API，而所有模块都依赖 cartisan-core，
+因此业务项目引入任一 cartisan-boot 模块，都必须在 `pom.xml` 中启用 Java 预览特性：
 
 ```xml
 <build>
@@ -84,16 +85,12 @@
 </build>
 ```
 
-**原因**：`cartisan-security` 使用了 Java 21 的 `ScopedValue` 预览 API 实现多租户上下文，业务项目编译引用这些类时也需要启用预览特性。
+**原因**：`cartisan-core` 的 `RequestContext` 使用了 Java 21 的 `ScopedValue` 预览 API，所有模块均依赖 cartisan-core，业务项目编译引用这些类时也需要启用预览特性。
 
 **哪些模块需要此配置**：
-- ✅ `cartisan-security`：需要（使用 ScopedValue）
-- ❌ `cartisan-core`：不需要
-- ❌ `cartisan-web`：不需要
-- ❌ `cartisan-data-jpa`：不需要
-- ❌ `cartisan-data-query`：不需要
-
-**如果项目不使用多租户功能**：可以不引入 `cartisan-security`，也无需配置 `--enable-preview`。
+- ✅ `cartisan-core`：需要（使用 ScopedValue）
+- ✅ `cartisan-security`：需要（依赖 cartisan-core）
+- ✅ `cartisan-web` / `cartisan-data-jpa` / `cartisan-data-query` / `cartisan-event` / `cartisan-openapi` / `cartisan-test`：需要（依赖 cartisan-core）
 
 ### 1.3 自动配置
 
@@ -240,7 +237,7 @@ public class LayeringTest extends CartisanLayeringRules {
 |------|------|
 | **统一响应体** | `ApiResponse<T>`、`PageResponse<T>`、`FieldError` |
 | **全局异常处理** | `@ControllerAdvice` 自动捕获异常并转换为响应 |
-| **请求上下文** | `RequestContext` 存储 requestId、clientIp（ThreadLocal） |
+| **请求上下文** | `RequestContextFilter` 初始化 requestId / clientIp（上下文本体 `RequestContext` 在 cartisan-core，基于 ScopedValue） |
 | **DomainMapper** | MapStruct 批量转换默认方法（List/Set） |
 | **TreeNode** | 树结构数据支持（前端树组件） |
 | **防重提交** | `@PreventResubmit` 注解（基于 Redis） |
@@ -358,11 +355,10 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **权限扫描** | `PermissionScanner` 扫描代码中的权限注解，自动采集权限定义 |
 | **MVC 拦截器** | `SecurityInterceptor` 处理鉴权逻辑 |
 | **异常处理** | `SecurityExceptionHandler` 处理 Sa-Token 异常（401/403） |
-| **安全上下文** | `SecurityContext` 获取当前用户信息 |
-| **多租户上下文** | `TenantContext` 获取租户 ID（Header > Session 优先级） |
-| **租户过滤器** | `TenantContextFilter` 解析租户 ID，兼容 Virtual Threads |
-| **认证服务** | `AuthenticationService` 接口 + Sa-Token 实现 |
-| **@CurrentUser 注解** | Controller 方法参数直接注入当前用户 ID |
+| **安全过滤器** | `SecurityFilter` 将登录用户 userId / userName 写入 RequestContext |
+| **租户过滤器** | `TenantFilter` 解析租户 ID / 名称（Header > Session），写入 RequestContext |
+| **认证服务** | `AuthenticationService` 接口 + Sa-Token 实现（含强制下线） |
+| **授权豁免** | `AuthorizationBypassResolver` 声明跳过角色/权限检查的账号（如超管） |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 
 **注意事项**：
@@ -371,10 +367,9 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 |------|------|
 | **SECURITY-001** | Sa-Token 包路径是 `cn.dev33.satoken`，不是 `cn.dev33.sa-token` |
 | **SECURITY-002** | Sa-Token Session 类是 `SaSession`，不是 `Session` |
-| **SECURITY-003** | TenantContext 使用 `ScopedValue`，先 `isBound()` 再 `get()` |
+| **SECURITY-003** | RequestContext 使用 `ScopedValue`，静态 getter 未绑定时返回 null |
 | **SECURITY-004** | MockMvc 集成测试需要测试专用 Controller |
 | **SECURITY-005** | `@Component` Bean 名称需显式指定避免冲突 |
-| **SECURITY-006** | `@CurrentUser Long` 未登录时调用 `StpUtil.checkLogin()` 抛异常 |
 
 > **更多规则和详细说明**参见 PITFALLS.md。
 
@@ -624,13 +619,20 @@ public class UserController {
 | `PageResponse<T>` | `items`, `total`, `page`, `size` | 分页响应字段 |
 | `FieldError` | `field`, `message`, `errorCode` | 字段级错误 |
 
-### 2.10 请求上下文（com.cartisan.web.context）
+### 2.10 请求上下文（com.cartisan.core.context）
 
 | 类 | 方法 | 说明 |
 |----|------|------|
 | `RequestContext` | `getRequestId()` | 获取请求追踪 ID（可能为 null） |
 | | `getClientIp()` | 获取客户端 IP（可能为 null） |
-| `RequestContextFilter` | - | 自动初始化 RequestContext（@Component） |
+| | `getCallerAppId()` / `getCallerAppName()` | 服务间调用方应用（openapi 验签后写入） |
+| | `getUserId()` / `getUserName()` | 当前用户（cartisan-security 的 `SecurityFilter` 写入） |
+| | `getTenantId()` / `getTenantName()` | 当前租户（cartisan-security 的 `TenantFilter` 写入） |
+| `RequestContextFilter` | - | 初始化 requestId / clientIp（com.cartisan.web.context，@Component） |
+
+`RequestContext` 是 record，基于 `ScopedValue`（Java 21+ 预览特性）存储，兼容 Virtual Threads；
+只能由 Filter / Interceptor 写入，业务代码只读。
+线程池等异步场景使用 `ContextAwareExecutor`（cartisan-core）自动传播到子线程。
 
 ### 2.11 BaseRepository（com.cartisan.data.jpa.repository）
 
@@ -702,34 +704,36 @@ public class UserController {
 - `name`: 权限显示名称（可选，空字符串时使用 code）
 - `scope`: 权限作用域（可选，空字符串时转为 null）
 
-### 2.16 SecurityContext（com.cartisan.security.context）
+### 2.16 SecurityFilter（com.cartisan.security.context）
 
-| 方法 | 返回值 | 说明 |
-|------|--------|------|
-| `getCurrentUserId()` | `Long` / `null` | 获取当前用户 ID |
-| `getCurrentUsername()` | `String` / `null` | 获取当前用户名（登录 ID） |
-| `hasRole(String role)` | `boolean` | 判断是否拥有角色 |
-| `hasPermission(String permission)` | `boolean` | 判断是否拥有权限 |
-| `isAuthenticated()` | `boolean` | 判断是否已登录 |
+| 组件 | 说明 |
+|------|------|
+| `SecurityFilter` | 若用户已登录，将 userId / userName 写入 `RequestContext`；未登录保持 null |
 
-### 2.17 TenantContext（com.cartisan.security.context）
+userName 来源于登录时 `AuthenticationService.login(loginId, userName)` 写入 SaSession 的 `"userName"` key。
+业务代码不直接使用 Filter，统一从 `RequestContext.getUserId()` / `getUserName()` 读取（见 §3.9）。
 
-| 方法 | 返回值 | 说明 |
-|------|--------|------|
-| `getCurrentTenantId()` | `Long` / `null` | 获取当前租户 ID |
-| `hasTenant()` | `boolean` | 判断是否有租户上下文 |
-| `requireTenant()` | `Long` | 获取租户 ID，不存在抛异常 |
+### 2.17 TenantFilter（com.cartisan.security.context）
 
-**存储机制**：使用 `ScopedValue`（Java 21+），兼容 Virtual Threads，作用域结束自动清理。
+| 组件 | 说明 |
+|------|------|
+| `TenantFilter` | 解析租户 ID / 名称，写入 `RequestContext` |
+
+解析优先级：`X-Tenant-Id` / `X-Tenant-Name` 请求 Header（网关或前端注入）> Sa-Token Session 的 `tenantId` key > null。
+业务代码统一从 `RequestContext.getTenantId()` / `getTenantName()` 读取（见 §3.10）。
 
 ### 2.18 AuthenticationService（com.cartisan.security.authentication）
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `AuthenticationService` | `login(Long loginId)` | 创建登录会话 |
-| | `logout()` | 销毁当前会话 |
-| | `getTokenInfo()` | 获取当前 Token 信息 |
+| `AuthenticationService` | `login(Long loginId, String userName)` | 创建登录会话；userName 写入 Session，后续请求 `SecurityFilter` 自动带入 `RequestContext` |
+| | `login(Long loginId, long timeoutSeconds, String userName)` | 创建登录会话（自定义超时，用于"记住我"） |
+| | `logout()` | 销毁当前会话（未登录静默处理） |
+| | `getTokenInfo()` | 获取当前 Token 信息（未登录返回 null） |
+| | `getCurrentUserId()` → `Optional&lt;Long&gt;` | 获取当前用户 ID |
 | | `authenticate(username, password)` | 业务层扩展点（默认抛异常） |
+| | `kickout(Long loginId)` | 强制下线指定用户 |
+| | `kickoutByUsername(String username)` | 按用户名踢出（业务层实现 username → loginId 映射） |
 
 ### 2.19 TokenInfo（com.cartisan.security.authentication）
 
@@ -754,19 +758,25 @@ public class UserController {
 | `cartisan.security.interceptor.path-patterns` | `List<String>` | `["/**"]` | 拦截器生效路径 |
 | `cartisan.security.interceptor.exclude-path-patterns` | `List<String>` | `["/error", "/actuator/**"]` | 排除路径 |
 
-### 2.22 @CurrentUser 注解（com.cartisan.security.annotation）
+### 2.22 AuthorizationBypassResolver（com.cartisan.security.authorization）
 
-| 注解/类 | 目标/方法 | 说明 |
-|---------|----------|------|
-| `@CurrentUser` | PARAMETER | Controller 方法参数注解，注入当前用户 ID |
-| `CurrentUserMethodArgumentResolver` | `supportsParameter()` | 判断参数是否支持解析（有注解 + 类型为 Long 或 Optional&lt;Long&gt;） |
-| | `resolveArgument()` | 从 SecurityContext 获取用户 ID 并注入 |
+| 接口/方法 | 说明 |
+|----------|------|
+| `shouldBypass(Long loginId)` | 返回 `true` 时跳过 `@RequireRole` / `@RequirePermission` 授权检查（仍须通过 `@RequireAuth` 登录认证） |
 
-**支持的参数类型**：
-- `@CurrentUser Long userId` — 必需登录，未登录抛 `NotLoginException`（401）
-- `@CurrentUser Optional<Long> userId` — 可选登录，未登录返回 `Optional.empty()`
+- 消费应用实现此接口，声明哪些 loginId 跳过授权检查（如超管）；bypass 判定标准完全由应用决定，框架不特化业务角色概念
+- 未提供此 bean 时行为不变（向后兼容）
+- 每个鉴权请求调用一次，框架不缓存结果；若判定涉及数据库查询，应用应自行缓存
 
-**执行时序**：Filter → Interceptor（@RequireAuth 检查）→ 参数解析（@CurrentUser）→ Controller
+**使用示例：**
+
+```java
+@Bean
+public AuthorizationBypassResolver superAdminBypassResolver(
+        AdminUserPermissionAppService appService) {
+    return loginId -> appService.isSuperAdmin(loginId);
+}
+```
 
 ### 2.23 PermissionScanner（com.cartisan.security.permission）
 
@@ -1330,49 +1340,46 @@ public class PublicController {
 - module: 业务模块（如 user）
 - action: 操作（如 read/write/delete）
 
-### 3.9 使用 SecurityContext
+### 3.9 获取当前用户信息（RequestContext）
 
 ```java
 @Service
 public class OrderService {
 
     public void createOrder(CreateOrderRequest request) {
-        // 推荐用法：先检查是否登录
-        if (SecurityContext.isAuthenticated()) {
-            Long userId = SecurityContext.getCurrentUserId();
-            String username = SecurityContext.getCurrentUsername();
+        // SecurityFilter 已写入（未登录为 null），按需判空
+        Long userId = RequestContext.getUserId();
+        String userName = RequestContext.getUserName();
 
-            // 判断角色/权限
-            boolean isAdmin = SecurityContext.hasRole("admin");
-            boolean canCreate = SecurityContext.hasPermission("order:create");
-
+        if (userId != null) {
             // 使用用户信息...
         }
     }
 
-    // 或者：对返回值做 null 检查
+    // 需要登录的接口配合 @RequireAuth，进入业务代码时 userId 一定非空
     public void updateOrder(Long orderId, UpdateOrderRequest request) {
-        Long userId = SecurityContext.getCurrentUserId();
-        if (userId != null) {
-            // 使用 userId...
-        }
+        Long userId = RequestContext.getUserId();
+        // 使用 userId...
     }
 }
 ```
 
-### 3.10 使用 TenantContext
+**说明**：角色/权限的判断由 `@RequireRole` / `@RequirePermission` 注解在拦截器阶段完成，
+业务代码不做命令式的 `hasRole()` / `hasPermission()` 判断。
+
+### 3.10 获取租户上下文（RequestContext）
 
 ```java
 @Service
 public class OrderService {
 
     public void createOrder(CreateOrderRequest request) {
-        // 获取租户 ID（可能为 null）
-        Long tenantId = TenantContext.getCurrentTenantId();
+        // 获取租户 ID / 名称（可能为 null，取决于 TenantFilter 是否解析到）
+        Long tenantId = RequestContext.getTenantId();
+        String tenantName = RequestContext.getTenantName();
 
         // 判断是否有租户上下文
-        if (TenantContext.hasTenant()) {
-            // 使用租户 ID...
+        if (tenantId != null) {
             Order order = new Order(tenantId, request);
             orderRepository.save(order);
         }
@@ -1380,7 +1387,8 @@ public class OrderService {
 
     // 强制必须有租户上下文
     public void deleteOrder(Long orderId) {
-        Long tenantId = TenantContext.requireTenant();  // 无租户抛异常
+        Long tenantId = Objects.requireNonNull(
+            RequestContext.getTenantId(), "缺少租户上下文");
         Order order = orderRepository.findByIdAndTenantId(orderId, tenantId)
             .orElseThrow();
         orderRepository.delete(order);
@@ -1403,11 +1411,11 @@ public class AuthController {
         // 1. 业务层验证密码
         User user = userService.validatePassword(request.getUsername(), request.getPassword());
 
-        // 2. 调用认证服务创建会话
-        TokenInfo tokenInfo = authService.login(user.getId());
+        // 2. 调用认证服务创建会话（userName 随会话写入，后续请求可从 RequestContext 读到）
+        TokenInfo tokenInfo = authService.login(user.getId(), user.getNickname());
 
-        // 3. 可选：设置租户 ID 到 Session
-        StpUtil.getSession().set("tenantId", user.getTenantId());
+        // 3. 租户：由网关/前端在请求头 X-Tenant-Id / X-Tenant-Name 注入，
+        //    TenantFilter 自动写入 RequestContext，无需在此处理
 
         return ApiResponse.ok(tokenInfo);
     }
@@ -1429,7 +1437,9 @@ public class AuthController {
 }
 ```
 
-### 3.12 使用 @CurrentUser 注解
+### 3.12 在 Controller 中获取当前用户
+
+框架不提供参数注入注解（无 `@CurrentUser` 之类），统一通过 `RequestContext` 读取当前用户：
 
 ```java
 // 必需登录场景
@@ -1437,24 +1447,19 @@ public class AuthController {
 @RequestMapping("/api/users")
 public class UserController {
 
-    // 方式一：只用 @CurrentUser
-    @GetMapping("/profile")
-    public ApiResponse<UserProfile> getProfile(@CurrentUser Long userId) {
-        // 未登录会在参数解析时抛 NotLoginException → 401
-        return ApiResponse.ok(userService.getProfile(userId));
-    }
-
-    // 方式二：@RequireAuth + @CurrentUser（推荐，语义更明确）
+    // @RequireAuth 保证进入方法时已登录，userId 一定非空
     @RequireAuth
     @GetMapping("/profile")
-    public ApiResponse<UserProfile> getProfile(@CurrentUser Long userId) {
-        // 未登录会在拦截器阶段被拦截，不会到达参数解析
+    public ApiResponse<UserProfile> getProfile() {
+        Long userId = RequestContext.getUserId();
+        String userName = RequestContext.getUserName();
         return ApiResponse.ok(userService.getProfile(userId));
     }
 
+    @RequireAuth
     @PutMapping("/profile")
-    public ApiResponse<Void> updateProfile(@CurrentUser Long userId,
-                                           @RequestBody UpdateProfileCommand cmd) {
+    public ApiResponse<Void> updateProfile(@RequestBody UpdateProfileCommand cmd) {
+        Long userId = RequestContext.getUserId();
         userService.updateProfile(userId, cmd);
         return ApiResponse.ok();
     }
@@ -1466,28 +1471,27 @@ public class UserController {
 public class PreferencesController {
 
     @GetMapping
-    public ApiResponse<Preferences> getPreferences(@CurrentUser Optional<Long> userId) {
-        if (userId.isPresent()) {
-            return ApiResponse.ok(preferencesService.getForUser(userId.get()));
+    public ApiResponse<Preferences> getPreferences() {
+        Long userId = RequestContext.getUserId();  // 未登录为 null
+        if (userId != null) {
+            return ApiResponse.ok(preferencesService.getForUser(userId));
         }
         return ApiResponse.ok(preferencesService.getDefault());
     }
 
-    // 简化写法
     @GetMapping("/widgets")
-    public ApiResponse<Widgets> getWidgets(@CurrentUser Optional<Long> userId) {
-        return ApiResponse.ok(widgetsService.getWidgets(userId.orElse(null)));
+    public ApiResponse<Widgets> getWidgets() {
+        return ApiResponse.ok(widgetsService.getWidgets(RequestContext.getUserId()));
     }
 }
 ```
 
-**@CurrentUser 与 @RequireAuth 的区别**：
+**@RequireAuth 与 RequestContext 的配合**：
 
-| 注解 | 作用时机 | 适用场景 |
+| 方式 | 作用时机 | 适用场景 |
 |------|---------|---------|
-| `@RequireAuth` | 拦截器阶段 | 整个接口需要登录 |
-| `@CurrentUser Long userId` | 参数解析阶段 | 需要使用 userId，未登录抛异常 |
-| `@CurrentUser Optional<Long> userId` | 参数解析阶段 | 允许匿名访问，已登录可获取 userId |
+| `@RequireAuth` | 拦截器阶段 | 整个接口需要登录，未登录 401 |
+| `RequestContext.getUserId()` | 业务代码任意位置 | 读取当前用户；未登录返回 null，需自行判空 |
 
 ### 3.13 配置拦截器路径
 
@@ -2055,23 +2059,17 @@ import cn.dev33.satoken.session.SaSession;
 #### SECURITY-003：ScopedValue 使用方式
 
 ```java
-// ❌ 错误：直接 get() 可能抛 NoSuchElementException
-public static Long getCurrentTenantId() {
-    return TENANT_ID.get();
+// ❌ 错误：直接 CONTEXT.get() 未绑定时抛 NoSuchElementException
+public static Long getTenantId() {
+    return RequestContext.CONTEXT.get().tenantId();
 }
 
-// ✅ 正确：先检查 isBound()，再 get()
-public static Long getCurrentTenantId() {
-    if (!TENANT_ID.isBound()) {
-        return null;
-    }
-    return TENANT_ID.get();
-}
+// ✅ 正确：框架内部统一 orElse(null) 判空（RequestContext 已内置）
+RequestContext ctx = RequestContext.CONTEXT.orElse(null);
+Long tenantId = ctx == null ? null : ctx.tenantId();
 
-// ✅ 或使用 getOrDefault()
-public static Long getCurrentTenantId() {
-    return ScopedValue.getOrDefault(TENANT_ID, null);
-}
+// ✅ 业务代码直接用静态 getter（未绑定时返回 null）
+Long tenantId = RequestContext.getTenantId();
 ```
 
 #### TEST-004 / SECURITY-004：MockMvc 集成测试方式
