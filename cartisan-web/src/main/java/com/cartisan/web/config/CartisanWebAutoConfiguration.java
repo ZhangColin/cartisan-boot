@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.springdoc.core.configuration.SpringDocConfiguration;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -312,8 +313,9 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
          */
         @Bean
         @ConditionalOnBean(RequestMappingHandlerMapping.class)
-        public ErrorCodesValidator errorCodesValidator(RequestMappingHandlerMapping handlerMapping,
-                                                       CodeMessageRegistry registry) {
+        public ErrorCodesValidator errorCodesValidator(
+                @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping,
+                CodeMessageRegistry registry) {
             return new ErrorCodesValidator(handlerMapping, registry);
         }
     }
