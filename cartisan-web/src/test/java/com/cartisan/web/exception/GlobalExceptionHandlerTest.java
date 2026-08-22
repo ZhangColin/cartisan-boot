@@ -169,4 +169,15 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("Invalid request"))
                 .andExpect(jsonPath("$.data").isEmpty());
     }
+
+    // ========== AC12: 未匹配路径返回 404（非 500）==========
+
+    @Test
+    @DisplayName("NoResourceFoundException - 验证返回 404 和 Resource not found")
+    void shouldReturn404_whenNoResourceFound() throws Exception {
+        mockMvc.perform(get("/no-such-endpoint"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.message").value("Resource not found"));
+    }
 }
