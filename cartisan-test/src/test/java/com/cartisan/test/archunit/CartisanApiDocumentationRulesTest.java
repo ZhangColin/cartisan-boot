@@ -81,4 +81,57 @@ class CartisanApiDocumentationRulesTest {
             .hasMessageContaining("BadControllerBlankOperationSummary")
             .hasMessageContaining("@Operation");
     }
+
+    @Test
+    @DisplayName("requireSignatureEndpointsShouldBeDocumented - 合规机机接口应该通过")
+    void requireSignatureEndpointsShouldBeDocumented_passes_forCompliantCode() {
+        assertThatCode(() ->
+            CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented.check(compliantClasses)
+        ).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("requireSignatureEndpointsShouldBeDocumented - 机机接口缺 @Operation(summary) 应该失败")
+    void requireSignatureEndpointsShouldBeDocumented_fails_whenSummaryMissing() {
+        assertThatThrownBy(() ->
+            CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented.check(violatingClasses)
+        )
+            .isInstanceOf(AssertionError.class)
+            .hasMessageContaining("BadSignedApiWithoutSummary")
+            .hasMessageContaining("@Operation(summary)");
+    }
+
+    @Test
+    @DisplayName("requireSignatureEndpointsShouldBeDocumented - 机机接口缺 @ErrorCodes 应该失败")
+    void requireSignatureEndpointsShouldBeDocumented_fails_whenErrorCodesMissing() {
+        assertThatThrownBy(() ->
+            CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented.check(violatingClasses)
+        )
+            .isInstanceOf(AssertionError.class)
+            .hasMessageContaining("BadSignedApiWithoutErrorCodes")
+            .hasMessageContaining("@ErrorCodes");
+    }
+
+    @Test
+    @DisplayName("requireSignatureEndpointsShouldBeDocumented - @ErrorCodes 空数组应该失败")
+    void requireSignatureEndpointsShouldBeDocumented_fails_whenErrorCodesEmpty() {
+        assertThatThrownBy(() ->
+            CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented.check(violatingClasses)
+        )
+            .isInstanceOf(AssertionError.class)
+            .hasMessageContaining("BadSignedApiWithEmptyErrorCodes")
+            .hasMessageContaining("@ErrorCodes");
+    }
+
+    @Test
+    @DisplayName("requireSignatureEndpointsShouldBeDocumented - 非机机接口不受影响")
+    void requireSignatureEndpointsShouldBeDocumented_ignores_unsignedEndpoints() {
+        // violation 包中普通 Controller 的 handler 缺 @Operation，但不带 @RequireSignature，
+        // 本规则不选中（缺 @Operation 的报错来自通用规则，与机机强制无关）
+        assertThatCode(() ->
+            CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented.check(
+                new ClassFileImporter().importClasses(
+                    com.cartisan.test.archunit.fixtures.violation.controller.BadControllerWithoutOperation.class))
+        ).doesNotThrowAnyException();
+    }
 }

@@ -125,7 +125,7 @@ cartisan:
 
 | 能力 | 说明 |
 |------|------|
-| **ArchUnit 规则（v1.2）** | 17 条规则：分层、命名、禁止、编码规范、API 文档规则的自动验证 |
+| **ArchUnit 规则（v1.3）** | 18 条规则：分层、命名、禁止、编码规范、API 文档规则（含机机接口 @RequireSignature 文档强制）的自动验证 |
 | **集成测试基类** | IntegrationTestBase（需手动启动测试环境） |
 | **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
@@ -548,6 +548,48 @@ public class UserController {
 2. **null 返回 null**：Converter 负责类型转换，校验由业务层注解处理（职责分离）
 3. **自动注册**：通过 `CartisanWebAutoConfiguration` 实现 `WebMvcConfigurer` 自动注册
 
+### 2.1.4 端点错误码渲染（com.cartisan.web.doc）
+
+| 类 | 说明 |
+|----|------|
+| `@ErrorCodes` | 方法级注解：声明端点可能返回的错误码（`CodeMessage#code()`，如 `{"PRJ_007", "PRJ_009"}`） |
+| `ErrorCodeOperationCustomizer` | springdoc OperationCustomizer：把声明的错误码渲染进端点 description（classpath 有 springdoc 时自动注册） |
+| `CodeMessageRegistry` | 错误码注册表：code → CodeMessage 常量索引，启动扫描 CodeMessage 枚举构建 |
+| `ErrorCodesValidator` | 启动校验：@ErrorCodes 声明了未注册 code，应用启动即失败（防 typo） |
+
+**用法**：
+
+```java
+@PostMapping("/{id}/stage/approve")
+@Operation(summary = "门通过（推进；验收门通过即收口）")
+@ErrorCodes({"PRJ_007", "PRJ_009", "PRJ_010"})
+public ApiResponse<ProjectDetailResponse> approve(@PathVariable String id) { ... }
+```
+
+swagger 端点 description 自动追加（手写描述保留在前）：
+
+```
+错误码：
+- 409 PRJ_007 — 门禁计数不足
+- 409 PRJ_009 — 当前阶段无门段
+```
+
+**特性**：
+- ✅ **单点同源**：注解只声明稳定公开的 code，语义（HTTP 状态 + message）由错误码枚举解析——错误码定义不重复，不会随注册表演进漂移
+- ✅ **通用码混用**：`BaseCodeMessage`（如 `RESOURCE_NOT_FOUND`）恒可解析，无需扫描
+- ✅ **声明序 + 去重**：渲染顺序即声明顺序，同 code 重复声明只渲染一次
+- ✅ **启动防 typo**：code 解析不到即启动失败，报出端点与 code 清单
+- ✅ **机机接口强制**：cartisan-test 的 ArchUnit 规则强制 `@RequireSignature` 端点必须声明 `@ErrorCodes`（至少一码），缺即测试红
+
+**配置**（扫描包默认 `com.cartisan` + `com.example`，非该前缀的服务需覆盖）：
+
+```yaml
+cartisan:
+  web:
+    error-codes:
+      scan-packages: com.yourcompany.yourapp  # 扫描 CodeMessage 枚举的根包
+```
+
 ### 2.2 异常体系（com.cartisan.core.exception）
 
 | 类 | 说明 |
@@ -613,8 +655,8 @@ public class UserController {
 | `CartisanNamingRules` | 5 | 命名规范规则（新增：外部 API Controller 版本号） |
 | `CartisanProhibitionRules` | 3 | 禁止规则 |
 | `CartisanCodingStandardsRules` | 3 | 编码规范规则（新增：领域层枚举实现 BaseEnum） |
-| `CartisanApiDocumentationRules` | 2 | API 文档规则：@RestController 有非空 @Tag(name)，请求映射方法有非空 @Operation(summary) |
-| `CartisanArchRules` | 17 | 聚合全部规则 |
+| `CartisanApiDocumentationRules` | 3 | API 文档规则：@RestController 有非空 @Tag(name)，请求映射方法有非空 @Operation(summary)，机机接口（@RequireSignature）handler 还须声明非空 @ErrorCodes |
+| `CartisanArchRules` | 18 | 聚合全部规则 |
 
 ### 2.6 测试基类（com.cartisan.test.base）
 

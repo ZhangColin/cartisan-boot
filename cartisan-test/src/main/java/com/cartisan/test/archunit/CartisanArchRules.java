@@ -147,4 +147,11 @@ public class CartisanArchRules {
     @ArchTest
     static final ArchRule handlerMethodsShouldHaveOperationSummary =
         CartisanApiDocumentationRules.handlerMethodsShouldHaveOperationSummary;
+
+    /**
+     * 机机接口（@RequireSignature）handler 必须有非空 @Operation(summary) 且 @ErrorCodes 至少一码
+     */
+    @ArchTest
+    static final ArchRule requireSignatureEndpointsShouldBeDocumented =
+        CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented;
 }

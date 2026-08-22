@@ -87,6 +87,15 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- cartisan-openapi（test scope：@RequireSignature 机机接口文档规则 fixtures；
+             不传递给消费服务，规则按注解名匹配，消费服务无需引入 openapi 也能生效 -->
+        <dependency>
+            <groupId>com.cartisan</groupId>
+            <artifactId>cartisan-openapi</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Lombok (compile time) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

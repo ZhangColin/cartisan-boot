@@ -1,8 +1,8 @@
 # ArchUnit 规则与编码规范映射文档
 
-> **版本**：v1.2
+> **版本**：v1.3
 > **日期**：2026-08-22
-> **目的**：验证 CartisanArchRules 的 17 条聚合规则（各规则类共 19 条）与《限界上下文代码编写规范》的对应关系
+> **目的**：验证 CartisanArchRules 的 18 条聚合规则（各规则类共 20 条）与《限界上下文代码编写规范》的对应关系
 
 本文档确认框架提供的架构测试规则与编码规范文档完全一致，无遗漏、无冲突。
 
@@ -16,8 +16,8 @@
 | **命名规则** | 5 | 三-六章：各层次组件命名规范 | ✅ 完全覆盖 |
 | **禁止规则** | 3 | 九、编码风格规范；十、架构守护 | ✅ 完全覆盖 |
 | **编码规范规则** | 3 | 三、领域层 - 3.6 枚举与常量；四、应用层 - 4.3 Mapper 规范 | ✅ 完全覆盖 |
-| **API 文档规则** | 2 | 六、北向接口层 - 6.1 控制器规范要点；十、架构守护 | ✅ 完全覆盖 |
-| **总计** | 19（聚合入口 17） | 全文档 | ✅ 100% 覆盖 |
+| **API 文档规则** | 3 | 六、北向接口层 - 6.1 控制器规范要点；十、架构守护 | ✅ 完全覆盖 |
+| **总计** | 20（聚合入口 18） | 全文档 | ✅ 100% 覆盖 |
 
 ---
 
@@ -430,7 +430,7 @@
 ---
 
 
-### 五、API 文档规则（2 条）
+### 五、API 文档规则（3 条）
 
 #### 17. controllersShouldHaveTag
 
@@ -480,9 +480,34 @@
 
 ---
 
+#### 19. requireSignatureEndpointsShouldBeDocumented
+
+**ArchUnit 规则**：`CartisanApiDocumentationRules.requireSignatureEndpointsShouldBeDocumented`
+
+**约束内容**：机机接口（`@RequireSignature` 标注在类或方法上的请求映射方法）必须有非空 `@Operation(summary)`，且声明 `@ErrorCodes`（至少一个错误码）
+
+**编码规范对应**：
+- **章节**：六、北向接口层 → 6.1 控制器规范要点
+- **原文**：
+  > 5. Swagger 注解：`@Tag`（类级别）、`@Operation`（方法级别）；错误面用 `@ErrorCodes({...})` 声明
+
+- **章节**：十、架构守护 → 10.1 ArchUnit 规则
+- **原文**：
+  > 4. **API 文档规则**：
+  >    - 机机接口（`@RequireSignature`，类或方法级）handler 还必须声明 `@ErrorCodes`（至少一个错误码）——swagger 是服务间契约正本，描述缺失即构建失败
+
+**验证状态**：✅ 完全对应（v1.3 新增规则）
+
+**补充说明**：
+- `@ErrorCodes` 语义由 cartisan-web 的 `ErrorCodeOperationCustomizer` 渲染进端点描述，错误码经 `CodeMessageRegistry` 解析（未注册 code 应用启动即失败）
+- 规则按注解名匹配 `@RequireSignature` 与 `@ErrorCodes`，cartisan-test 不引入 springdoc / cartisan-openapi 编译依赖
+- 无 `@RequireSignature` 端点的服务不受影响（`allowEmptyShould(true)`）
+
+---
+
 ## 规则执行原则
 
-所有 19 条 ArchUnit 规则都使用 `.allowEmptyShould(true)` 配置，遵循以下设计原则：
+所有 20 条 ArchUnit 规则都使用 `.allowEmptyShould(true)` 配置，遵循以下设计原则：
 
 **核心原则**：
 > "规则应该作用于写了的，都用不到的，那强加规则没意思。"
@@ -542,7 +567,7 @@
 
 ### 总体评估
 
-✅ **CartisanArchRules 的 17 条聚合规则（各规则类共 19 条）与《限界上下文代码编写规范》完全对应**
+✅ **CartisanArchRules 的 18 条聚合规则（各规则类共 20 条）与《限界上下文代码编写规范》完全对应**
 
 **详细结论**：
 

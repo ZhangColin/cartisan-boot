@@ -2,6 +2,9 @@ package com.cartisan.web.config;
 
 import com.cartisan.web.context.RequestContextFilter;
 import com.cartisan.web.controller.EnumController;
+import com.cartisan.web.doc.CodeMessageRegistry;
+import com.cartisan.web.doc.ErrorCodeOperationCustomizer;
+import com.cartisan.web.doc.ErrorCodesValidator;
 import com.cartisan.web.enums.EnumRegistry;
 import com.cartisan.web.enums.EnumScanner;
 import com.cartisan.web.exception.GlobalExceptionHandler;
@@ -11,12 +14,15 @@ import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springdoc.core.configuration.SpringDocConfiguration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +30,7 @@ import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * cartisan-web 模块的 Spring Boot 自动配置。
@@ -48,7 +55,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  * @since 0.2.0
  */
-@AutoConfiguration(after = RedisAutoConfiguration.class)
+@AutoConfiguration(after = {RedisAutoConfiguration.class, WebMvcAutoConfiguration.class})
 @ConditionalOnWebApplication
 @org.springframework.context.annotation.Import(JacksonConfiguration.class)
 @EnableConfigurationProperties(EnumErrorProperties.class)
@@ -186,11 +193,14 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
      * springdoc 集成（classpath 存在 springdoc 时生效）。
      *
      * <p>注册 {@link BaseEnumModelConverter}，使 {@code /v3/api-docs} 中 BaseEnum 字段
-     * 渲染为 {@code type=integer} + code→名称对照，对齐运行时 Jackson 契约。
-     * 未引入 springdoc 的服务不加载本配置类，零影响。</p>
+     * 渲染为 {@code type=integer} + code→名称对照，对齐运行时 Jackson 契约；
+     * 注册 {@link com.cartisan.web.doc.ErrorCodeOperationCustomizer} 与配套的
+     * {@link com.cartisan.web.doc.CodeMessageRegistry}，把 {@code @ErrorCodes}
+     * 声明的错误码渲染进端点描述。未引入 springdoc 的服务不加载本配置类，零影响。</p>
      *
      * <p>springdoc 的 ModelConverterRegistrar 收集容器内全部
-     * {@code io.swagger.v3.core.converter.ModelConverter} Bean，自动接入全局解析链。</p>
+     * {@code io.swagger.v3.core.converter.ModelConverter} Bean，自动接入全局解析链；
+     * OperationCustomizer Bean 同样由 springdoc 自动收集，对所有分组生效。</p>
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(SpringDocConfiguration.class)
@@ -204,6 +214,49 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
         @Bean
         public BaseEnumModelConverter baseEnumModelConverter() {
             return new BaseEnumModelConverter();
+        }
+
+        /**
+         * 构建错误码注册表（BaseCodeMessage 预载 + 扫描 CodeMessage 枚举）。
+         *
+         * <p>扫描包经 {@code cartisan.web.error-codes.scan-packages} 配置，
+         * 缺省 com.cartisan + com.example（与 EnumScanner 同规）。</p>
+         *
+         * @param scanPackages 扫描根包
+         * @return CodeMessageRegistry 实例
+         */
+        @Bean
+        public CodeMessageRegistry codeMessageRegistry(
+                @Value("${cartisan.web.error-codes.scan-packages:}") String[] scanPackages) {
+            return CodeMessageRegistry.scan(scanPackages);
+        }
+
+        /**
+         * 注册错误码渲染 Customizer。
+         *
+         * @param registry 错误码注册表
+         * @return ErrorCodeOperationCustomizer 实例
+         */
+        @Bean
+        public ErrorCodeOperationCustomizer errorCodeOperationCustomizer(CodeMessageRegistry registry) {
+            return new ErrorCodeOperationCustomizer(registry);
+        }
+
+        /**
+         * 注册 @ErrorCodes 启动校验器（启动即报出不可解析的 code，防 typo）。
+         *
+         * <p>仅在 Spring MVC 环境（存在 RequestMappingHandlerMapping）注册；
+         * 外层 auto-config 已 after WebMvcAutoConfiguration，条件判定时序正确。</p>
+         *
+         * @param handlerMapping MVC handler 映射
+         * @param registry 错误码注册表
+         * @return ErrorCodesValidator 实例
+         */
+        @Bean
+        @ConditionalOnBean(RequestMappingHandlerMapping.class)
+        public ErrorCodesValidator errorCodesValidator(RequestMappingHandlerMapping handlerMapping,
+                                                       CodeMessageRegistry registry) {
+            return new ErrorCodesValidator(handlerMapping, registry);
         }
     }
 }
