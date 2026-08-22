@@ -479,6 +479,36 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | `BaseEnumDeserializer` | Jackson 反序列化器：Integer → BaseEnum（使用 ContextualDeserializer） |
 | `BaseEnumConverter` | Spring MVC Converter：String(Integer code) → BaseEnum，支持 `@RequestParam`、`@PathVariable` |
 | `BaseEnumModelConverter` | springdoc ModelConverter：`/v3/api-docs` 中 BaseEnum 渲染为 `type=integer` + code→名称对照描述，与运行时 JSON 契约一致（classpath 有 springdoc 时自动注册） |
+| `BaseEnumNameSerializerModifier` | 枚举展示名虚拟属性（opt-in）：序列化为 BaseEnum 字段追加 `xxxName`，见下「枚举展示名自动随附」 |
+| `BaseEnumNameFieldModelConverter` | 展示名的 schema 同步（opt-in）：swagger schema 中同步合成 `xxxName` string 属性 |
+
+**枚举展示名自动随附（`xxxName`，opt-in）**：
+
+```properties
+# 默认 false；开启后所有响应 JSON 的 BaseEnum 字段自动多一个展示名字段
+cartisan.web.enum-name-fields.enabled=true
+```
+
+开启后业务侧**零手写**：`{"status":1,"statusName":"启用"}` 自动输出，swagger schema
+同步合成 `statusName` string 属性（紧跟 `status` 之后）——JSON 与 schema 两跳
+由同一开关驱动，永不漂移。Response DTO 无需声明 `statusName`，Mapper 无需配
+`@Mapping`（规范 §4.3）。
+
+行为规则：
+
+- **手写优先**：DTO 已声明同名字段（迁移期常见）时保留手写值，框架自动跳过——可逐 BC 删除手写字段平滑迁移
+- **null 镜像**：枚举为 null 时展示名同为 null；字段被 `NON_NULL` 抑制时展示名一并抑制
+- **集合不追加**：`List<Status>` 等集合/数组形态不生成展示名
+- **命名策略一致**：字段名 = 序列化属性名 + `Name`（如 SNAKE_CASE 下 `user_status` → `user_statusName`），JSON 与 schema 两侧同规
+- **反序列化不消费** `xxxName`（框架全局忽略未知属性，前端原样回传不报错）
+
+> ⚠️ 该行为改变所有响应 JSON 的形状，属消费方可见的契约变更，故默认关闭；
+> 新项目建议直接开启，存量项目评估前端兼容后开启。
+
+> ⚠️ **测试隔离**：springdoc 把 ModelConverter 注册进 JVM 级静态单例（框架已在
+> 上下文关闭时自动注销），同一测试套件若同时存在开关开/关两类
+> `@SpringBootTest`，开启侧需加 `@DirtiesContext(AFTER_CLASS)` 强制关闭上下文，
+> 否则开启侧的 converter 会污染默认关闭侧的断言（详见 PITFALLS.md）。
 
 **swagger 契约对齐**：
 
@@ -1038,7 +1068,20 @@ public class PermissionInitService {
 |--------|------|--------|------|
 | `cartisan.web.enum-controller.enabled` | `boolean` | `true` | 是否启用默认 Controller |
 | `cartisan.web.enum-controller.path` | `String` | `/api/enums` | Controller 路径 |
-| `cartisan.web.enum-controller.scan-packages` | `String[]` | - | 要扫描的包列表（默认：com.cartisan, com.example） |
+| `cartisan.web.enum-controller.scan-packages` | `String[]` | - | 要扫描的包列表（缺省：应用主包，见下） |
+
+**扫描包缺省策略**：`scan-packages` 未配置时，缺省扫描 **应用主包**
+（`@SpringBootApplication` 所在包，经 Spring Boot `AutoConfigurationPackages`
+机制解析）——任意包名的服务零配置即可让枚举端点生效。仅当不存在
+AutoConfigurationPackages（非 Boot 环境直接装配）时回退 `com.cartisan`。
+多模块工程若枚举散落在主包之外（如独立 domain 模块），显式配置：
+
+```properties
+cartisan.web.enum-controller.scan-packages=com.example.app.domain,com.example.app.shared
+```
+
+> 同规：`cartisan.web.error-codes.scan-packages`（@ErrorCodes 渲染的
+> CodeMessage 枚举扫描）缺省策略相同。
 
 ---
 

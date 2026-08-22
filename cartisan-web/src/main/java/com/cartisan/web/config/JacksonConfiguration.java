@@ -43,7 +43,13 @@ public class JacksonConfiguration {
             .serializerByType(Long.TYPE, new ToStringSerializer())
 
             // LocalDateTime → ISO 8601
-            .modules(new JavaTimeModule(), createBaseEnumModule())
+            // 注意：必须用 Consumer 变体追加模块。Spring 6.2 起 modules(...) 与
+            // modulesToInstall(...) 共用单个 List 字段且均为替换语义——直接调用会把
+            // Spring Boot 收集的 Module Bean 及其他 customizer 的模块整体覆盖
+            .modules(modules -> {
+                modules.add(new JavaTimeModule());
+                modules.add(createBaseEnumModule());
+            })
 
             // BigDecimal → 禁用科学计数法
             .featuresToEnable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
@@ -51,7 +57,7 @@ public class JacksonConfiguration {
             // BaseEnum → Integer code
             .serializerByType(BaseEnum.class, new BaseEnumSerializer())
 
-            
+
             // 忽略未知属性
             .featuresToDisable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }

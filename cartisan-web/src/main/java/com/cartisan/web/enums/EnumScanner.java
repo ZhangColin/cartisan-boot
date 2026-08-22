@@ -1,10 +1,8 @@
 package com.cartisan.web.enums;
 
 import com.cartisan.core.domain.BaseEnum;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
-import org.springframework.stereotype.Component;
 import org.springframework.util.ClassUtils;
 
 import jakarta.annotation.PostConstruct;
@@ -13,18 +11,20 @@ import java.util.Set;
 /**
  * 枚举扫描器，启动时扫描所有实现 BaseEnum 的枚举。
  *
+ * <p>扫描根包由 {@code CartisanWebAutoConfiguration} 在装配时解析注入
+ * （显式配置 {@code cartisan.web.enum-controller.scan-packages} 优先，
+ * 缺省取应用主包，见 {@code ScanPackageResolver}），本类不再感知配置项。</p>
+ *
  * @since 0.9.0
  */
-@Component
 public class EnumScanner {
 
     private final EnumRegistry registry;
+    private final String[] scanPackages;
 
-    @Value("${cartisan.web.enum-controller.scan-packages:}")
-    private String[] scanPackages;
-
-    public EnumScanner(EnumRegistry registry) {
+    public EnumScanner(EnumRegistry registry, String[] scanPackages) {
         this.registry = registry;
+        this.scanPackages = scanPackages;
     }
 
     /**
@@ -57,12 +57,11 @@ public class EnumScanner {
     }
 
     /**
-     * 启动时扫描，默认扫描 com.cartisan 和 com.example 包。
+     * 启动时扫描构造时注入的根包。
      */
     @PostConstruct
     public void autoScan() {
-        String[] packagesToScan = scanPackages.length > 0 ? scanPackages : new String[]{"com.cartisan", "com.example"};
-        for (String pkg : packagesToScan) {
+        for (String pkg : scanPackages) {
             scanBaseEnums(pkg);
         }
     }

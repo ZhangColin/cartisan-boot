@@ -12,8 +12,11 @@ import com.cartisan.web.filter.RequestLogFilter;
 import com.cartisan.web.resubmit.PreventResubmit;
 import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
+import com.cartisan.web.support.ScanPackageResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.springdoc.core.configuration.SpringDocConfiguration;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -22,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -162,12 +166,19 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
     /**
      * 注册枚举扫描器。
      *
+     * <p>扫描根包经 {@link ScanPackageResolver} 解析：显式配置
+     * {@code cartisan.web.enum-controller.scan-packages} 优先，缺省取应用主包
+     * （{@code @SpringBootApplication} 所在包），任意包名的服务零配置生效。</p>
+     *
      * @param enumRegistry 枚举注册表
+     * @param beanFactory  BeanFactory（查询 AutoConfigurationPackages）
+     * @param scanPackages 显式配置的扫描包
      * @return EnumScanner 实例
      */
     @Bean
-    public EnumScanner enumScanner(EnumRegistry enumRegistry) {
-        return new EnumScanner(enumRegistry);
+    public EnumScanner enumScanner(EnumRegistry enumRegistry, BeanFactory beanFactory,
+            @Value("${cartisan.web.enum-controller.scan-packages:}") String[] scanPackages) {
+        return new EnumScanner(enumRegistry, ScanPackageResolver.resolve(scanPackages, beanFactory));
     }
 
     /**
@@ -187,6 +198,36 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
     )
     public EnumController enumController(EnumRegistry enumRegistry) {
         return new EnumController(enumRegistry);
+    }
+
+    /**
+     * BaseEnum 展示名虚拟属性的 Jackson 集成（opt-in）。
+     *
+     * <p>{@code cartisan.web.enum-name-fields.enabled=true} 时注册
+     * {@link BaseEnumNameSerializerModifier}：序列化输出为 BaseEnum 属性自动追加
+     * {@code xxxName} 展示名字段。默认关闭——该行为改变所有响应 JSON 的形状，
+     * 由消费方显式开启；springdoc 侧的 schema 同步（SpringDocIntegrationConfiguration
+     * 内）共用同一开关，保证两跳一致。</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnProperty(prefix = "cartisan.web.enum-name-fields", name = "enabled", havingValue = "true")
+    static class EnumNameFieldsJacksonConfiguration {
+
+        /**
+         * 注册追加 {@code xxxName} 的 Jackson 模块。
+         *
+         * @return Jackson2ObjectMapperBuilderCustomizer 配置器
+         */
+        @Bean
+        public Jackson2ObjectMapperBuilderCustomizer baseEnumNameFieldJacksonCustomizer() {
+            // 显式命名：裸 SimpleModule 的 typeId 是类名，会与 JacksonConfiguration 的
+            // BaseEnum 模块撞 id 被 registerModule 去重丢弃；
+            // Consumer 变体追加：Spring 6.2 起 modules(...)/modulesToInstall(...)
+            // 是替换语义，直接调用会覆盖其他 customizer 的模块
+            SimpleModule module = new SimpleModule("CartisanBaseEnumNameFields");
+            module.setSerializerModifier(new BaseEnumNameSerializerModifier());
+            return builder -> builder.modules(modules -> modules.add(module));
+        }
     }
 
     /**
@@ -217,18 +258,35 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
         }
 
         /**
+         * 注册 BaseEnum 展示名的 schema 同步 converter（opt-in）。
+         *
+         * <p>与 Jackson 侧的 {@link BaseEnumNameSerializerModifier} 共用
+         * {@code cartisan.web.enum-name-fields.enabled} 开关：schema 中为 BaseEnum
+         * 属性同步合成 {@code xxxName} string 属性，两跳不漂移。</p>
+         *
+         * @param objectMapper 应用 ObjectMapper（内省属性名，兼容命名策略）
+         * @return BaseEnumNameFieldModelConverter 实例
+         */
+        @Bean
+        @ConditionalOnProperty(prefix = "cartisan.web.enum-name-fields", name = "enabled", havingValue = "true")
+        public BaseEnumNameFieldModelConverter baseEnumNameFieldModelConverter(ObjectMapper objectMapper) {
+            return new BaseEnumNameFieldModelConverter(objectMapper);
+        }
+
+        /**
          * 构建错误码注册表（BaseCodeMessage 预载 + 扫描 CodeMessage 枚举）。
          *
          * <p>扫描包经 {@code cartisan.web.error-codes.scan-packages} 配置，
-         * 缺省 com.cartisan + com.example（与 EnumScanner 同规）。</p>
+         * 缺省取应用主包（与 EnumScanner 同规，经 {@link ScanPackageResolver} 解析）。</p>
          *
-         * @param scanPackages 扫描根包
+         * @param beanFactory  BeanFactory（查询 AutoConfigurationPackages）
+         * @param scanPackages 显式配置的扫描包
          * @return CodeMessageRegistry 实例
          */
         @Bean
-        public CodeMessageRegistry codeMessageRegistry(
+        public CodeMessageRegistry codeMessageRegistry(BeanFactory beanFactory,
                 @Value("${cartisan.web.error-codes.scan-packages:}") String[] scanPackages) {
-            return CodeMessageRegistry.scan(scanPackages);
+            return CodeMessageRegistry.scan(ScanPackageResolver.resolve(scanPackages, beanFactory));
         }
 
         /**

@@ -1,13 +1,13 @@
 package com.cartisan.web.config;
 
 import com.cartisan.core.domain.BaseEnum;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
+import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.models.media.Schema;
+import org.springframework.beans.factory.DisposableBean;
 
-import java.lang.reflect.Type;
 import java.util.Iterator;
 
 /**
@@ -38,12 +38,24 @@ import java.util.Iterator;
  * @since 0.2.0
  * @see BaseEnum
  */
-public class BaseEnumModelConverter implements ModelConverter {
+public class BaseEnumModelConverter implements ModelConverter, DisposableBean {
+
+    /**
+     * 上下文关闭时从全局单例移除自身。
+     *
+     * <p>springdoc 把 ModelConverter Bean 注册进 JVM 级静态单例
+     * {@link ModelConverters} 且不做清理；不注销时同 JVM 内每次上下文重建
+     * （devtools 重启、多 {@code @SpringBootTest}）都会累积重复实例。</p>
+     */
+    @Override
+    public void destroy() {
+        BaseEnumContractSupport.deregisterFromGlobalSingletons(this);
+    }
 
     @Override
     public Schema<?> resolve(AnnotatedType type, ModelConverterContext context,
                              Iterator<ModelConverter> chain) {
-        Class<?> rawClass = rawClassOf(type);
+        Class<?> rawClass = BaseEnumContractSupport.rawClassOf(type);
         if (rawClass == null || !BaseEnum.class.isAssignableFrom(rawClass)) {
             return chain.hasNext() ? chain.next().resolve(type, context, chain) : null;
         }
@@ -69,23 +81,5 @@ public class BaseEnumModelConverter implements ModelConverter {
         }
         return description.contains(codeTable) ? description
                 : description + "（" + codeTable + "）";
-    }
-
-    /**
-     * 提取裸类：属性解析路径上 Type 可能是 Class，也可能是 Jackson 解析形（泛型、数组等）。
-     */
-    private static Class<?> rawClassOf(AnnotatedType annotatedType) {
-        if (annotatedType == null) {
-            return null;
-        }
-        Type type = annotatedType.getType();
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        }
-        try {
-            return TypeFactory.defaultInstance().constructType(type).getRawClass();
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 }

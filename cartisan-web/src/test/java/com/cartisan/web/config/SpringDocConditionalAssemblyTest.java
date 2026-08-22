@@ -38,6 +38,19 @@ class SpringDocConditionalAssemblyTest {
     }
 
     @Test
+    void should_not_register_name_field_converter_by_default() {
+        runner.run(context ->
+                assertThat(context).doesNotHaveBean(BaseEnumNameFieldModelConverter.class));
+    }
+
+    @Test
+    void should_register_name_field_converter_when_enabled() {
+        runner.withPropertyValues("cartisan.web.enum-name-fields.enabled=true")
+                .run(context ->
+                        assertThat(context).hasSingleBean(BaseEnumNameFieldModelConverter.class));
+    }
+
+    @Test
     void should_start_normally_and_skip_components_when_springdoc_absent() {
         runner.withClassLoader(new FilteredClassLoader(SpringDocConfiguration.class))
                 .run(context -> {

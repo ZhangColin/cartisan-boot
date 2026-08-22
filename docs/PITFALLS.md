@@ -2370,3 +2370,53 @@ return objectMapper.readValue(response.body(), responseType);
 **记忆口诀**：HTTP 客户端先查状态码，再反序列化。
 
 ---
+
+### PIT-024 (2026-08-22)：Spring 6.2 Jackson2ObjectMapperBuilder 模块注册是替换语义
+
+**场景**：cartisan-web 新增 `xxxName` 序列化模块时，用 `builder.modulesToInstall(module)`
+注册后完全无效——JSON 中没有新字段，bean 明明存在。
+
+**原因**：Spring Framework 6.2 起 `Jackson2ObjectMapperBuilder` 只有**单个**
+`modules: List` 字段，`modules(...)` 与 `modulesToInstall(...)` 都是**整体替换**
+（`new ArrayList(...); putfield`），后跑的 customizer 覆盖先跑的。
+cartisan-web 的 `JacksonConfiguration` 用 `.modules(JavaTimeModule, baseEnumModule)`
+——谁后跑谁的模块清单独占生效，其余（含 Spring Boot 收集的 `Module` Bean）全部被清掉。
+
+**解决**：追加模块必须用 **Consumer 变体**（对现有 List 原地 add，不改变替换标记位）：
+
+```java
+// ✅ 追加语义
+builder.modules(modules -> modules.add(myModule));
+
+// ❌ 替换语义（覆盖其他 customizer 的模块）
+builder.modules(myModule);
+builder.modulesToInstall(myModule);
+```
+
+**配套坑**：裸 `new SimpleModule()` 的 typeId 是类名——两个裸 SimpleModule 会撞 id，
+后注册的被 Jackson 去重静默丢弃。模块必须显式命名：`new SimpleModule("CartisanXxx")`。
+
+**记忆口诀**：Spring 6.2 加模块用 Consumer 追加，SimpleModule 要起名。
+
+---
+
+### PIT-025 (2026-08-22)：springdoc ModelConverter 注册进 JVM 级静态单例会跨上下文泄漏
+
+**场景**：`cartisan.web.enum-name-fields.enabled=true` 的集成测试跑完后，同套件
+**默认关闭**的测试发现 api-docs 里仍有 `statusName`——开关失效。
+
+**原因**：springdoc 的 `ModelConverterRegistrar` 把容器内所有 `ModelConverter` Bean
+注册进 swagger-core 的 **`ModelConverters` JVM 级静态单例**（3.0/3.1 两个变体），
+且**不做任何注销**。`@SpringBootTest` 的上下文缓存又让多个上下文同 JVM 并存，
+一个上下文注册的 converter 对之后所有上下文的 schema 解析生效。
+
+**解决**（框架侧已处理）：框架注册进全局单例的 converter 一律实现
+`DisposableBean`，`destroy()` 中对两个单例变体执行
+`ModelConverters.getInstance().removeConverter(this)`——上下文真正关闭时
+（ApplicationContextRunner、devtools 重启）自动注销。
+
+**消费方测试须知**：上下文缓存场景下 destroy 不会触发（缓存到 JVM 结束才关），
+同一测试套件若同时存在开关开/关两类 `@SpringBootTest`，**开启侧**要加
+`@DirtiesContext(classMode = AFTER_CLASS)` 强制类结束后关闭上下文。
+
+**记忆口诀**：springdoc converter 是全局单例，注册要配对注销，混旗测试要 Dirties。

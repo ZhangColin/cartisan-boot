@@ -82,6 +82,15 @@ class BaseEnumModelConverterIntegrationTest {
                 .containsExactly("PHYSICAL", "DIGITAL");
     }
 
+    @Test
+    void should_not_render_name_field_by_default() throws Exception {
+        // enum-name-fields 默认关闭：schema 不合成 xxxName 属性
+        JsonNode properties = apiDocs().path("components").path("schemas")
+                .path("SpringDocOrderResponse").path("properties");
+
+        assertThat(properties.has("statusName")).isFalse();
+    }
+
     // ---------- 支撑 ----------
 
     private JsonNode apiDocs() throws Exception {

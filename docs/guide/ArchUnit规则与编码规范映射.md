@@ -413,11 +413,12 @@
   > **Mapper 配置要点**：
   > - BaseEnum 类型字段：自动映射（如 `status` → `status`）
   > - `xxxName` 字段：需显式配置 `@Mapping(target = "xxxName", source = "xxx.name")`
+  >   （开启 `cartisan.web.enum-name-fields.enabled` 后免声明免映射，框架两跳自动随附）
 
 - **章节**：十、架构守护 → 10.2 检查清单
 - **原文**：
   > **应用层**
-  > - [ ] Mapper 继承 `DomainMapper`，配置 `xxxName` 字段映射
+  > - [ ] DTO 组装走 MapStruct + `DomainMapper`（不手写 toResponse），配置 `xxxName` 字段映射；开启 `enum-name-fields` 后展示名字段免声明免映射
 
 **验证状态**：✅ 完全对应
 
