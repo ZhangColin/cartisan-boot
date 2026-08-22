@@ -130,6 +130,7 @@ cartisan:
 | **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
 | **Fixture 工具** | 随机数据生成器 + 对象构建器 |
+| **swagger 枚举契约基类** | `SpringDocEnumContractTestBase`：断言 api-docs 中 BaseEnum 渲染为 integer code（见 2.1.3） |
 
 **迁移策略（v1.2 新规则）**：
 
@@ -244,6 +245,7 @@ public class LayeringTest extends CartisanLayeringRules {
 | **请求日志** | `RequestLogFilter` 记录请求信息 |
 | **MDC 集成** | requestId 自动放入 MDC |
 | **Jackson 配置** | 全局序列化配置（Long→String、日期格式等） |
+| **springdoc 枚举契约** | classpath 有 springdoc 时自动注册 `BaseEnumModelConverter`，BaseEnum 在 `/v3/api-docs` 渲染为 `type=integer` + code→名称对照（零配置，未引入 springdoc 的服务零影响） |
 | **自动配置** | Spring Boot AutoConfiguration 零配置启用 |
 | **枚举选项** | `EnumOption`、`EnumOptionUtils`、`EnumController` 支持前端获取枚举选项列表 |
 
@@ -476,6 +478,39 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | `BaseEnumSerializer` | Jackson 序列化器：BaseEnum → Integer code |
 | `BaseEnumDeserializer` | Jackson 反序列化器：Integer → BaseEnum（使用 ContextualDeserializer） |
 | `BaseEnumConverter` | Spring MVC Converter：String(Integer code) → BaseEnum，支持 `@RequestParam`、`@PathVariable` |
+| `BaseEnumModelConverter` | springdoc ModelConverter：`/v3/api-docs` 中 BaseEnum 渲染为 `type=integer` + code→名称对照描述，与运行时 JSON 契约一致（classpath 有 springdoc 时自动注册） |
+
+**swagger 契约对齐**：
+
+运行时 BaseEnum 双向序列化为 Integer code，但 springdoc 不感知 Jackson 注册，默认渲染为
+`type=string` + name 枚举（如 `"ACTIVE|DISABLED"`）——前端按 swagger 生成的类型必错。
+引入 springdoc 后框架自动注册全局 ModelConverter 纠偏：
+
+- ✅ **零配置**：classpath 同时存在 cartisan-web 与 springdoc 即生效；未引入 springdoc 的服务零影响
+- ✅ **自描述契约**：schema description 附完整 code→名称对照（如 `1=启用, 0=禁用`），已有 `@Schema(description=...)` 保留在前
+- ✅ **泛型包装内嵌字段**（如 `ApiResponse<T>` 中的枚举字段）同样生效
+- ✅ **普通枚举不受影响**：未实现 BaseEnum 的枚举保持默认渲染
+
+**契约测试范式**（cartisan-test 提供，消费服务复用）：
+
+```java
+class SpringDocEnumContractTest extends SpringDocEnumContractTestBase {
+    @Override
+    protected String basePackage() {
+        return "com.example.app"; // 扫描 BaseEnum 的根包
+    }
+
+    // 有 GroupedOpenApi 分组时覆写，逐分组校验：
+    // @Override
+    // protected List<String> apiDocsPaths() {
+    //     return List.of("/v3/api-docs/project", "/v3/api-docs/task");
+    // }
+}
+```
+
+基类断言两件事：api-docs 中任何 BaseEnum 不得渲染为 string+name 枚举；携带 code 表描述的节点必须
+`type=integer`。BaseEnum 清单经类路径扫描收集，新增枚举自动纳入。另可用
+`enumFieldType(doc, "XxxResponse", "status")` 抽查代表性字段，防「文档中无枚举出现」的空转通过。
 
 **BaseEnum 参数绑定**：
 

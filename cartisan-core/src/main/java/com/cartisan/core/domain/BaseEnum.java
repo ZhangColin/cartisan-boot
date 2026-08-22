@@ -1,8 +1,10 @@
 package com.cartisan.core.domain;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * 业务枚举基类。
@@ -120,5 +122,21 @@ public interface BaseEnum<T extends Enum<T> & BaseEnum<T>> {
                 "Unknown code: " + code + " for " + cls.getSimpleName());
         }
         return result;
+    }
+
+    /**
+     * 生成 code→名称对照表（按枚举声明顺序），如 {@code 1=启用, 0=禁用}。
+     *
+     * <p>springdoc 的 schema description（BaseEnumModelConverter）与 cartisan-test 的
+     * swagger 枚举契约测试共用此格式——单点定义，防止渲染与契约断言各自漂移。</p>
+     *
+     * @param cls 枚举类型
+     * @return 形如 {@code 1=启用, 0=禁用} 的对照表
+     */
+    static String codeTableOf(Class<?> cls) {
+        return Arrays.stream(cls.getEnumConstants())
+            .map(BaseEnum.class::cast)
+            .map(value -> value.getCode() + "=" + value.getName())
+            .collect(Collectors.joining(", "));
     }
 }

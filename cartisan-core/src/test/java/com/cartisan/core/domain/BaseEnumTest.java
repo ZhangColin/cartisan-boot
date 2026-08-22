@@ -77,4 +77,10 @@ class BaseEnumTest {
         assertThat(parsed).isSameAs(required);
         assertThat(parsed).isSameAs(TestStatus.DISABLED);
     }
+
+    @Test
+    void shouldBuildCodeTable_inDeclarationOrder() {
+        assertThat(BaseEnum.codeTableOf(TestStatus.class))
+            .isEqualTo("1=启用, 0=禁用");
+    }
 }

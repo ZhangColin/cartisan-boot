@@ -56,6 +56,14 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!-- SpringDoc OpenAPI（optional：仅消费服务 classpath 有 springdoc 时注册 BaseEnum
+             ModelConverter，未用 springdoc 的服务不传递引入，见 BaseEnumModelConverter） -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>

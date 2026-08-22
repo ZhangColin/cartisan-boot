@@ -10,6 +10,7 @@ import com.cartisan.web.resubmit.PreventResubmit;
 import com.cartisan.web.resubmit.ResubmitAspect;
 import com.cartisan.web.resubmit.ResubmitLock;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springdoc.core.configuration.SpringDocConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -17,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.format.FormatterRegistry;
@@ -172,5 +174,30 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
     )
     public EnumController enumController(EnumRegistry enumRegistry) {
         return new EnumController(enumRegistry);
+    }
+
+    /**
+     * springdoc 集成（classpath 存在 springdoc 时生效）。
+     *
+     * <p>注册 {@link BaseEnumModelConverter}，使 {@code /v3/api-docs} 中 BaseEnum 字段
+     * 渲染为 {@code type=integer} + code→名称对照，对齐运行时 Jackson 契约。
+     * 未引入 springdoc 的服务不加载本配置类，零影响。</p>
+     *
+     * <p>springdoc 的 ModelConverterRegistrar 收集容器内全部
+     * {@code io.swagger.v3.core.converter.ModelConverter} Bean，自动接入全局解析链。</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(SpringDocConfiguration.class)
+    static class SpringDocIntegrationConfiguration {
+
+        /**
+         * 注册 BaseEnum ModelConverter。
+         *
+         * @return BaseEnumModelConverter 实例
+         */
+        @Bean
+        public BaseEnumModelConverter baseEnumModelConverter() {
+            return new BaseEnumModelConverter();
+        }
     }
 }

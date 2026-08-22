@@ -79,6 +79,14 @@
             <artifactId>mapstruct</artifactId>
         </dependency>
 
+        <!-- SpringDoc（test scope：验证 SpringDocEnumContractTestBase 契约范式；
+             不传递给消费服务，契约测试由用到 springdoc 的服务自行引入 -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Lombok (compile time) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
