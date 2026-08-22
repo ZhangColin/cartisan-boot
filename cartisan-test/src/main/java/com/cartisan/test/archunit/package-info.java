@@ -6,6 +6,8 @@
  *   <li>{@link com.cartisan.test.archunit.CartisanLayeringRules} — DDD 分层依赖方向验证</li>
  *   <li>{@link com.cartisan.test.archunit.CartisanNamingRules} — 命名规范验证</li>
  *   <li>{@link com.cartisan.test.archunit.CartisanProhibitionRules} — 禁止反模式</li>
+ *   <li>{@link com.cartisan.test.archunit.CartisanCodingStandardsRules} — 编码规范验证</li>
+ *   <li>{@link com.cartisan.test.archunit.CartisanApiDocumentationRules} — REST 接口 OpenAPI 描述完整性验证</li>
  *   <li>{@link com.cartisan.test.archunit.CartisanArchRules} — 聚合全部规则的入口</li>
  * </ul>
  *

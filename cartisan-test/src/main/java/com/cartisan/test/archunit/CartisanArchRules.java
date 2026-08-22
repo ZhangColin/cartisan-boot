@@ -25,6 +25,7 @@ import com.tngtech.archunit.lang.ArchRule;
  * @see com.cartisan.test.archunit.CartisanNamingRules
  * @see com.cartisan.test.archunit.CartisanProhibitionRules
  * @see com.cartisan.test.archunit.CartisanCodingStandardsRules
+ * @see com.cartisan.test.archunit.CartisanApiDocumentationRules
  */
 public class CartisanArchRules {
 
@@ -132,4 +133,18 @@ public class CartisanArchRules {
     @ArchTest
     static final ArchRule mapstructMappersShouldExtendDomainMapper =
         CartisanCodingStandardsRules.mapstructMappersShouldExtendDomainMapper;
+
+    /**
+     * Controller 类必须有非空 @Tag(name)
+     */
+    @ArchTest
+    static final ArchRule controllersShouldHaveTag =
+        CartisanApiDocumentationRules.controllersShouldHaveTag;
+
+    /**
+     * handler 方法必须有非空 @Operation(summary)
+     */
+    @ArchTest
+    static final ArchRule handlerMethodsShouldHaveOperationSummary =
+        CartisanApiDocumentationRules.handlerMethodsShouldHaveOperationSummary;
 }

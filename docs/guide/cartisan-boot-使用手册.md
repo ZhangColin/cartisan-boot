@@ -125,7 +125,7 @@ cartisan:
 
 | 能力 | 说明 |
 |------|------|
-| **ArchUnit 规则（v1.2）** | 15 条规则：分层、命名、禁止、编码规范规则的自动验证 |
+| **ArchUnit 规则（v1.2）** | 17 条规则：分层、命名、禁止、编码规范、API 文档规则的自动验证 |
 | **集成测试基类** | IntegrationTestBase（需手动启动测试环境） |
 | **环境检查工具** | TestEnvironmentChecker 检查 PostgreSQL/Redis 是否可用 |
 | **API 测试** | MockMvc 测试基类 + 断言辅助 |
@@ -609,11 +609,12 @@ public class UserController {
 
 | 类 | 规则数 | 说明 |
 |----|--------|------|
-| `CartisanLayeringRules` | 5 | DDD 分层规则（新增：Controller 不应依赖聚合根） |
+| `CartisanLayeringRules` | 6 | DDD 分层规则（新增：Controller 不应依赖聚合根） |
 | `CartisanNamingRules` | 5 | 命名规范规则（新增：外部 API Controller 版本号） |
 | `CartisanProhibitionRules` | 3 | 禁止规则 |
-| `CartisanCodingStandardsRules` | 1 | 编码规范规则（新增：领域层枚举实现 BaseEnum） |
-| `CartisanArchRules` | 14 | 聚合全部规则 |
+| `CartisanCodingStandardsRules` | 3 | 编码规范规则（新增：领域层枚举实现 BaseEnum） |
+| `CartisanApiDocumentationRules` | 2 | API 文档规则：@RestController 有非空 @Tag(name)，请求映射方法有非空 @Operation(summary) |
+| `CartisanArchRules` | 17 | 聚合全部规则 |
 
 ### 2.6 测试基类（com.cartisan.test.base）
 
