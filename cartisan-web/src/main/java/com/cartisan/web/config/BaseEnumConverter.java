@@ -1,6 +1,7 @@
 package com.cartisan.web.config;
 
 import com.cartisan.core.domain.BaseEnum;
+import com.cartisan.web.exception.InvalidEnumValueException;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.ConverterFactory;
 
@@ -49,20 +50,17 @@ public class BaseEnumConverter implements ConverterFactory<String, BaseEnum<?>> 
                 return null;
             }
 
+            Integer code;
             try {
-                Integer code = Integer.valueOf(source);
-                T result = BaseEnum.parseByCode(enumType, code);
-                if (result == null) {
-                    throw new IllegalArgumentException(
-                        "Invalid enum code: " + code + " for " + enumType.getSimpleName()
-                    );
-                }
-                return result;
+                code = Integer.valueOf(source);
             } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                    "Enum value must be Integer code, not string: " + source
-                );
+                throw new InvalidEnumValueException(enumType, source);
             }
+            T result = BaseEnum.parseByCode(enumType, code);
+            if (result == null) {
+                throw new InvalidEnumValueException(enumType, source);
+            }
+            return result;
         }
     }
 }

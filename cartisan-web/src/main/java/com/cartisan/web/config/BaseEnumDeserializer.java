@@ -1,6 +1,7 @@
 package com.cartisan.web.config;
 
 import com.cartisan.core.domain.BaseEnum;
+import com.cartisan.web.exception.InvalidEnumValueException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -48,12 +49,15 @@ public class BaseEnumDeserializer extends JsonDeserializer<BaseEnum<?>>
     /**
      * 将 JSON 值反序列化为 BaseEnum 实例。
      * <p>
-     * 从 JSON 中读取 Integer 值，并使用 {@link BaseEnum#parseByCode(Class, Integer)}
-     * 查找对应的枚举实例。如果 JSON 值为 null 或未找到匹配的枚举，则返回 null。
+     * 读取 JSON 值并解析为 Integer code，再使用
+     * {@link BaseEnum#parseByCode(Class, Integer)} 查找对应的枚举实例。
+     * JSON 值为 null 时返回 null；取值非法（非整数、非数字字符串、未匹配的 code）
+     * 时抛出 {@link InvalidEnumValueException}，由全局异常处理器产出携带
+     * 字段名与取值表的 400 信封。
      *
      * @param p JSON 解析器
      * @param ctxt 反序列化上下文
-     * @return 反序列化后的 BaseEnum 实例，如果 JSON 值为 null 或未找到匹配项则返回 null
+     * @return 反序列化后的 BaseEnum 实例，JSON 值为 null 时返回 null
      * @throws IOException 如果发生 I/O 错误
      */
     @Override
@@ -65,15 +69,47 @@ public class BaseEnumDeserializer extends JsonDeserializer<BaseEnum<?>>
             return null;
         }
 
-        Integer code = p.getValueAsInt();
-
-        // 使用反射调用 BaseEnum.parseByCode 方法
-        try {
-            java.lang.reflect.Method method = BaseEnum.class.getDeclaredMethod("parseByCode", Class.class, Integer.class);
-            return (BaseEnum<?>) method.invoke(null, enumType, code);
-        } catch (Exception e) {
-            // 如果反射调用失败，返回 null
-            return null;
+        Integer code = readCode(p);
+        BaseEnum<?> result = parseByCode(code);
+        if (result == null) {
+            throw new InvalidEnumValueException(enumType, code);
         }
+        return result;
+    }
+
+    /**
+     * 读取 JSON 值并解析为 Integer code。
+     * <p>
+     * 接受整数 token 与数字字符串 token（如 {@code "1"}，对齐 Converter 路径的宽容度），
+     * 其余 token 视为非法取值。
+     */
+    private Integer readCode(JsonParser p) throws IOException {
+        if (p.getCurrentToken() == com.fasterxml.jackson.core.JsonToken.VALUE_NUMBER_INT) {
+            return p.getValueAsInt();
+        }
+        if (p.getCurrentToken() == com.fasterxml.jackson.core.JsonToken.VALUE_STRING) {
+            String text = p.getText();
+            try {
+                return Integer.valueOf(text);
+            } catch (NumberFormatException e) {
+                throw new InvalidEnumValueException(enumType, text);
+            }
+        }
+        throw new InvalidEnumValueException(enumType, p.getText());
+    }
+
+    /**
+     * 按目标枚举类型查表解析。
+     * <p>
+     * {@link BaseEnum#parseByCode} 的类型参数要求 {@code T extends Enum<T> & BaseEnum<T>}，
+     * 而本类持有的枚举类型来自运行时反射，只能以 raw type 转换绕开泛型约束。
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private BaseEnum<?> parseByCode(Integer code) {
+        return parseByCode((Class) enumType, code);
+    }
+
+    private <T extends Enum<T> & BaseEnum<T>> BaseEnum<?> parseByCode(Class<T> type, Integer code) {
+        return BaseEnum.parseByCode(type, code);
     }
 }

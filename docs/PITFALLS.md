@@ -1482,13 +1482,17 @@ public List<UserDTO> getUsers(@RequestParam(required = false) UserStatus status)
 ```java
 // ❌ 不要传递 name 格式
 // 请求: GET /users?status=ACTIVE  → 400 Bad Request
-// 错误: "Enum value must be Integer code, not string: ACTIVE"
+// 错误: "status 取值 ACTIVE 非法，合法取值：1=启用, 0=禁用"
 ```
 
 **异常处理**：
-- **无效 code**（如 `?status=999`）：返回 400 Bad Request，错误信息 `"Invalid enum code: 999 for UserStatus"`
-- **非数字字符串**（如 `?status=ACTIVE`）：返回 400 Bad Request，错误信息 `"Enum value must be Integer code, not string: ACTIVE"`
+- **无效 code**（如 `?status=999`）：返回 400 Bad Request，错误信息自描述——参数名 + 非法值 + 合法取值表，
+  如 `"status 取值 999 非法，合法取值：1=启用, 0=禁用"`
+- **非数字字符串**（如 `?status=ACTIVE`）：同上格式
+- **JSON body 内 BaseEnum 字段非法取值**：同样返回 400 与取值表（message 含字段名），不再是一句 `Malformed request body`
+- **业务码覆盖**：默认响应 code=400；消费服务可通过 `cartisan.web.enum-error.codes.<枚举类名>=业务码` 映射为业务码（HTTP 仍 400）
 - **null/空字符串**：返回 null，由 `@NotNull` 等业务校验处理
+- **非枚举类型不匹配**（如 path 变量应为 Long 传了 `abc`）：返回 404（不暴露转换细节）
 
 **记忆口诀**：BaseEnum 参数绑定只认 code，name 格式不支持。
 

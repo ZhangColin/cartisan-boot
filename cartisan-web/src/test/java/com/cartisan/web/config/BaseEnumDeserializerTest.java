@@ -2,6 +2,7 @@ package com.cartisan.web.config;
 
 import com.cartisan.core.domain.BaseEnum;
 import com.cartisan.web.TestApplication;
+import com.cartisan.web.exception.InvalidEnumValueException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,12 +64,40 @@ class BaseEnumDeserializerTest {
     }
 
     @Test
-    void shouldDeserializeInvalidCodeToNull() throws Exception {
+    void shouldThrowInvalidEnumValueException_whenCodeIsInvalid() {
         String json = "{\"priority\":999}";
+
+        // Jackson 将 deserializer 抛出的专用异常包装为 JsonMappingException（携带字段路径）
+        assertThatThrownBy(() -> objectMapper.readValue(json, TestPriorityRequest.class))
+                .hasCauseInstanceOf(InvalidEnumValueException.class)
+                .hasMessageContaining("priority")
+                .hasMessageContaining("TestPriority 取值 999 非法，合法取值：0=低, 1=中, 2=高");
+    }
+
+    @Test
+    void shouldThrowInvalidEnumValueException_whenValueIsNotNumber() {
+        String json = "{\"priority\":\"HIGH\"}";
+
+        assertThatThrownBy(() -> objectMapper.readValue(json, TestPriorityRequest.class))
+                .hasCauseInstanceOf(InvalidEnumValueException.class)
+                .hasMessageContaining("TestPriority 取值 HIGH 非法，合法取值：0=低, 1=中, 2=高");
+    }
+
+    @Test
+    void shouldThrowInvalidEnumValueException_whenValueIsWrongJsonType() {
+        String json = "{\"priority\":true}";
+
+        assertThatThrownBy(() -> objectMapper.readValue(json, TestPriorityRequest.class))
+                .hasCauseInstanceOf(InvalidEnumValueException.class)
+                .hasMessageContaining("TestPriority 取值 true 非法");
+    }
+
+    @Test
+    void shouldDeserializeNumericStringCode() throws Exception {
+        String json = "{\"priority\":\"2\"}";
 
         TestPriorityRequest request = objectMapper.readValue(json, TestPriorityRequest.class);
 
-        // parseByCode 对无效 code 返回 null
-        assertThat(request.priority()).isNull();
+        assertThat(request.priority()).isEqualTo(TestPriority.HIGH);
     }
 }

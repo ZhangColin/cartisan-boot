@@ -26,4 +26,19 @@ public class TestEnumController {
         }
         return "Status: " + status.name() + " (code=" + status.getCode() + ")";
     }
+
+    @PostMapping("/request-body")
+    public String testRequestBody(@RequestBody EnumBodyRequest request) {
+        return "Status: " + request.status().name() + " (code=" + request.status().getCode() + ")";
+    }
+
+    @GetMapping("/long-path/{id}")
+    public String testLongPathVariable(@PathVariable Long id) {
+        return "Id: " + id;
+    }
+
+    /**
+     * 含 BaseEnum 字段的请求体。
+     */
+    record EnumBodyRequest(TestUserStatus status) {}
 }

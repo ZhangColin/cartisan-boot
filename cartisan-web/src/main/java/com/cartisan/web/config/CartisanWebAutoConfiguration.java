@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -50,6 +51,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @AutoConfiguration(after = RedisAutoConfiguration.class)
 @ConditionalOnWebApplication
 @org.springframework.context.annotation.Import(JacksonConfiguration.class)
+@EnableConfigurationProperties(EnumErrorProperties.class)
 public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
 
     /**
@@ -84,11 +86,15 @@ public class CartisanWebAutoConfiguration implements WebMvcConfigurer {
      * <p>{@link GlobalExceptionHandler} 类本身保留 {@code @ControllerAdvice} 注解，
      * 这是 Spring MVC 识别异常处理器的必要注解。</p>
      *
+     * <p>业务码覆盖配置（{@link EnumErrorProperties}）注入后，
+     * BaseEnum 取值错误可映射为消费服务的业务码，默认 400。</p>
+     *
+     * @param enumErrorProperties 枚举错误业务码配置
      * @return GlobalExceptionHandler 实例
      */
     @Bean
-    public GlobalExceptionHandler globalExceptionHandler() {
-        return new GlobalExceptionHandler();
+    public GlobalExceptionHandler globalExceptionHandler(EnumErrorProperties enumErrorProperties) {
+        return new GlobalExceptionHandler(enumErrorProperties);
     }
 
     /**

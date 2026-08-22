@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -45,24 +46,34 @@ class BaseEnumConverterIntegrationTest {
     }
 
     @Test
-    @DisplayName("当传入无效 code 时应该返回 400")
-    void shouldReturn400_whenCodeIsInvalid() throws Exception {
+    @DisplayName("当传入无效 code 时应该返回 400，message 含参数名、非法值与取值表")
+    void shouldReturn400WithCodeTable_whenCodeIsInvalid() throws Exception {
         mockMvc.perform(get("/test/enum/request-param")
                 .param("status", "999"))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().json(
-                    "{\"code\":400,\"message\":\"Invalid enum code: 999 for TestUserStatus\"}"
-                ));
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(
+                        "status 取值 999 非法，合法取值：1=启用, 0=禁用, 2=待审核"));
     }
 
     @Test
-    @DisplayName("当传入非数字字符串时应该返回 400")
-    void shouldReturn400_whenInputIsNotNumber() throws Exception {
+    @DisplayName("当传入非数字字符串时应该返回 400，message 同样含取值表")
+    void shouldReturn400WithCodeTable_whenInputIsNotNumber() throws Exception {
         mockMvc.perform(get("/test/enum/request-param")
                 .param("status", "invalid"))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().json(
-                    "{\"code\":400,\"message\":\"Enum value must be Integer code, not string: invalid\"}"
-                ));
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(
+                        "status 取值 invalid 非法，合法取值：1=启用, 0=禁用, 2=待审核"));
+    }
+
+    @Test
+    @DisplayName("path variable 枚举非法取值同样返回 400 与取值表")
+    void shouldReturn400WithCodeTable_whenPathVariableIsInvalid() throws Exception {
+        mockMvc.perform(get("/test/enum/path-variable/999"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(
+                        "status 取值 999 非法，合法取值：1=启用, 0=禁用, 2=待审核"));
     }
 }

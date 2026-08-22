@@ -1,5 +1,6 @@
 package com.cartisan.web.config;
 
+import com.cartisan.web.exception.InvalidEnumValueException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
@@ -52,24 +53,22 @@ class BaseEnumConverterTest {
     }
 
     @Test
-    @DisplayName("当传入无效 code 时应该抛出异常")
-    void shouldThrowException_whenCodeIsInvalid() {
+    @DisplayName("当传入无效 code 时应该抛出携带枚举类与取值表的专用异常")
+    void shouldThrowInvalidEnumValueException_whenCodeIsInvalid() {
         var enumConverter = converter.getConverter(TestUserStatus.class);
 
         assertThatThrownBy(() -> enumConverter.convert("999"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Invalid enum code: 999")
-            .hasMessageContaining("TestUserStatus");
+            .isInstanceOf(InvalidEnumValueException.class)
+            .hasMessage("TestUserStatus 取值 999 非法，合法取值：1=启用, 0=禁用, 2=待审核");
     }
 
     @Test
-    @DisplayName("当传入非数字字符串时应该抛出异常")
-    void shouldThrowException_whenInputIsNotNumber() {
+    @DisplayName("当传入非数字字符串时应该抛出携带枚举类与取值表的专用异常")
+    void shouldThrowInvalidEnumValueException_whenInputIsNotNumber() {
         var enumConverter = converter.getConverter(TestUserStatus.class);
 
         assertThatThrownBy(() -> enumConverter.convert("ACTIVE"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Enum value must be Integer code")
-            .hasMessageContaining("ACTIVE");
+            .isInstanceOf(InvalidEnumValueException.class)
+            .hasMessage("TestUserStatus 取值 ACTIVE 非法，合法取值：1=启用, 0=禁用, 2=待审核");
     }
 }
