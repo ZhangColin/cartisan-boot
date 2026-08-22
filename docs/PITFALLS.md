@@ -2420,3 +2420,22 @@ builder.modulesToInstall(myModule);
 `@DirtiesContext(classMode = AFTER_CLASS)` 强制类结束后关闭上下文。
 
 **记忆口诀**：springdoc converter 是全局单例，注册要配对注销，混旗测试要 Dirties。
+
+---
+
+### PIT-026 (2026-08-22)：@WebMvcTest 嵌套 @Configuration 路径下 controller 过滤失效
+
+**场景**：切片测试用嵌套 `static @Configuration + @EnableAutoConfiguration +
+@ComponentScan(basePackageClasses = X)` 启动上下文，`@WebMvcTest(controllers = X)`
+指定了单个 controller，同包的另一个 controller 却仍被装配（请求 200 而非 404）。
+
+**原因**：`WebMvcTypeExcludeFilter`（按 controllers 属性排除未指定的 controller）
+只作用于规范路径——包结构向上找到 `@SpringBootConfiguration`
+（`@SpringBootApplication` 主类）的组件扫描。嵌套静态 `@Configuration` 自带的
+`@ComponentScan` 不经此过滤，包内所有 controller 全量装配。
+
+**解决**：切片测试的上下文锚点用包内的 `@SpringBootApplication` 夹具类
+（或消费服务自身主类），不要用嵌套 `@Configuration + @ComponentScan`——
+后者能启动上下文，但 controller 过滤语义不生效。
+
+**记忆口诀**：切片过滤认主类扫描，嵌套配置只配启动。
