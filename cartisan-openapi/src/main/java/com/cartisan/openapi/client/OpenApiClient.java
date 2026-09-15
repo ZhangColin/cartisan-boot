@@ -88,6 +88,41 @@ public class OpenApiClient {
     }
 
     /**
+     * 发送 GET 请求下载二进制响应，自动签名和传递上下文。
+     *
+     * <p>响应全量缓冲为 byte[]（不做字符解码，非 UTF-8 字节原样到达）；响应头保留在
+     * {@link BinaryResponse} 中供 BFF 透传。≥400 时响应体以 UTF-8 解码进
+     * {@link OpenApiClientException}（错误信封为 JSON 文本）。</p>
+     */
+    public BinaryResponse download(String url) {
+        try {
+            URI uri = URI.create(url);
+            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
+
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .GET()
+                    .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
+
+            headers.forEach(requestBuilder::header);
+
+            HttpResponse<byte[]> response = httpClient.send(requestBuilder.build(),
+                    HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() >= 400) {
+                throw new OpenApiClientException(response.statusCode(),
+                        new String(response.body(), StandardCharsets.UTF_8));
+            }
+            return new BinaryResponse(response.statusCode(), response.headers(), response.body());
+        } catch (OpenApiClientException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("OpenApiClient download failed: " + url, e);
+        }
+    }
+
+    /**
      * 发送 GET 请求，自动签名和传递上下文。
      */
     public <T> T get(String url, TypeReference<T> responseType) {

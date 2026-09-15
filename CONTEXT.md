@@ -457,3 +457,88 @@ PageResponse.of(Page)  // 内部 page = p.getNumber() + 1，替代各服务手�
 **Out of scope**：`@Condition` 的 jOOQ 对称物（Query record → `org.jooq.Condition` 注解驱动构造）
 ——大活且 TypeSafe 风格与字符串列名注解有张力，需要时单独立 issue 走同样流程；
 framework-review #19 的处置另议（本票不代关）。
+
+### Issue 07（#30）— OpenApiClient 二进制下载能力：`download` + `BinaryResponse`（2026-09-15）
+
+**来源**：#30。admin 作 BFF 透传 aiplatform 后台订单源码包 tar.gz
+（`application/gzip` + `Content-Disposition` attachment，无 ApiResponse 信封），
+阻塞 ZhangColin/aieducenter-admin#64。
+
+**判定**：✅ **是框架问题**。`OpenApiClient` 只有 JSON 反序列化路径
+（`BodyHandlers.ofString()` → Jackson），二进制响应无处承载，且三处硬阻塞应用侧无法自救：
+① ofString 的 `CharsetDecoder` REPLACE 把非 UTF-8 字节替换为 U+FFFD，**不可逆损坏**
+（应用层再做任何 byte[] 反序列化都建立在已损坏字符串上）；② `readBody` 只返回 body，
+响应头丢弃，BFF 透传文件名无数据来源；③ 五头签名拼装（`buildHeaders`）全 private，
+框架外无法自建合法签名——设计使然（签名收口框架，admin ADR-0007），缺口只能框架补。
+
+**根因 reframe**：不是"缺一个 get 重载"，而是 client 的**响应处理机制只有一种**——
+"响应 = JSON 信封、头即弃"被焊死在 readBody。二进制透传需要的是第二种机制
+（原始字节 + 头保全），从未被定义。补的是**第二种响应机制**，不是 `get` 的变体。
+
+**采纳方案**：`OpenApiClient` 新增一个 public 方法（纯新增，`get`/`post`/`put` 零改动）：
+
+```java
+// com.cartisan.openapi.client
+public BinaryResponse download(String url)
+// GET；五头签名（空 body digest + query 入签）+ RequestContext 透传头，同 get() 既有机制
+
+public record BinaryResponse(int statusCode, HttpHeaders headers, byte[] body)
+// headers 为 JDK java.net.http.HttpHeaders（不可变、大小写不敏感、firstValue()）
+```
+
+- **命名 `download`（传输意图轴）而非 `getBinary`（HTTP 动词轴）**：分野是响应机制不是
+  动词；`download`/`upload` 未来对称自然——`upload(url, bytes, TypeReference)` 为
+  binary 入向、JSON 信封回，不会出现 `postBinary`"binary 指请求还是响应"的别扭。
+- **headers 用 JDK `HttpHeaders`**：BFF 透传场景 header 名大小写不定，不敏感查找是刚需；
+  client API 收 JDK/Jackson 类型（`TypeReference` 先例）不避讳，零新造类型。
+- **`BodyHandlers.ofByteArray()` 全量缓冲**：provider 端本就 `ByteArrayResource` 缓冲出口、
+  MB 级文件 heap 无压力；不做流式。
+- **≥400 复用 `OpenApiClientException`**：body UTF-8 decode 成 String（provider 错误信封
+  本就是 JSON 文本，admin `AiplatformUpstreamException` 翻译路径继续吃 String body）；
+  异常类型零改动，调用方 catch 一种。
+- **不带 Content-Disposition 解析 helper**：BFF 透传 = raw header 值原样 set 回自己的响应，
+  无需解析文件名；真解析（RFC 6266 `filename*`）等出现需求再立（YAGNI，标准 4）。
+- **全局 `readSeconds` 超时**，无 per-call 参数（与 `get`/`post`/`put` 一致，不开先例）。
+
+**否决方案**：
+- ❌ `getBinary`：按 HTTP 动词命名伪装成 `get` 的变体，动词轴挂不住"响应机制"分野；
+  未来 `postBinary` 语义别扭。（grill 中提出 `download`，采纳。）
+- ❌ 同期加 `postBinary`/`putBinary`：零消费方，YAGNI。
+- ❌ `OpenApiBinaryClientException` 带 byte[] body：调用方 catch 两种、API 面翻倍，
+  为"错误体也是二进制"的不存在场景买单。
+- ❌ `OpenApiClientException` 加 byte[] 构造重载：getter 语义分裂。
+- ❌ `DownloadResponse`/`DownloadedFile` 命名：动作焊死进类型名，第二动作出现即打架；
+  类型按载荷形态（BinaryResponse）命名寿命长。
+- ❌ `InputStream` 真流式：关闭责任 / timeout 覆盖语义复杂化，provider 端本就缓冲，无消费方。
+- ❌ headers 用 `Map<String, List<String>>`（大小写敏感查找自理）或扁平
+  `Map<String, String>`（丢多值）：JDK `HttpHeaders` 两者皆免费。
+- ❌ 载体加 `filename()` 便捷方法：透传场景不需要解析后的文件名，提前固化解析口径。
+
+**实施备注**：
+- 仅 `cartisan-openapi` 模块；纯新增方法，现有 JSON 路径行为零改动。
+- binary 侧 ≥400 校验复用 `validateResponse` 语义（byte body → UTF-8 decode 进异常）。
+- 测试沿用 `com.sun.net.httpserver.HttpServer` 先例（`OpenApiClientPutTest` /
+  `TimeoutTest` / `EmptyBodyTest`），无需新依赖。
+- 手册同步：§2.26 补 `download` + `BinaryResponse` 参考；§3.26 补 BFF 透传示例
+  （raw header 原样 set 回 + 字节写出，示范"文件名不解析"）。顺带修正同章既有陈旧
+  （评审发现的 catch-up，与 #30 无关但同表同节）：§2.26 补 `put` 行（方法存在但漏记）、
+  §2.27 `@RequireSignature` 去 permission 属性（Issue 04 决议的文档追补）、
+  §3.26 示例 `Xxx.class` → `TypeReference`（原示例与实际签名不符、编译不过）。
+
+**验收**：
+- **字节完整性**（ofString 损坏的回归锚点）：server 返回含非 UTF-8 序列的 gzip 字节 +
+  `Content-Type: application/gzip` + `Content-Disposition: attachment; filename="...tar.gz"` →
+  `body()` 与原字节逐位相等、两头经 `headers()` 可取。
+- **签名与上下文**：server 侧捕获请求头，断言五签名头
+  （`X-Api-Key`/`X-Timestamp`/`X-Nonce`/`X-Body-Digest`/`X-Sign`）与 RequestContext 透传头在场。
+- **≥400 语义**：JSON 错误信封 + 5xx → 抛 `OpenApiClientException`，
+  `getStatusCode()` / `getBody()`（UTF-8 decode 后 String）可读。
+- **超时 / 网络异常**包装语义与 `get()` 一致（`TimeoutTest` 模式）。
+- 手册两节同步；`mvn test -pl cartisan-openapi` 全绿。
+
+**消费方落地**：admin#64 直接 `openApiClient.download(url)` → 把 headers 的
+`Content-Type`/`Content-Disposition` 原样 set 回响应 + `body()` 写出；
+`AiplatformUpstreamException` 翻译路径零改动。
+
+**Out of scope**：`upload`（binary 入向 POST，出现消费方再立）；Content-Disposition
+解析（RFC 6266 `filename*` / 编码）；真流式（`InputStream`）；per-call 超时。

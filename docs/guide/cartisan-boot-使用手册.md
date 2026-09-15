@@ -947,14 +947,17 @@ public class PermissionInitService {
 |---------|------|
 | `OpenApiClient` | 服务间 HTTP 客户端，自动签名 |
 | `post(url, body, responseType)` | 发送签名 POST 请求 |
+| `put(url, body, responseType)` | 发送签名 PUT 请求 |
 | `get(url, responseType)` | 发送签名 GET 请求（query 参数参与签名） |
-| `OpenApiClientException` | 非 2xx 响应异常，含 statusCode 和 body 字段 |
+| `download(url)` | 发送签名 GET 请求下载**二进制**响应：原始字节全量缓冲（不做字符解码），响应头保留在载体中供 BFF 透传；query 参数参与签名，同 `get` |
+| `BinaryResponse` | 二进制响应载体 record：`statusCode`、`headers`（JDK `HttpHeaders`，大小写不敏感）、`body`（`byte[]` 原始字节） |
+| `OpenApiClientException` | 非 2xx 响应异常，含 statusCode 和 body 字段（binary 路径 body 为 UTF-8 解码后的错误信封文本） |
 
 ### 2.27 签名注解（com.cartisan.openapi.annotation）
 
 | 注解 | 目标 | 说明 |
 |------|------|------|
-| `@RequireSignature(permission)` | TYPE/METHOD | 需要验签，可选 permission 属性进行权限检查 |
+| `@RequireSignature` | TYPE/METHOD | 需要验签（裸标记注解，无属性） |
 | `@NoSignature` | TYPE/METHOD | 跳过验签 |
 
 ### 2.28 ApiKeyProvider（com.cartisan.openapi.provider）
@@ -2058,7 +2061,7 @@ public class UserClient {
     public UserInfo getUser(Long userId) {
         return openApiClient.get(
             "http://user-service/api/users/" + userId,
-            UserInfo.class
+            new TypeReference<UserInfo>() {}
         );
     }
 
@@ -2067,9 +2070,24 @@ public class UserClient {
         return openApiClient.post(
             "http://order-service/api/orders",
             request,
-            OrderDTO.class
+            new TypeReference<OrderDTO>() {}
         );
     }
+}
+```
+
+**二进制下载 + BFF 透传**（`download` 返回原始字节与响应头；文件名**不做解析**，
+`Content-Disposition` 原样转给北向调用方）：
+
+```java
+public void downloadSourcePackage(Long orderId, HttpServletResponse response) throws IOException {
+    BinaryResponse file = openApiClient.download(
+        "http://aiplatform-service/api/backoffice/orders/" + orderId + "/source-package");
+
+    response.setContentType(file.headers().firstValue("Content-Type").orElse("application/octet-stream"));
+    file.headers().firstValue("Content-Disposition")
+        .ifPresent(value -> response.setHeader("Content-Disposition", value));
+    response.getOutputStream().write(file.body());
 }
 ```
 
@@ -2083,6 +2101,9 @@ try {
     throw new ApplicationException("远程服务调用失败: " + e.getStatusCode());
 }
 ```
+
+`download` 的错误语义与 JSON 路径一致：≥4xx/5xx 抛同一个 `OpenApiClientException`，
+`getBody()` 为 UTF-8 解码后的错误信封文本，现有翻译/统一处理路径零改动。
 
 ### 3.27 配置 OpenAPI 签名验签
 
