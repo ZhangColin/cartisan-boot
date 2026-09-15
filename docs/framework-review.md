@@ -33,7 +33,7 @@
 | 20 | jOOQ 方言硬编码 | **已处理** | 75ec8c9 可配置 |
 | 21 | cartisan-core Spring provided | **已处理** | 文档已更新 |
 | 22 | fastjson2 依赖 | **已处理** | 改用 Jackson |
-| 23 | 没有统一分页请求 DTO | **未处理** | 仍缺失 |
+| 23 | 没有统一分页请求 DTO | **已处理** | #29 交付 Pagination/Ordering（6083e2c），见正文条目 19 |
 | 25 | requestId 未填入 ApiResponse | **已处理** | 9d2a631 |
 
 ---
@@ -275,6 +275,11 @@ private Long parseTenantIdFromSession() {
 ### [LOW] 19. 没有统一分页请求 DTO
 
 有 `PageResponse` 但没有对应的分页请求 Record（如 `PageQuery` 含 page/size/sort）。每个业务项目需要自己定义。
+
+> **已处理**（#29，6083e2c）：交付 `com.cartisan.web.request.Pagination`（page/size/sort，
+> 全链 1-based + clamp 契约 + 白名单排序）与 `Ordering`（不分页控排序），
+> `PageResponse.of(Page)` 工厂回显——覆盖本条诉求的完整超集。
+> 决策记录见 `CONTEXT.md` Issue 06。
 
 ---
 
