@@ -11,5 +11,7 @@
  * → appservice 返回 Spring Data {@code Page} 或自组读侧（jOOQ 用
  * {@code offset()}/{@code limit()}）→ controller/appservice 工厂回显
  * {@code PageResponse.of}。页码换算与防御收在框架一处，业务代码零算术。</p>
+ *
+ * @since 0.2.0
  */
 package com.cartisan.web.request;

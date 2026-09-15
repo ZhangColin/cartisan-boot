@@ -1,6 +1,7 @@
 package com.cartisan.test.mvc;
 
 import com.cartisan.core.context.RequestContext;
+import com.cartisan.web.request.Pagination;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,7 +42,7 @@ public class MvcOrderController {
     }
 
     @GetMapping("/pagination")
-    public PaginationView pagination(com.cartisan.web.request.Pagination pagination) {
+    public PaginationView pagination(Pagination pagination) {
         return new PaginationView(pagination.page(), pagination.size());
     }
 

@@ -15,10 +15,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 分页参数 MVC 绑定端到端集成测试（#29）。
+ * 分页参数 MVC 绑定端到端集成测试（#29，完整 MVC 侧）。
  *
  * <p>覆盖 wire 扁平绑定、参数缺省、clamp、非数值 → 400 field-error 信封、
- * 排序白名单 400、Ordering 独立绑定、超尾页回显。</p>
+ * 排序白名单 400、Ordering 独立绑定、业务 Query 并列组合、超尾页回显。</p>
+ *
+ * <p>clamp/缺省/非数值 400 三场景在 cartisan-test 的
+ * {@code CartisanMvcTestTest}（@CartisanMvcTest 切片）有 parity 用例，
+ * 两侧同步修改防漂移。</p>
  */
 @SpringBootTest(classes = TestApplication.class)
 @AutoConfigureMockMvc
@@ -150,6 +154,56 @@ class PaginationIntegrationTest {
             mockMvc.perform(get("/pagination-test/ordering"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isEmpty());
+        }
+
+        @Test
+        @DisplayName("Ordering.toSort(Set) 白名单外字段 → 400（与 Pagination 同语义）")
+        void shouldReturn400_whenOrderingSortFieldOutsideWhitelist() throws Exception {
+            mockMvc.perform(get("/pagination-test/ordering-whitelisted")
+                            .queryParam("sort", "password,desc"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value(400))
+                    .andExpect(jsonPath("$.message").value("Invalid request"));
+        }
+
+        @Test
+        @DisplayName("Ordering 白名单内字段正常解析")
+        void shouldConvertOrderingWithWhitelist_whenFieldAllowed() throws Exception {
+            mockMvc.perform(get("/pagination-test/ordering-whitelisted")
+                            .queryParam("sort", "id,desc"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0]").value("id:DESC"));
+        }
+    }
+
+    @Nested
+    @DisplayName("业务 Query 与 Pagination 并列组合（查询端组合契约）")
+    class CombinedBinding {
+
+        @Test
+        @DisplayName("两类 record 各自按组件名绑定顶级参数，互不干扰")
+        void shouldBindBusinessQueryAndPaginationInParallel() throws Exception {
+            mockMvc.perform(get("/pagination-test/search")
+                            .queryParam("keyword", "cartisan")
+                            .queryParam("status", "ACTIVE")
+                            .queryParam("page", "2")
+                            .queryParam("size", "50"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.keyword").value("cartisan"))
+                    .andExpect(jsonPath("$.status").value("ACTIVE"))
+                    .andExpect(jsonPath("$.page").value(2))
+                    .andExpect(jsonPath("$.size").value(50));
+        }
+
+        @Test
+        @DisplayName("并列组合下 Pagination 缺省语义不受业务参数影响")
+        void shouldApplyPaginationDefaults_whenCombinedWithBusinessQuery() throws Exception {
+            mockMvc.perform(get("/pagination-test/search")
+                            .queryParam("keyword", "cartisan"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.keyword").value("cartisan"))
+                    .andExpect(jsonPath("$.page").value(1))
+                    .andExpect(jsonPath("$.size").value(20));
         }
     }
 

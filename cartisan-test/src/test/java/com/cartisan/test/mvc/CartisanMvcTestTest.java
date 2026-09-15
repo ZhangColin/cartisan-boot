@@ -99,6 +99,8 @@ class CartisanMvcTestTest {
     }
 
     // ========== Pagination record 绑定（#29：切片与完整 MVC 行为对齐） ==========
+    // parity 用例：与 cartisan-web 的 PaginationIntegrationTest（完整 MVC）三场景对应，
+    // 两侧同步修改防漂移。
 
     @Test
     void shouldBindPaginationRecordAndClamp_whenSlice() throws Exception {

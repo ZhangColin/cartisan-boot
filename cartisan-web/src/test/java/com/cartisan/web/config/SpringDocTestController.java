@@ -1,5 +1,6 @@
 package com.cartisan.web.config;
 
+import com.cartisan.web.request.Pagination;
 import com.cartisan.web.response.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,7 +50,7 @@ public class SpringDocTestController {
      * page/size/sort 顶级 query 参数（#29）。
      */
     @GetMapping("/pagination")
-    public List<String> pagination(com.cartisan.web.request.Pagination pagination) {
+    public List<String> pagination(Pagination pagination) {
         return pagination.sort();
     }
 }

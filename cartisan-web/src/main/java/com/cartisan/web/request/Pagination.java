@@ -47,15 +47,16 @@ import java.util.Set;
  * @param page 页码（1-based，归一化后非 null 且 ≥1）
  * @param size 每页大小（归一化后非 null，1..100）
  * @param sort 排序 token 列表（归一化后非 null，空列表表示无排序）
+ * @since 0.2.0
  */
 @ParameterObject
 public record Pagination(Integer page, Integer size, List<String> sort) {
 
-    /** 参数缺省时的每页大小 */
-    public static final int DEFAULT_SIZE = 20;
+    /** 参数缺省时的每页大小（固定契约，非配置项） */
+    private static final int DEFAULT_SIZE = 20;
 
-    /** 每页大小上限 */
-    public static final int MAX_SIZE = 100;
+    /** 每页大小上限（固定契约，非配置项） */
+    private static final int MAX_SIZE = 100;
 
     public Pagination {
         page = (page == null || page < 1) ? 1 : page;

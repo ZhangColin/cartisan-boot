@@ -34,6 +34,7 @@ import java.util.Set;
  * 属性名走 criteria 解析，未知属性由 Hibernate 报错。</p>
  *
  * @param sort 排序 token 列表，归一化后非 null（空列表表示无排序）
+ * @since 0.2.0
  */
 @ParameterObject
 public record Ordering(List<String> sort) {

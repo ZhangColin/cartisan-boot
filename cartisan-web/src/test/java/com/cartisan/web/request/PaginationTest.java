@@ -55,14 +55,14 @@ class PaginationTest {
             Pagination pagination = new Pagination(null, null, null);
 
             assertThat(pagination.page()).isEqualTo(1);
-            assertThat(pagination.size()).isEqualTo(Pagination.DEFAULT_SIZE);
+            assertThat(pagination.size()).isEqualTo(20);
         }
 
         @Test
         @DisplayName("显式传 0 与缺省可区分：0 走 clamp 到 1，而非默认值")
         void shouldClampExplicitZeroTo1_insteadOfDefault() {
             assertThat(new Pagination(0, 0, null).size()).isEqualTo(1);
-            assertThat(new Pagination(0, 0, null).size()).isNotEqualTo(Pagination.DEFAULT_SIZE);
+            assertThat(new Pagination(0, 0, null).size()).isNotEqualTo(20);
         }
     }
 
