@@ -2,6 +2,11 @@
 
 > Review 日期：2026-04-11（第二轮）
 > 范围：cartisan-core, cartisan-web, cartisan-data-jpa, cartisan-data-query, cartisan-event, cartisan-security, cartisan-test, cartisan-openapi
+>
+> **编号约定**：两轮各自独立编号。`上轮 #N` 指下方「上轮 Review 处理情况」表
+> （2026-04-09）；`本轮 #N` 指正文各节与「优先级总结」（2026-04-11，11/12 空缺为
+> 已删除条目）。**裸编号默认本轮**——外部引用（CONTEXT.md 等）的
+> `framework-review #19` 即本轮 #19（分页 DTO）。
 
 ---
 
@@ -9,7 +14,7 @@
 
 > 上轮日期：2026-04-09，共 25 个问题
 
-| # | 问题 | 状态 | 处理方式 |
+| 上轮 # | 问题 | 状态 | 处理方式 |
 |---|------|------|----------|
 | 1 | AggregateRoot 继承 DomainEntity | **已处理** | cdea019 |
 | 2 | stereotype 注解 Spring 依赖 | **已处理** | 更新文档，不再声称零依赖 |
@@ -33,7 +38,7 @@
 | 20 | jOOQ 方言硬编码 | **已处理** | 75ec8c9 可配置 |
 | 21 | cartisan-core Spring provided | **已处理** | 文档已更新 |
 | 22 | fastjson2 依赖 | **已处理** | 改用 Jackson |
-| 23 | 没有统一分页请求 DTO | **已处理** | #29 交付 Pagination/Ordering（6083e2c），见正文条目 19 |
+| 23 | 没有统一分页请求 DTO | **已处理** | #29 交付 Pagination/Ordering（6083e2c），即本轮 #19 |
 | 25 | requestId 未填入 ApiResponse | **已处理** | 9d2a631 |
 
 ---
@@ -286,7 +291,7 @@ private Long parseTenantIdFromSession() {
 
 ## 优先级总结
 
-| 优先级 | 编号 | 问题 | 模块 |
+| 优先级 | 本轮 # | 问题 | 模块 |
 |--------|------|------|------|
 | **P0-必须修** | #1 | OpenAPI caller 信息未写入 RequestContext | ~~已修复 e5e3bb5~~ |
 | **P0-必须修** | #2 | SecurityFilter userName 取的是 loginId | ~~已修复 c5ddfdd~~ |
@@ -307,4 +312,4 @@ private Long parseTenantIdFromSession() {
 
 1. ~~**openapi 模块是新创建的，存在多个严重问题**（caller 信息丢失、无状态码检查、GET 签名不完整、无 body 大小限制），不建议直接用于生产。~~ → **已修复** (#1: e5e3bb5, #5: de510af, #6: 4dfb607, #8: 7626a86)
 2. ~~**SecurityFilter 的 userName bug** 是功能性错误，会导致所有已登录用户的 userName 字段为 loginId 的字符串形式。~~ → **已修复** (#2: c5ddfdd)
-3. 上轮 P0 问题中 **#3（blurry 注入）和 #4（Long 序列化）仍未修复**。
+3. 本轮 P0 问题中 **#3（blurry 注入）和 #4（Long 序列化）仍未修复**。
