@@ -351,3 +351,109 @@ Hibernate `@SQLRestriction` 等价机制（`RootClass.setWhere`）实现，关�
 **软删降级为 opt-in（#10, 2026-08-03）**：`Auditable` 成为聚合根默认推荐基类，
 `AuditableSoftDeletable` 降级为显式 opt-in（仅业务需要"删除但可恢复"时使用）。机制不变，
 文档与规范已同步更新。详见 spec #10。
+
+### Issue 06（#28）— 分页基建统一收口：全链 1-based（2026-09-15）
+
+**来源**：#28。平台拍板终局（2026-09-15，ZhangColin/aieducenter-admin#61 grill 收口）：
+全链 1-based（请求 + 回显），唯一换算点收在框架。
+
+**判定**：✅ **是框架问题**。0-based 是 DB offset 语义（`PageRequest.of(page,size).getOffset() == page*size`）
+上溯到 wire 的泄漏；各服务每个列表方法手写 `pageable.getPageNumber() + 1` 回显、前端各页复制
+`page - 1` 适配、BFF 两侧 `+1`/`-1` 在 wire 上抵消——漏写一处即静默 0-based，框架层无人拦截。
+off-by-one 换算必然存在一次，应收在框架一处。与 framework-review #19 同域，**本票不代关**。
+
+**根因 reframe**：不是"缺一个工具类"，而是**分页的 wire 契约从未被框架定义**——请求侧语义
+（0/1-based、clamp、默认值）由每个端点各自临时约定，回显侧由每处手写换算维持。定义契约
+（一个类型 + 一个工厂），换算与防御才有唯一落点。
+
+**采纳方案**：三件套，全部落 `cartisan-web`（与 `PageResponse` 同居；请求绑定是 web 概念，
+jOOQ-only 项目经 data-query 已依赖 web 也能用）：
+
+```java
+// 1. 分页请求（含排序——见否决方案 4 的语义论证）
+public record Pagination(int page, int size, List<String> sort) {
+    // compact ctor clamp（固定契约，不做配置面）：page<1→1；size<1→1；size>100→100
+    // 缺省（参数未传）：page=1、size=20（须与显式传 0 区分，见实施备注）
+    public PageRequest toPageRequest() { ... }                          // JPA 写侧/通用
+    public PageRequest toPageRequest(Set<String> allowedFields) { ... } // 白名单排序
+    public long offset() { ... }  // (page-1)*size，jOOQ 读侧直出
+    public int limit() { ... }    // == size
+}
+
+// 2. 不分页列表的排序（导出全量等：客户端控排序但不分页）
+public record Ordering(List<String> sort) {
+    public Sort toSort() { ... }
+    public Sort toSort(Set<String> allowedFields) { ... }
+}
+// Pagination 的排序转换内部复用 Ordering——排序转换全框架唯一实现点。
+// 组件保持扁平 List<String> sort（不能嵌套 Ordering 组件，见否决方案 5）。
+
+// 3. 回显工厂（PageResponse record 已存在，补工厂集中换算）
+PageResponse.of(Page)  // 内部 page = p.getNumber() + 1，替代各服务手写
+```
+
+**组合契约（查询端统一形态）**：不设 Query 基类，参数并列——
+
+- 分页端点：`list(XxxQuery query, Pagination pagination)` → `?filter&page=1&size=20&sort=createdAt,desc`
+- 不分页+控排序端点：`list(XxxQuery query, Ordering ordering)` → `?filter&sort=...`
+- 固定排序端点：只收 `XxxQuery`，排序是 appservice 业务逻辑（`Sort.by(...)` 硬编码）
+- appservice：`findAll(query, pagination)` → `repository.findAll(ConditionSpecifications.of(query), pagination.toPageRequest())`
+- wire 全扁平：Spring MVC 多个 record 参数各自按组件名绑定，零魔法；现有各仓 `@Condition`
+  record 零改动（迁移 = `Pageable` 参数换 `Pagination`）。
+
+**边界语义**：
+- 数值越界静默 clamp（aiplatform `BackofficePages` 先例）；缺省 page=1/size=20（SOP DB-002 已钉）。
+- 非数值（`page=abc`）：record 绑定失败走 `BindException` → 现有 400 handler（`GlobalExceptionHandler:136`），
+  field-error 信封免费，不撞"路径变量类型不匹配→404"防探测惯例。
+- 排序白名单外字段 → **400**（fail loud；静默丢弃 = "传 user_name 实际没排序生效"的隐性 bug）。
+  JPA 侧 `Sort.by("属性名")` 走 criteria 属性解析、未知属性 Hibernate 抛错，非注入面；白名单主要
+  防 jOOQ 侧字符串拼 `DSL.field(name)` 注入。
+- 超尾页：空 items + 原样回显请求页码（Spring `Page` 本就保留请求序号）。
+
+**否决方案**：
+- ❌ Spring `spring.data.web.pageable.one-indexed-parameters=true`：只改 page 解释、不管 size
+  clamp（契约 3 不满足）；全局配置业务方可漏设/误改；`page=0` 在 one-indexed 下变负页。
+- ❌ 自定义 one-indexed `Pageable` resolver 替换：签名仍收 `Pageable`，0-based `getPageNumber()`
+  仍可被业务拿来算术——"漏写一处"的根因没堵死，只是换了隐身衣。
+- ❌ Query 基类 / `PagedQuery` 接口：Java record 不能继承类；接口形态要求每个业务 Query 手写
+  page/size 组件 + 各自调 clamp（模板可漏 = bug 模式复活）；且把分页强塞进每个 Query，
+  不分页查询（下拉、导出）被迫带页。违背标准 2（组合优于继承）。
+- ❌ 排序独立成与 Pagination 平行的第三参数（三参数签名）：分页语义上**依赖**排序——无
+  `ORDER BY` 的 `OFFSET/LIMIT` 窗口不稳定，翻页间数据漂移；排序与分页是同一"有序集取窗"
+  概念的两半，不是正交维度。Spring `Pageable` 含 sort 同理。不分页场景的**客户端控排序**
+  另由 `Ordering` 覆盖（见上），固定排序场景不进 wire。
+- ❌ `Pagination` 嵌套 `Ordering` 组件：Spring 嵌套绑定要求 `ordering.sort=` 路径，破坏 wire 扁平。
+- ❌ 上限/默认值做成属性配置：clamp 在 record 构造内拿不到环境配置（要么挪出构造破坏
+  "record 构造校验不变量"惯例、要么静态 holder）；"统一口径"是本次目的，每 app 各配 = 再分裂。
+- ❌ 白名单外排序字段静默丢弃：隐性失效 bug，fail loud 优于 silent degrade。
+- ❌ `PageQuery` 命名：Query 词根已被业务过滤条件占用（`AdminUserQuery` 等），分页不是查询是
+  呈现参数，词根撞车；`PageRequest` 撞 Spring Data 0-based 同名类（要替换的东西），同名不同义
+  是灾难。
+
+**实施备注**：
+- **缺省与显式 0 的区分**：record 组件须能区分"未传"与"传 0"，否则"缺省 size=20"会被 clamp
+  成 1——用 `Integer` 组件或 Framework 6.1 `@DefaultValue`（Boot 3.4/Framework 6.2 支持），实现时定。
+- `cartisan-web` pom **显式声明 `spring-data-commons`**（`Page`/`PageRequest`/`Sort` 类型；Issue 03
+  补 spring-tx 同款先例）。
+- `cartisan-data-query` package-info 声称"包括分页工具"实为谎言，随 `offset()`/`limit()` 出口兑现。
+- `@CartisanMvcTest` 切片对齐（若 record 绑定行为与完整 MVC 有差异）。
+- 白名单 400 复用 `BaseCodeMessage.BAD_REQUEST`（无占位符通用文案，Issue 03 先例）。
+
+**验收**：
+- `?page=1&size=20&sort=createdAt,desc` 绑定 `Pagination{1,20,[createdAt,desc]}`，
+  `toPageRequest()` → `PageRequest.of(0, 20, ...)`。
+- clamp：`page=0`/`page=-3`→1；`size=0`→1；`size=1000`→100；参数缺省→page=1、size=20。
+- `page=abc` → 400 field-error 信封。
+- `toPageRequest(Set)` 白名单外字段 → 400；`Ordering` 独立使用同语义。
+- 超尾页 → 空 items + 回显请求页码；`PageResponse.of(Page)` 回显 `getNumber()+1`。
+- jOOQ 读侧：`.limit(pagination.limit()).offset(pagination.offset())`。
+- 文档三处旧示例替换：使用手册 5.2（`pageable.getOffset()`）、限界上下文规范
+  `:820-832`（`getPageNumber()+1`）/`:1137-1140`（`@PageableDefault`）→ 三段式新范式。
+
+**消费方落地**：各服务删手写 `+1`/`-1`，`Pageable` 参数换 `Pagination`，`new PageResponse<>` 换
+`PageResponse.of`（平台侧迁移协调票：ZhangColin/aieducenter-architecture#1）；admin-web 删
+`page = (params.page ?? 1) - 1` 适配。
+
+**Out of scope**：`@Condition` 的 jOOQ 对称物（Query record → `org.jooq.Condition` 注解驱动构造）
+——大活且 TypeSafe 风格与字符串列名注解有张力，需要时单独立 issue 走同样流程；
+framework-review #19 的处置另议（本票不代关）。

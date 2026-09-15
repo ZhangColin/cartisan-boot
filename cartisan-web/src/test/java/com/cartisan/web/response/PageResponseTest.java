@@ -1,7 +1,12 @@
 package com.cartisan.web.response;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,5 +55,55 @@ class PageResponseTest {
         );
 
         assertThat(intResponse.items().get(0)).isInstanceOf(Integer.class);
+    }
+
+    @Nested
+    @DisplayName("of(Page) 工厂（1-based 回显）")
+    class OfFactory {
+
+        @Test
+        @DisplayName("Spring 0-based 页码回显为 1-based")
+        void shouldEchoOneBasedPageNumber_whenBuiltFromPage() {
+            PageImpl<String> page = new PageImpl<>(List.of("item1", "item2"), PageRequest.of(0, 10), 100);
+
+            PageResponse<String> response = PageResponse.of(page);
+
+            assertThat(response.items()).containsExactly("item1", "item2");
+            assertThat(response.total()).isEqualTo(100);
+            assertThat(response.page()).isEqualTo(1);
+            assertThat(response.size()).isEqualTo(10);
+        }
+
+        @Test
+        @DisplayName("第二页（0-based 1）回显为 2")
+        void shouldEchoSecondPageAsTwo() {
+            PageImpl<String> page = new PageImpl<>(List.of(), PageRequest.of(1, 20), 100);
+
+            assertThat(PageResponse.of(page).page()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("请求页超出尾页时空列表并原样回显请求页码")
+        void shouldEchoRequestedPage_whenBeyondLastPage() {
+            PageImpl<String> page = new PageImpl<>(List.of(), PageRequest.of(99, 20), 0);
+
+            PageResponse<String> response = PageResponse.of(page);
+
+            assertThat(response.items()).isEmpty();
+            assertThat(response.total()).isZero();
+            assertThat(response.page()).isEqualTo(100);
+            assertThat(response.size()).isEqualTo(20);
+        }
+
+        @Test
+        @DisplayName("page.map 转换内容后回显页码仍正确")
+        void shouldKeepPageNumber_whenContentMapped() {
+            PageImpl<Integer> page = new PageImpl<>(List.of(1, 2), PageRequest.of(4, 2), 100);
+
+            PageResponse<String> response = PageResponse.of(page.map(i -> "item" + i));
+
+            assertThat(response.items()).containsExactly("item1", "item2");
+            assertThat(response.page()).isEqualTo(5);
+        }
     }
 }

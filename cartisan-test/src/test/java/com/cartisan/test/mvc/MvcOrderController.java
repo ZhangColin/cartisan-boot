@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * {@code @CartisanMvcTest} 验证用 Controller。
  *
- * <p>覆盖三种枚举入口（query / path / body）与 RequestContext 叠加场景。</p>
+ * <p>覆盖三种枚举入口（query / path / body）、RequestContext 叠加场景与
+ * Pagination record 绑定（验证切片与完整 MVC 在分页 wire 契约上无差异）。</p>
  */
 @RestController
 @RequestMapping("/test/orders")
@@ -39,11 +40,22 @@ public class MvcOrderController {
         return new ContextView(userId == null ? null : userId.toString());
     }
 
+    @GetMapping("/pagination")
+    public PaginationView pagination(com.cartisan.web.request.Pagination pagination) {
+        return new PaginationView(pagination.page(), pagination.size());
+    }
+
     /**
      * RequestContext 可见性验证用视图。
      *
      * @param userId 当前用户 ID（字符串化，规避 Long → String 序列化干扰断言）
      */
     public record ContextView(String userId) {
+    }
+
+    /**
+     * 分页绑定验证用视图（回显归一化后的值）。
+     */
+    public record PaginationView(Integer page, Integer size) {
     }
 }

@@ -43,4 +43,13 @@ public class SpringDocTestController {
     public TestUserStatus status(@RequestParam TestUserStatus status) {
         return status;
     }
+
+    /**
+     * 分页参数端点：断言 {@code Pagination} 在 springdoc 中自文档为
+     * page/size/sort 顶级 query 参数（#29）。
+     */
+    @GetMapping("/pagination")
+    public List<String> pagination(com.cartisan.web.request.Pagination pagination) {
+        return pagination.sort();
+    }
 }

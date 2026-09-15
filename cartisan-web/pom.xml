@@ -50,6 +50,13 @@
             <artifactId>spring-tx</artifactId>
         </dependency>
 
+        <!-- Spring Data Commons：提供 Page / PageRequest / Sort 类型（Pagination / Ordering 转换出口与
+             PageResponse.of 工厂），不引入任何存储实现；jOOQ-only 项目同样可用。版本由 Spring Boot BOM 管理。 -->
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-commons</artifactId>
+        </dependency>
+
         <!-- Spring Data Redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

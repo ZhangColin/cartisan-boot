@@ -725,6 +725,7 @@ cartisan:
 | | `error(int, String)` | 错误响应（自定义） |
 | | `validationError(List<FieldError>)` | 校验失败响应 |
 | `PageResponse<T>` | `items`, `total`, `page`, `size` | 分页响应字段 |
+| | `of(Page<T>)` | 从 Spring Data Page 构造，1-based 回显页码（见 2.39） |
 | `FieldError` | `field`, `message`, `errorCode` | 字段级错误 |
 
 ### 2.10 请求上下文（com.cartisan.core.context）
@@ -1082,6 +1083,50 @@ cartisan.web.enum-controller.scan-packages=com.example.app.domain,com.example.ap
 
 > 同规：`cartisan.web.error-codes.scan-packages`（@ErrorCodes 渲染的
 > CodeMessage 枚举扫描）缺省策略相同。
+
+### 2.39 分页请求参数（com.cartisan.web.request）
+
+框架定义的分页 wire 契约，**全链 1-based**（请求与回显一致），页码换算与防御收在框架一处，
+业务代码零算术、零 `+1`/`-1` 手写换算。
+
+| 类/方法 | 说明 |
+|--------|------|
+| `Pagination(page, size, sort)` | 分页请求 record，controller 直接声明参数，Spring MVC 按组件名绑定顶级参数 |
+| | 边界契约（固定，非配置）：缺省 `page=1`/`size=20`；`page<1→1`、`size<1→1`、`size>100→100` 静默贴边；非数值 → 400 field-error 信封 |
+| `toPageRequest()` | 转 Spring Data 0-based 分页请求（JPA 写侧；属性名校验交 Hibernate） |
+| `toPageRequest(Set<String> allowedFields)` | 同上，排序属性白名单校验，越界字段 400（fail loud） |
+| `offset()` / `limit()` | jOOQ 读侧直出：`(page-1)*size` 与每页大小 |
+| `Ordering(sort)` | 不分页端点（如导出全量）的客户端控排序 record，`toSort()` / `toSort(白名单)` |
+| `PageResponse.of(Page)` | 回显工厂：1-based 页码集中 `+1`，超尾页空 items + 原样回显请求页码 |
+
+排序 token 语义：属性名与方向关键词（`asc`/`desc`，缺省 ASC）交替，逗号分隔等价多值——
+`?sort=createdAt,desc` 与 `?sort=id,asc&sort=createdAt,desc` 等价。读侧（jOOQ）把排序
+属性拼进 SQL 前必须走白名单转换，防注入。
+
+查询端三段式范式：
+
+```java
+// controller：业务 Query 与分页参数并列，零注解零嵌套
+@GetMapping
+public PageResponse<AdminUserResponse> findAll(AdminUserQuery query, Pagination pagination) {
+    return appService.findAll(query, pagination);
+}
+
+// appservice：一步转 Spring Data 分页请求，工厂回显 1-based 页码
+public PageResponse<AdminUserResponse> findAll(AdminUserQuery query, Pagination pagination) {
+    Page<AdminUser> page = repository.findAll(
+            ConditionSpecifications.fromAnnotation(query), pagination.toPageRequest());
+    return PageResponse.of(page.map(adminUserMapper::convert));
+}
+
+// jOOQ 自组读侧：offset/limit 直出 + 白名单排序
+List<AdminUserDto> rows = dsl.selectFrom(ADMIN_USER)
+        .where(buildConditions(query))
+        .orderBy(toOrderBy(pagination.toSort(ALLOWED_SORT_FIELDS)))
+        .limit(pagination.limit())
+        .offset(pagination.offset())
+        .fetchInto(AdminUserDto.class);
+```
 
 ---
 
@@ -2134,7 +2179,11 @@ public class OrderService {
 public class OrderQueryService {
     private final DSLContext dsl;  // jOOQ
 
-    public Page<OrderDto> queryOrders(OrderQuery query, Pageable pageable) {
+    /** 允许客户端排序的白名单字段（防字符串拼 SQL 注入） */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "id");
+
+    public Page<OrderDto> queryOrders(OrderQuery query, Pagination pagination) {
+        PageRequest pageRequest = pagination.toPageRequest(ALLOWED_SORT_FIELDS);
         // 类型安全的 DSL 查询
         List<OrderDto> orders = dsl.select(
                 ORDER.ID,
@@ -2144,13 +2193,13 @@ public class OrderQueryService {
             )
             .from(ORDER)
             .where(buildConditions(query))
-            .orderBy(OrderConstant)
-            .limit(pageable.getPageSize())
-            .offset(pageable.getOffset())
+            .orderBy(toOrderBy(pageRequest.getSort()))
+            .limit(pagination.limit())
+            .offset(pagination.offset())
             .fetchInto(OrderDto.class);
 
         long total = dsl.fetchCount(ORDER);
-        return new PageImpl<>(orders, pageable, total);
+        return new PageImpl<>(orders, pageRequest, total);
     }
 }
 ```

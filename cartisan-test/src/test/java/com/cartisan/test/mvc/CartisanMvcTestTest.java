@@ -97,4 +97,32 @@ class CartisanMvcTestTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.userId").value("42"));
     }
+
+    // ========== Pagination record 绑定（#29：切片与完整 MVC 行为对齐） ==========
+
+    @Test
+    void shouldBindPaginationRecordAndClamp_whenSlice() throws Exception {
+        mvc.perform(get("/test/orders/pagination")
+                .param("page", "0")
+                .param("size", "999"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.size").value(100));
+    }
+
+    @Test
+    void shouldApplyPaginationDefaults_whenParamsAbsentInSlice() throws Exception {
+        mvc.perform(get("/test/orders/pagination"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.size").value(20));
+    }
+
+    @Test
+    void shouldReturn400FieldError_whenPageNotNumericInSlice() throws Exception {
+        mvc.perform(get("/test/orders/pagination").param("page", "abc"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.errors[0].field").value("page"));
+    }
 }

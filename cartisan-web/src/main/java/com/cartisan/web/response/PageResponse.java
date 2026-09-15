@@ -1,5 +1,7 @@
 package com.cartisan.web.response;
 
+import org.springframework.data.domain.Page;
+
 import java.util.List;
 
 /**
@@ -22,4 +24,15 @@ public record PageResponse<T>(
         /** 每页大小 */
         int size
 ) {
+
+    /**
+     * 从 Spring Data {@link Page} 构造分页响应（1-based 回显）。
+     *
+     * @param page Spring Data 分页结果
+     * @param <T>  列表项类型
+     * @return 分页响应，page 为 {@code page.getNumber() + 1}
+     */
+    public static <T> PageResponse<T> of(Page<T> page) {
+        return new PageResponse<>(page.getContent(), page.getTotalElements(), page.getNumber() + 1, page.getSize());
+    }
 }
