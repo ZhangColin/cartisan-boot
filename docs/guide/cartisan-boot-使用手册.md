@@ -949,6 +949,7 @@ public class PermissionInitService {
 | `post(url, body, responseType)` | 发送签名 POST 请求 |
 | `put(url, body, responseType)` | 发送签名 PUT 请求 |
 | `get(url, responseType)` | 发送签名 GET 请求（query 参数参与签名） |
+| `delete(url, responseType)` | 发送签名 DELETE 请求（无请求体：空 body digest 入签、query 参数参与签名，同 `get`）；回执按 `TypeReference` 反序列化——透传型删除端点的回执常是 `ApiResponse<T>` 信封（data＝删除前终态），由调用方以信封类型取 data |
 | `download(url)` | 发送签名 GET 请求下载**二进制**响应：原始字节全量缓冲（不做字符解码），响应头保留在载体中供 BFF 透传；query 参数参与签名，同 `get` |
 | `BinaryResponse` | 二进制响应载体 record：`statusCode`、`headers`（JDK `HttpHeaders`，大小写不敏感）、`body`（`byte[]` 原始字节） |
 | `OpenApiClientException` | 非 2xx 响应异常，含 statusCode 和 body 字段（binary 路径 body 为 UTF-8 解码后的错误信封文本） |
@@ -2073,6 +2074,15 @@ public class UserClient {
             request,
             new TypeReference<OrderDTO>() {}
         );
+    }
+
+    // DELETE 请求（透传型删除端点，回执是 ApiResponse 信封，data＝删除前终态）
+    public MaterialSummaryResponse deleteMaterial(Long materialId) {
+        ApiResponse<MaterialSummaryResponse> receipt = openApiClient.delete(
+            "http://aiplatform-service/api/backoffice/materials/" + materialId,
+            new TypeReference<ApiResponse<MaterialSummaryResponse>>() {}
+        );
+        return receipt.data();
     }
 }
 ```

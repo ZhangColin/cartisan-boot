@@ -150,6 +150,38 @@ public class OpenApiClient {
         }
     }
 
+    /**
+     * 发送 DELETE 请求，自动签名和传递上下文。
+     *
+     * <p>无请求体：空 body digest 入签、query 参数入签（同 {@link #get}）。回执按
+     * {@code TypeReference} 反序列化——透传型删除端点的回执常是 {@code ApiResponse<T>}
+     * JSON 信封（data＝删除前终态 DTO），调用方以信封类型取 data，而非只拿状态码。</p>
+     */
+    public <T> T delete(String url, TypeReference<T> responseType) {
+        try {
+            URI uri = URI.create(url);
+            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> headers = buildHeaders("DELETE", new byte[0], queryParams);
+
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .DELETE()
+                    .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
+
+            headers.forEach(requestBuilder::header);
+
+            HttpResponse<String> response = httpClient.send(requestBuilder.build(),
+                    HttpResponse.BodyHandlers.ofString());
+
+            validateResponse(response);
+            return readBody(response, responseType);
+        } catch (OpenApiClientException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("OpenApiClient DELETE failed: " + url, e);
+        }
+    }
+
     void validateResponse(HttpResponse<String> response) {
         if (response.statusCode() >= 400) {
             throw new OpenApiClientException(response.statusCode(), response.body());

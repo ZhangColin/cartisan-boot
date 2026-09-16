@@ -587,3 +587,54 @@ public PageRequest toPageRequest(Sort defaultSort)
 
 **消费方落地**：identity#78 搜索端点删手写判空回退，改 `pagination.toPageRequest(DEFAULT_SORT)`；
 admin/payment/app-registry 后续迁移同形适用。
+
+### Issue 09（#33）— OpenApiClient HTTP DELETE 出口：`delete`（2026-09-16）
+
+**来源**：#33。admin 作 BFF 透传 aiplatform 后台知识素材删除端点
+`DELETE /api/backoffice/materials/{id}`（回执＝`ApiResponse<BackofficeMaterialSummaryResponse>`
+信封，data＝删除前终态），阻塞 ZhangColin/aieducenter-admin#69。
+
+**判定**：✅ **是框架问题**。两处缺口应用侧均无法自救（同 #30 判定路径）：
+① `OpenApiClient` 公开面只有 `get/post/put/download`，`sendWithBody` 为 private 且
+分派只认 POST/PUT；② 五头 HMAC 签名拼装与 RequestContext 透传头全 private——设计使然
+（签名收口框架，ADR-0007），应用侧复制签名逻辑发 DELETE 违背收口原则。
+
+**采纳方案**：`OpenApiClient` 新增一个 public 方法（纯新增，既有方法零改动），与 `get()`
+同形复用全部既有机制：
+
+```java
+public <T> T delete(String url, TypeReference<T> responseType)
+// DELETE；无请求体——空 body digest 入签 + query 参数入签 + RequestContext 透传头，
+// 同 get()；≥400 抛 OpenApiClientException(statusCode, body)；全局 readSeconds 超时
+```
+
+- **返回类型化泛型而非裸状态码/void**：透传型删除端点的回执是 JSON 信封（data＝删除前
+  终态 DTO），裸状态码丢弃回执数据；回执语义由端点契约决定，client 不预设"删除无回执"。
+- **client 不解包信封**：`get/post/put` 一律返回整个反序列化 body，调用方以
+  `TypeReference<ApiResponse<T>>` 取 data；解包口径（code 判成功？）是应用层的事。
+- **独立方法而非扩展 `sendWithBody`**：`sendWithBody` 是"有 body 的方法分派"，DELETE
+  无 body 硬塞需造空 publisher 特判；`get()` 先例即独立方法，形状照抄零分叉。
+- **全局 `readSeconds` 超时**，无 per-call 参数（Issue 07 已拍板，不开先例）。
+
+**否决方案**：
+- ❌ `delete(url)` 返回 void/状态码：丢弃信封 data（删除前终态 summary 是回执的一部分），
+  首个消费方即需要它。
+- ❌ client 内部解包信封返回 data：client 从不知道信封形状（既有四方法都不解包），
+  提前固化"code=0 才成功"的应用层口径。
+- ❌ 扩展 `sendWithBody(method, ...)` 通用分派：为无 body 动词造特判，且把 DELETE 混进
+  "with body" 语义；独立方法同形于 `get` 更直白。
+- ❌ `delete(url, body, responseType)` 带体参：本消费方无 body；RFC 9110 对 DELETE body
+  语义未定义，非主流形状，出现消费方再立。
+
+**验收**：
+- DELETE 动词真正发出（server 侧捕获 request method）+ 信封按 `TypeReference` 完整反序列化。
+- 五签名头 + RequestContext 透传头在场（`X-User-Id`/`X-User-Name` 同 `get()` 语义）。
+- ≥400 抛 `OpenApiClientException`，`getStatusCode()`/`getBody()`（JSON 错误信封文本）可读
+  ——admin `AiplatformUpstreamException` 翻译路径（404 KNW_005→2005）零改动。
+- 204 空 body 容忍返回 null；读超时/连接拒绝包装语义与 `get()` 一致。
+- 手册 §2.26/§3.26 同步；`mvn test -pl cartisan-openapi` 全绿（72 tests）。
+
+**消费方落地**：admin#69 `openApiClient.delete(url, new TypeReference<ApiResponse<...>>() {})`
+→ 取 `receipt.data()` 透传；`AiplatformUpstreamException` 翻译路径零改动。
+
+**Out of scope**：带 body 的 DELETE；HEAD/PATCH（零消费方，出现再立）。
