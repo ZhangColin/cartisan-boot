@@ -1,5 +1,6 @@
 package com.cartisan.web.response;
 
+import com.cartisan.web.request.Pagination;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -104,6 +105,35 @@ class PageResponseTest {
 
             assertThat(response.items()).containsExactly("item1", "item2");
             assertThat(response.page()).isEqualTo(5);
+        }
+    }
+
+    @Nested
+    @DisplayName("empty(Pagination) 工厂")
+    class EmptyFactory {
+
+        @Test
+        @DisplayName("空行、总 0、回显请求页码与页大小")
+        void shouldEchoPagination_whenEmpty() {
+            Pagination pagination = new Pagination(3, 50, List.of());
+
+            PageResponse<String> response = PageResponse.empty(pagination);
+
+            assertThat(response.items()).isEmpty();
+            assertThat(response.total()).isZero();
+            assertThat(response.page()).isEqualTo(3);
+            assertThat(response.size()).isEqualTo(50);
+        }
+
+        @Test
+        @DisplayName("与手写空页字面量等价")
+        void shouldEqualHandWrittenLiteral() {
+            Pagination pagination = new Pagination(1, 20, List.of());
+
+            PageResponse<String> empty = PageResponse.empty(pagination);
+            PageResponse<String> literal = new PageResponse<>(List.of(), 0, 1, 20);
+
+            assertThat(empty).isEqualTo(literal);
         }
     }
 }
