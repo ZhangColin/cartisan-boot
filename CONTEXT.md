@@ -542,3 +542,48 @@ public record BinaryResponse(int statusCode, HttpHeaders headers, byte[] body)
 
 **Out of scope**：`upload`（binary 入向 POST，出现消费方再立）；Content-Disposition
 解析（RFC 6266 `filename*` / 编码）；真流式（`InputStream`）；per-call 超时。
+
+### Issue 08（#31）— Pagination 默认排序出口：`toPageRequest(Sort defaultSort)`（2026-09-16）
+
+**来源**：#31。#29 交付的 `Pagination` 空 sort → `Sort.unsorted()`（无 ORDER BY 的窗口
+不稳定，`Pagination` javadoc 自书，也是 sort 并入 Pagination 的理由）。首个迁移消费方
+（aieducenter-identity#78）浮现共同形状：端点有既定默认排序契约（如 `createdAt DESC`——
+admin BFF 不传 sort 依赖它），迁移后需在 AppService 手写判空回退——三连取值
+（`getSort()/getPageNumber()/getPageSize()`）重建 PageRequest，每个有默认排序的端点
+复制一份。
+
+**判定**：✅ **是框架问题**。空 sort = 不稳定窗口是分页语义的内在属性，默认排序回退是
+分页语义的配套，不是端点业务执念；样板在多端点复制，与 admin#61「唯一换算点收在框架」
+的拍板同源。
+
+**根因 reframe**：不是"缺一个重载"，而是**默认排序回退从未有落点**——`Pagination` 定义了
+wire 契约与换算出口，但"wire 没传排序时端点该怎么办"没有框架答案，只能各端点手写。
+
+**采纳方案**：`Pagination` 新增单重载（纯新增，既有方法零改动）：
+
+```java
+public PageRequest toPageRequest(Sort defaultSort)
+// wire 空 sort → 用 defaultSort；wire 传了排序 → 以 wire 为准（defaultSort 不生效）
+// defaultSort 是服务端代码（可信，不做白名单校验）；null → requireNonNull fail loud
+```
+
+- **端点级默认留在调用点参数**：默认排序是端点级契约（每端点不同），作为方法参数显式
+  声明，`Pagination` 保持纯 wire 契约，不知道"搜索端点默认 createdAt DESC"这类业务事实。
+
+**否决方案**：
+- ❌ `Pagination` 构造/绑定层声明默认：把端点业务契约渗进 HTTP 绑定语义；且每个端点
+  默认不同，wire 层无从收口。
+- ❌ 第四重载 `toPageRequest(Set, Sort)`（白名单×默认 2×2 补全）：零消费方（jOOQ 读侧
+  走 offset/limit 不消费 PageRequest；JPA 侧白名单本就非必需），YAGNI，出现消费方再立。
+- ❌ jOOQ 读侧对称出口（`Ordering` 级默认回退）：#31 消费方是 JPA 写侧端点；读侧出现
+  消费方再立。
+
+**验收**：
+- `new Pagination(2, 10, null).toPageRequest(DEFAULT)` → `PageRequest.of(1, 10, DEFAULT)`；
+  空列表 sort 同。
+- wire 传 sort 时返回 wire 排序，DEFAULT 不生效。
+- `toPageRequest((Sort) null)` → NPE（fail loud，编程错误非缺省语义）。
+- `mvn test -pl cartisan-web` 全绿；手册 §2.39 方法表补新出口行。
+
+**消费方落地**：identity#78 搜索端点删手写判空回退，改 `pagination.toPageRequest(DEFAULT_SORT)`；
+admin/payment/app-registry 后续迁移同形适用。

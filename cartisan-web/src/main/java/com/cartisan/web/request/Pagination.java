@@ -2,8 +2,10 @@ package com.cartisan.web.request;
 
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -36,6 +38,7 @@ import java.util.Set;
  * <ul>
  *   <li>JPA 写侧：{@link #toPageRequest()}（无白名单，属性名校验交 Hibernate）</li>
  *   <li>白名单排序：{@link #toPageRequest(Set)}（白名单外字段 400）</li>
+ *   <li>端点默认排序：{@link #toPageRequest(Sort)}（wire 空 sort 时回退端点级默认）</li>
  *   <li>jOOQ 读侧：{@link #offset()} / {@link #limit()} 直出，配合
  *       {@link Ordering#toSort(Set)} 白名单防注入</li>
  * </ul>
@@ -84,6 +87,24 @@ public record Pagination(Integer page, Integer size, List<String> sort) {
      */
     public PageRequest toPageRequest(Set<String> allowedFields) {
         return PageRequest.of(page - 1, size, toOrdering().toSort(allowedFields));
+    }
+
+    /**
+     * 转换为 Spring Data 0-based 分页请求：wire 未传排序时回退端点级默认排序。
+     *
+     * <p>无 ORDER BY 的 OFFSET/LIMIT 窗口不稳定（分页语义依赖排序），有既定排序
+     * 契约的端点在此声明默认（如 {@code Sort.by(Sort.Direction.DESC, "createdAt")}），
+     * 替代各端点手写"判空 sort 后三连取值重建 PageRequest"的回退样板（#31）。
+     * wire 传了排序时以 wire 为准，{@code defaultSort} 不生效。</p>
+     *
+     * @param defaultSort 端点默认排序（服务端代码可信，不做白名单校验）
+     * @return PageRequest（页码已转换为 0-based）
+     */
+    public PageRequest toPageRequest(Sort defaultSort) {
+        Objects.requireNonNull(defaultSort, "defaultSort must not be null");
+
+        Sort sort = toOrdering().toSort();
+        return PageRequest.of(page - 1, size, sort.isSorted() ? sort : defaultSort);
     }
 
     /**

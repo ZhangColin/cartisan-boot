@@ -1098,6 +1098,7 @@ cartisan.web.enum-controller.scan-packages=com.example.app.domain,com.example.ap
 | | 边界契约（固定，非配置）：缺省 `page=1`/`size=20`；`page<1→1`、`size<1→1`、`size>100→100` 静默贴边；非数值 → 400 field-error 信封 |
 | `toPageRequest()` | 转 Spring Data 0-based 分页请求（JPA 写侧；属性名校验交 Hibernate） |
 | `toPageRequest(Set<String> allowedFields)` | 同上，排序属性白名单校验，越界字段 400（fail loud） |
+| `toPageRequest(Sort defaultSort)` | wire 未传排序时回退端点级默认排序（如 `Sort.by(DESC, "createdAt")`）；wire 传了排序则以 wire 为准 |
 | `offset()` / `limit()` | jOOQ 读侧直出：`(page-1)*size` 与每页大小 |
 | `Ordering(sort)` | 不分页端点（如导出全量）的客户端控排序 record，`toSort()` / `toSort(白名单)` |
 | `PageResponse.of(Page)` | 回显工厂：1-based 页码集中 `+1`，超尾页空 items + 原样回显请求页码 |

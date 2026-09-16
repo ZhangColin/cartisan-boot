@@ -157,6 +157,38 @@ class PaginationTest {
     }
 
     @Nested
+    @DisplayName("默认排序回退（toPageRequest(Sort)，#31）")
+    class DefaultSortFallback {
+
+        private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
+
+        @Test
+        @DisplayName("wire 未传排序（null 或空列表）时回退端点默认排序")
+        void shouldApplyDefaultSort_whenWireSortEmpty() {
+            assertThat(new Pagination(2, 10, null).toPageRequest(DEFAULT_SORT))
+                    .isEqualTo(PageRequest.of(1, 10, DEFAULT_SORT));
+            assertThat(new Pagination(2, 10, List.of()).toPageRequest(DEFAULT_SORT))
+                    .isEqualTo(PageRequest.of(1, 10, DEFAULT_SORT));
+        }
+
+        @Test
+        @DisplayName("wire 传了排序时以 wire 为准，默认排序不生效")
+        void shouldPreferWireSort_whenWireSortPresent() {
+            PageRequest pageRequest = new Pagination(1, 20, List.of("name,asc")).toPageRequest(DEFAULT_SORT);
+
+            assertThat(pageRequest.getSort()).isEqualTo(Sort.by(Sort.Direction.ASC, "name"));
+        }
+
+        @Test
+        @DisplayName("null 默认排序 fail loud（编程错误，非缺省语义）")
+        void shouldRejectNullDefaultSort() {
+            assertThatThrownBy(() -> new Pagination(1, 20, null).toPageRequest((Sort) null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("defaultSort");
+        }
+    }
+
+    @Nested
     @DisplayName("offset / limit 出口（jOOQ 读侧）")
     class OffsetLimit {
 
