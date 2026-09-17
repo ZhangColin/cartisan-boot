@@ -58,10 +58,12 @@ public class OpenApiClient {
     private <T> T sendWithBody(String method, String url, Object body, TypeReference<T> responseType) {
         try {
             byte[] bodyBytes = body != null ? objectMapper.writeValueAsBytes(body) : new byte[0];
-            Map<String, String> headers = buildHeaders(method, bodyBytes, null);
+            URI uri = URI.create(url);
+            Map<String, String> queryParams = extractQueryParams(uri.getRawQuery());
+            Map<String, String> headers = buildHeaders(method, bodyBytes, queryParams);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(uri)
                     .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
 
             if ("POST".equals(method)) {

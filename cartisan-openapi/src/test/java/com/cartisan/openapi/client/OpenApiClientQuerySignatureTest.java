@@ -144,6 +144,33 @@ class OpenApiClientQuerySignatureTest {
         assertServerSignatureVerificationPasses();
     }
 
+    @Test
+    void shouldPassServerSignatureVerification_whenPostUrlContainsQuery() throws Exception {
+        startCapturingServer("/api/backoffice/materials");
+        OpenApiClient client = createClient();
+
+        // #35 附带发现：sendWithBody 曾恒传 null queryParams，POST 带 query 必 401
+        client.post("http://127.0.0.1:" + port + "/api/backoffice/materials"
+                        + "?from=" + URLEncoder.encode("2026-09-01T00:00:00Z", StandardCharsets.UTF_8),
+                Map.of("title", "素材"),
+                new TypeReference<Map<String, Object>>() {});
+
+        assertServerSignatureVerificationPasses();
+    }
+
+    @Test
+    void shouldPassServerSignatureVerification_whenPutUrlContainsQuery() throws Exception {
+        startCapturingServer("/api/backoffice/materials/42");
+        OpenApiClient client = createClient();
+
+        client.put("http://127.0.0.1:" + port + "/api/backoffice/materials/42"
+                        + "?path=" + URLEncoder.encode("src/main.ts", StandardCharsets.UTF_8),
+                Map.of("title", "素材"),
+                new TypeReference<Map<String, Object>>() {});
+
+        assertServerSignatureVerificationPasses();
+    }
+
     /** 捕获 server：记录 wire 上的 raw query、请求头、body，回 200 JSON 信封。 */
     private void startCapturingServer(String path) {
         server.createContext(path, exchange -> {

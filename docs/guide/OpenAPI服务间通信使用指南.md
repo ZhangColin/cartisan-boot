@@ -207,9 +207,9 @@ public class OpenApiClientException extends RuntimeException {
 
 ScopedValue 不可在已绑定的作用域中 rebind。Interceptor 运行在 Spring MVC 层，此时 RequestContext 已绑定，无法写入 caller 信息。所以验签在 Filter 层（可用 `RequestContext.run()` 创建新绑定），注解和权限检查在 Interceptor 层。
 
-### 5.2 为什么 GET 请求的 query 参数参与签名？
+### 5.2 为什么 query 参数参与签名？
 
-防止攻击者修改 URL query 参数。客户端从 URL 解析 query，服务端从 `request.getQueryString()` 提取，双方使用相同的规范化策略参与签名计算。
+防止攻击者修改 URL query 参数。客户端与服务端均以 **raw 形态**（percent-encoded 原样）入签：客户端取 `URI.getRawQuery()`，服务端取 `request.getQueryString()`，所有方法（GET/POST/PUT/DELETE）同口径。query 值含 `:`、`/`、中文、空格等需编码字符时 raw 与 decoded 形态才分叉——取 decoded 形态（`URI.getQuery()`）会导致验签 401 Signature mismatch（#35）。
 
 ### 5.3 为什么 body 大小限制默认 1MB？
 
@@ -229,7 +229,7 @@ ScopedValue 不可在已绑定的作用域中 rebind。Interceptor 运行在 Spr
 | **OPENAPI-002** | `OpenApiClient` 使用同步 `HttpClient.send()`，高并发场景考虑异步改造 |
 | **OPENAPI-003** | `NonceRepository` 需要业务项目提供 Redis 实现 |
 | **OPENAPI-004** | `RemoteApiKeyProvider` 的缓存是本地 Caffeine，多实例部署时有短暂不一致（默认 30 分钟） |
-| **OPENAPI-005** | GET 请求签名包含 query 参数，URL 变更会影响签名验证 |
+| **OPENAPI-005** | 签名包含 URL query 参数（所有方法，raw 形态 percent-encoded 原样入签），URL 变更会影响签名验证 |
 
 ---
 

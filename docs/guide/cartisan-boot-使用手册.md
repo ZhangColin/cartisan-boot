@@ -417,7 +417,7 @@ public interface ProductRepository extends BaseRepository<Product, Long> {
 | **OPENAPI-002** | `OpenApiClient` 使用同步阻塞调用，高并发场景考虑异步改造 |
 | **OPENAPI-003** | `NonceRepository` 需要业务项目提供 Redis 实现 |
 | **OPENAPI-004** | `RemoteApiKeyProvider` 缓存是本地 Caffeine，多实例有短暂不一致（30 分钟） |
-| **OPENAPI-005** | GET 请求签名包含 query 参数，URL 变更会影响签名验证 |
+| **OPENAPI-005** | 签名包含 URL query 参数（所有方法，raw 形态 percent-encoded 原样入签），URL 变更会影响签名验证 |
 
 > **📖 详细使用指南**：[OpenAPI服务间通信使用指南.md](./OpenAPI服务间通信使用指南.md)
 
