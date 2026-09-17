@@ -97,7 +97,7 @@ public class OpenApiClient {
     public BinaryResponse download(String url) {
         try {
             URI uri = URI.create(url);
-            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> queryParams = extractQueryParams(uri.getRawQuery());
             Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
@@ -128,11 +128,11 @@ public class OpenApiClient {
     public <T> T get(String url, TypeReference<T> responseType) {
         try {
             URI uri = URI.create(url);
-            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> queryParams = extractQueryParams(uri.getRawQuery());
             Map<String, String> headers = buildHeaders("GET", new byte[0], queryParams);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
+                    .uri(uri)
                     .GET()
                     .timeout(Duration.ofSeconds(properties.getTimeout().getReadSeconds()));
 
@@ -160,7 +160,7 @@ public class OpenApiClient {
     public <T> T delete(String url, TypeReference<T> responseType) {
         try {
             URI uri = URI.create(url);
-            Map<String, String> queryParams = extractQueryParams(uri.getQuery());
+            Map<String, String> queryParams = extractQueryParams(uri.getRawQuery());
             Map<String, String> headers = buildHeaders("DELETE", new byte[0], queryParams);
 
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
