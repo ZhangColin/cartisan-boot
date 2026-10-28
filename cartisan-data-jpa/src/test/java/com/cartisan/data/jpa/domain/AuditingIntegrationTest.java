@@ -9,8 +9,10 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 /**
  * 审计功能集成测试。
@@ -88,7 +90,9 @@ class AuditingIntegrationTest {
         TestAuditableEntity updated = repository.findById(saved.getId()).orElseThrow();
 
         // Then: createdAt/createdBy 保持不变，updatedAt/updatedBy 被更新
-        assertThat(updated.getCreatedAt()).isEqualTo(saved.getCreatedAt());
+        // 时间列只有微秒精度，落库往返会截断/四舍五入纳秒（偏差 ≤1μs），用容差比较（见 PITFALLS.md PIT-027）
+        assertThat(updated.getCreatedAt())
+                .isCloseTo(saved.getCreatedAt(), within(1, ChronoUnit.MICROS));
         assertThat(updated.getCreatedBy()).isEqualTo(1L);
         assertThat(updated.getUpdatedBy()).isEqualTo(2L);
         assertThat(updated.getUpdatedAt()).isAfter(originalLastModifiedDate);

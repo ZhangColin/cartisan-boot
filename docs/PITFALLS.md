@@ -2439,3 +2439,26 @@ builder.modulesToInstall(myModule);
 后者能启动上下文，但 controller 过滤语义不生效。
 
 **记忆口诀**：切片过滤认主类扫描，嵌套配置只配启动。
+
+---
+
+### PIT-027 (2026-10-28)：审计时间字段断言必须容忍数据库精度舍入（Windows 偶发 flaky）
+
+**场景**：`AuditingIntegrationTest` 在 Windows 上偶发失败，Mac 上从不复现。失败信息里期望与实际只差最后 3 位纳秒：`.390732400`（纳秒）vs `.390732`（微秒）。
+
+**原因**：
+1. `@CreatedDate` 用 `LocalDateTime.now()` 填充。Windows 时钟（`GetSystemTimePreciseAsFileTime`，~100ns 步进）会产生亚微秒纳秒；macOS 系统时钟是微秒对齐的，舍入无损，所以 Mac 不复现
+2. H2 / PostgreSQL 的时间列只有微秒精度（H2 DDL 即 `timestamp(6)`），且 H2 落库时是**四舍五入**而非截断——纳秒 `.7291869` 会进位成 `.729187`，与内存值相差 ±1μs
+3. `saveAndFlush` 后的**内存实体**保留纳秒值，`clear()` 后重查回来的是**舍入值**——是否相等取决于保存瞬间的纳秒尾数，故概率性失败
+
+**解决**：比较经过数据库往返的时间字段，用 `isCloseTo` 容差比较，容差覆盖 DB 舍入的最大偏差（0.5μs）。注意**两边 `truncatedTo(MICROS)` 也不够**——舍入可能向上进位 1μs：
+
+```java
+// ✅ 容差比较，覆盖截断与四舍五入两种偏差
+assertThat(reloaded.getCreatedAt())
+        .isCloseTo(inMemory.getCreatedAt(), within(1, ChronoUnit.MICROS));
+
+// ❌ 两边 truncatedTo(MICROS) 后 isEqualTo 仍会偶发失败（进位差 1μs）
+```
+
+**记忆口诀**：时间过库微秒四舍五入，断言用 isCloseTo 容差；Mac 对齐 Win 不齐，flaky 先查精度。
