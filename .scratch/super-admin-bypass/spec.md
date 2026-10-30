@@ -1,7 +1,7 @@
 # spec：cartisan-security 授权 bypass 扩展点（AuthorizationBypassResolver）
 
 > Feature: `super-admin-bypass`
-> 决策依据：`CONTEXT.md` 决策日志 Issue 01 + 判定标准 1-4
+> 决策依据：`GLOSSARY.md` 决策日志 Issue 01 + 判定标准 1-4
 > 关联 issue：`issues/01-super-admin-permission-bypass.md`（已 `ready-for-agent`）
 
 ## 问题陈述
@@ -70,7 +70,7 @@ public interface AuthorizationBypassResolver {
 - 拦截器 bean 的创建需改为接收 resolver（通过 ObjectProvider / Optional 解析，bean 不存在时传 empty）。
 - 不新增配置属性（不做配置驱动的 `super-admin-roles`）。
 
-**架构决策**（遵守 `CONTEXT.md` 标准 1-4）：
+**架构决策**（遵守 `GLOSSARY.md` 标准 1-4）：
 
 - 标准 1（不特化业务概念）：中性 SPI，"是否 bypass"归应用决策。
 - 标准 2（组合优于继承）：resolver bean 注入，非 template method。
@@ -115,7 +115,7 @@ public interface AuthorizationBypassResolver {
 
 ## 补充说明
 
-- 决策依据与候选方案否决理由：见 `CONTEXT.md` 决策日志 Issue 01 + 判定标准 1-4。
+- 决策依据与候选方案否决理由：见 `GLOSSARY.md` 决策日志 Issue 01 + 判定标准 1-4。
 - 原 issue（已 triage 为 `ready-for-agent`）：`issues/01-super-admin-permission-bypass.md`。
 - 消费方落地要点（admin）：实现 resolver 委托 `adminUserPermissionAppService::isSuperAdmin`；删除 `AdminUserPermissionAppService.getPermissions()` 注释"由 SaToken 拦截器直接放行"的误导；更新 admin ADR 0002（从"等框架"→"框架已决策，按此实施"）。
 - 命名注意：本 feature 目录名 `super-admin-bypass` 沿用原 issue slug（历史遗留，不改）；SPI 本身用中性命名 `AuthorizationBypassResolver`。

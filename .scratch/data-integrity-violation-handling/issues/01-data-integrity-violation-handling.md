@@ -69,7 +69,7 @@ aieducenter-app-registry 在设计 `app_code`（全局唯一、不可复用的�
 
 **框架侧 triage + 落地（2026-07-28）**：
 
-- **判定**：✅ 是框架问题——通用缺口（任何用唯一约束/外键的消费应用，并发 race / 漏查重时都会撞 500；500 是语义错误）。详见 `CONTEXT.md` Issue 03。
+- **判定**：✅ 是框架问题——通用缺口（任何用唯一约束/外键的消费应用，并发 race / 漏查重时都会撞 500；500 是语义错误）。详见 `GLOSSARY.md` Issue 03。
 - **采纳**：C1 精确分级——`DuplicateKeyException`→409（复用 `BaseCodeMessage.CONFLICT`）；其余 `DataIntegrityViolationException`（外键/check/not-null）→400（复用 `BAD_REQUEST`）。响应体只给通用文案，DB 原始消息 WARN 入日志（防 schema 细节泄漏）。不新增枚举常量。
 - **否决**：C3（关不掉 race）/ C2（丢失"重复 vs 其余"区分）/ 复用 `DUPLICATE`（`{0}` 占位符填不出，渲染字面 `{0}`）/ 透出 `ex.getMessage()`（泄漏 DB schema）/ 新增 `DATA_INTEGRITY_VIOLATION` 专用码（YAGNI）。
 - **改动**：`GlobalExceptionHandler` +2 `@ExceptionHandler`；`cartisan-web/pom.xml` 显式声明 `spring-tx`（`org.springframework.dao.*` 所在 jar，原本仅经 redis 传递性可见）；`GlobalExceptionHandlerTest` +2 用例（AC10/AC11）；`TestController` +2 端点。

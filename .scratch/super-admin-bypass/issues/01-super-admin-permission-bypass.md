@@ -66,7 +66,7 @@ aieducenter-admin 已踩坑：
 ## Comments
 
 **框架侧 triage 完成（2026-07-27）**：✅ 接受为框架缺口。但方案**不是** F1/F3/F2 任何一个，
-而是经 grilling 修正后的新设计——详见 `CONTEXT.md` 决策日志 Issue 01。
+而是经 grilling 修正后的新设计——详见 `GLOSSARY.md` 决策日志 Issue 01。
 
 要点：
 - **采纳**：中性 SPI `AuthorizationBypassResolver { boolean shouldBypass(Long loginId); }`，
@@ -74,7 +74,7 @@ aieducenter-admin 已踩坑：
 - **否决 F1（`SuperAdminResolver`）**：签名骨架对，但命名特化"超管"业务概念——改为中性 `AuthorizationBypass`（标准 1）。
 - **否决 template method**：组合（resolver bean）优于继承（标准 2）。
 - **否决 context object**：边缘场景 YAGNI（标准 4）。
-- **否决 F3 / F2**：见 CONTEXT.md。
+- **否决 F3 / F2**：见 GLOSSARY.md。
 
 Status → `ready-for-agent`，等框架侧实施 SPI + 拦截器改动 + 测试。
 

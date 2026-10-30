@@ -44,4 +44,4 @@ Triage 使用五个 canonical 角色标签（needs-triage / needs-info / ready-f
 
 ### Domain docs
 
-Single-context 布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。
+Single-context 布局：根目录 `GLOSSARY.md` + `docs/adr/`。详见 `docs/agents/domain.md`。

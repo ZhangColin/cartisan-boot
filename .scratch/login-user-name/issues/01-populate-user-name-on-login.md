@@ -72,6 +72,6 @@ aieducenter-admin 已踩坑：
 **Triage（2026-07-28）**：✅ 判定为框架问题，方案已定型 → spec 见 `../spec.md`（`ready-for-agent`）。
 决策摘要：根因 reframe 为 `login` 契约残缺；采纳**破坏性补全签名**（两个 `login` 重载各加 `String userName`，
 不保留旧重载、不 `@Deprecated`）；scope 只锁路径 A（login 写 session），路径 B（`X-User-Name` header 转发）
-为下游消费者、另立 issue。完整决策记录见根 `CONTEXT.md` Issue 02。
+为下游消费者、另立 issue。完整决策记录见根 `GLOSSARY.md` Issue 02。
 
 **Resolved（2026-07-28）**：框架侧实现已提交（`efcb1e7`），两个 `login` 重载已补全 `userName` 参数、javadoc 已更新、测试通过。本 issue 关闭。应用侧（admin 等）的签名迁移由各消费应用自行处理，不在框架 scope。

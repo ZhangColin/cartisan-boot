@@ -5,7 +5,7 @@
 >
 > **编号约定**：两轮各自独立编号。`上轮 #N` 指下方「上轮 Review 处理情况」表
 > （2026-04-09）；`本轮 #N` 指正文各节与「优先级总结」（2026-04-11，11/12 空缺为
-> 已删除条目）。**裸编号默认本轮**——外部引用（CONTEXT.md 等）的
+> 已删除条目）。**裸编号默认本轮**——外部引用（GLOSSARY.md 等）的
 > `framework-review #19` 即本轮 #19（分页 DTO）。
 
 ---
@@ -284,7 +284,7 @@ private Long parseTenantIdFromSession() {
 > **已处理**（#29，6083e2c）：交付 `com.cartisan.web.request.Pagination`（page/size/sort，
 > 全链 1-based + clamp 契约 + 白名单排序）与 `Ordering`（不分页控排序），
 > `PageResponse.of(Page)` 工厂回显——覆盖本条诉求的完整超集。
-> 决策记录见 `CONTEXT.md` Issue 06。
+> 决策记录见 `GLOSSARY.md` Issue 06。
 
 ---
 

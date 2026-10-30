@@ -69,8 +69,8 @@ schema 细节）**只 WARN 入日志**供运维排查，不进响应体（避免
 - **为什么在 web 层接、不在 data-jpa 包装成 `CartisanException`**：异常在**事务提交时**才抛
   （`BaseRepositoryImpl.save()` 不刷盘，INSERT 在 commit 时执行），repository 适配器返回后才发生、接不到；
   且 data-jpa 包装覆盖不了 jOOQ / 原生 SQL / 批量 / 级联等其它写入路径，web 的 `@ControllerAdvice` 是唯一能
-  横切所有路径的位置；此外包装会把"409 vs 400"的 HTTP 状态语义塞进数据层。详见 `CONTEXT.md` Issue 03。
-- **否决的替代方案**（理由见 `CONTEXT.md` Issue 03）：
+  横切所有路径的位置；此外包装会把"409 vs 400"的 HTTP 状态语义塞进数据层。详见 `GLOSSARY.md` Issue 03。
+- **否决的替代方案**（理由见 `GLOSSARY.md` Issue 03）：
   - C3 仅文档化"消费方先查再存"——关不掉并发 race。
   - C2 只接父类、统一一个状态码——丢失"重复 vs 其余"的区分。
   - 复用 `DUPLICATE`——占位符 `{0}` 填不出。
@@ -100,7 +100,7 @@ schema 细节）**只 WARN 入日志**供运维排查，不进响应体（避免
 - **消费方"先查再存"主路径**：仍由应用层 `throw DomainException(DUPLICATE)` 返回具体字段消息，本 spec 不动。
 - **DB 原始消息进响应体**：明确不做（信息泄漏）。
 - **新增 `BaseCodeMessage` 专用码**：YAGNI，不做。
-- **data-jpa 层包装成 `CartisanException`**：经评估否决（见上 / `CONTEXT.md` Issue 03）。
+- **data-jpa 层包装成 `CartisanException`**：经评估否决（见上 / `GLOSSARY.md` Issue 03）。
 - **把完整性冲突细分为 422、或区分 insert-FK vs delete-FK**：框架层无法从 raw `DataIntegrityViolationException`
   可靠区分；统一 400 已满足"4xx 非 500"的核心目标。如某应用需要更细区分，应由其应用层在已知语义处自行抛
   `DomainException`。
@@ -110,7 +110,7 @@ schema 细节）**只 WARN 入日志**供运维排查，不进响应体（避免
 
 - **根因 reframe**：本问题不是"缺一个方便的异常处理方法"，而是 `GlobalExceptionHandler` 缺一个"把 DB 完整性冲突
   翻译成正确 4xx"的统一出口——500 是**语义错误**（约束冲突是客户端冲突，不是服务故障）。完整决策记录见
-  `CONTEXT.md` Issue 03。
+  `GLOSSARY.md` Issue 03。
 - **来源**：aieducenter-app-registry 设计 `app_code`（全局唯一、不可复用的应用稳定标识）撞名场景
   （`.scratch/data-integrity-violation-handling/issues/01-data-integrity-violation-handling.md`）。
 - **消费方落地**：app-registry 等无需改动；DB 唯一约束兜底路径从 500 自动变 409，"先查再存"主路径（具体字段消息）不受影响。

@@ -21,7 +21,7 @@ where 片段附加在根实体的持久化映射上，至于该 where 是否作�
 - `count` / `existsById` 等派生读方法
 
 这些路径已由 restriction 覆盖并经回归测试固化（见 spec #3 的 Testing Decisions 行为矩阵、
-CONTEXT.md Issue 05）。**关联级 to-one 加载**是否被过滤，框架**不额外保证、不固化其行为**——
+GLOSSARY.md Issue 05）。**关联级 to-one 加载**是否被过滤，框架**不额外保证、不固化其行为**——
 按 Hibernate 实际语义即得，不做探针、不写回归测试强行钉死某种结果（钉死反而会在 Hibernate
 版本升级、关联策略变更时变成脆弱的假契约）。
 
@@ -32,4 +32,4 @@ CONTEXT.md Issue 05）。**关联级 to-one 加载**是否被过滤，框架**�
 
 - #9 —— code-review 后续：US12 关联加载测试缺口，决定移入 Out of Scope（本文档即其落地）。
 - #3（US12）—— 软删读过滤 spec 的关联加载 user story 与 Testing Decisions 的「关联加载」条目，
-  均已标注为 Out of Scope（见 issue 正文与 CONTEXT.md Issue 05）。
+  均已标注为 Out of Scope（见 issue 正文与 GLOSSARY.md Issue 05）。

@@ -43,8 +43,8 @@ aieducenter-app-registry 在设计签名 facet（`ar_api_keys`）时审视 `perm
 **框架侧 triage（2026-07-28）**：✅ 判定为**臆想需求（speculative）**，采纳疑问 2 的"简化去掉"。
 
 - 疑问 1（是否真实被使用）：**否**。`hcy_payment` 全部裸用 `@RequireSignature`（无 `permission=`）；`aieducenter-platform` 的 permissions 全是 admin RBAC，与签名无关；app-registry 不打算用。
-- 疑问 2（简化去掉）：**采纳**。硬删 `permissions` 字段 + `hasPermission`、`@RequireSignature.permission()` 属性、拦截器 403 块、`RemoteApiKeyProvider` 的 permissions 解析；不留 hook（纯 YAGNI）。对齐 CONTEXT.md 标准 4 + Issue 02 破坏性补全先例。
+- 疑问 2（简化去掉）：**采纳**。硬删 `permissions` 字段 + `hasPermission`、`@RequireSignature.permission()` 属性、拦截器 403 块、`RemoteApiKeyProvider` 的 permissions 解析；不留 hook（纯 YAGNI）。对齐 GLOSSARY.md 标准 4 + Issue 02 破坏性补全先例。
 - 疑问 3（保留并文档化空集默认）：**否决**——为臆想概念留一等地位，维护负担不减。
 
 signature 回归纯**认证**（验签 = 已登记应用可调）；未来若真需机机 ACL，由应用层实现或届时新增窄 SPI。
-决策详见 `CONTEXT.md` → Issue 04。已实现：`cartisan-openapi` 测试 42 全绿。
+决策详见 `GLOSSARY.md` → Issue 04。已实现：`cartisan-openapi` 测试 42 全绿。

@@ -14,7 +14,7 @@ Sa-Token"自相矛盾的措辞，改为说明 `userName` 由框架写入。
 unit（`MockedStatic<StpUtil>` 风格）随签名连带更新、保留 `timeoutSeconds <= 0` / `loginId == null` 等边界测试；
 读端 `SecurityFilter` 逻辑不变、其测试维持有效。
 
-完整背景见 `../spec.md` 与 parent `01-populate-user-name-on-login.md`；决策记录见根 `CONTEXT.md` Issue 02。
+完整背景见 `../spec.md` 与 parent `01-populate-user-name-on-login.md`；决策记录见根 `GLOSSARY.md` Issue 02。
 消费方迁移（admin 等，在其它仓库）不在本 ticket scope。
 
 **Blocked by:** None — 可立即开始

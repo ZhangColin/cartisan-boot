@@ -53,7 +53,7 @@ Sa-Token Session 的 `"userName"` key 读取 userName 写入 `RequestContext`，
   原 spec 验收里"现有 `login(Long)` / `login(Long, long)` 行为不变（向后兼容）"一条**作废**。
 - **javadoc 更新**：移除 `login` 文档里"业务层应通过 `StpUtil.getSession().set("userName", ...)` 将用户名
   存入 Session"这段把责任外推、且与"不直接依赖 Sa-Token"自相矛盾的措辞；改为说明 `userName` 由框架写入。
-- **否决的替代方案**（理由见 CONTEXT.md Issue 02）：
+- **否决的替代方案**（理由见 GLOSSARY.md Issue 02）：
   - 旧重载 `@Deprecated` + 加新重载（过渡兼容）——调用点已知且少，不值得维护两套。
   - `recordUserName(String)` 两步法——仍可漏第二步，未消除根因。
   - `UserNameResolver` SPI 自动解析——把"如何按 loginId 查用户名"耦合进框架，违"不特化业务概念"。
@@ -90,7 +90,7 @@ Sa-Token Session 的 `"userName"` key 读取 userName 写入 `RequestContext`，
 
 - **根因 reframe**：本问题不是"缺一个方便的重载"，而是 `login` 契约残缺——`userName` 本是登录身份的一部分
   （`RequestContext` 一等字段、`SecurityFilter` 必读），却没进 `login` 签名。补全契约后，"StpUtil 泄漏"与"漏写"
-  一并消除。完整决策记录见 `CONTEXT.md` Issue 02。
+  一并消除。完整决策记录见 `GLOSSARY.md` Issue 02。
 - **来源**：aieducenter-admin Phase 0 RBAC 修复 Bug ④（`.scratch/login-user-name/issues/01-populate-user-name-on-login.md`）。
   admin 侧不被阻塞：会先在应用层补 `StpUtil.getSession().set(...)` 修症状；本 spec 消除根因、防止每个消费方重复踩坑。
 - **消费方落地（示例）**：admin 登录服务迁移到新签名、传入用户昵称，并删除应用层手补 `StpUtil` 的临时修复。
